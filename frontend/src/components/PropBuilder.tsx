@@ -21,6 +21,12 @@ import {
   Tooltip,
   Divider,
   Badge,
+  TableContainer,
+  Table,
+  TableHead,
+  TableBody,
+  TableRow,
+  TableCell,
 } from "@mui/material";
 import {
   PlayArrow,
@@ -134,7 +140,15 @@ const PropBuilder: React.FC = () => {
       const response = await fetch(`${API_BASE}${endpoint}`);
       if (!response.ok) throw new Error("Failed to fetch PTO data");
       const data = await response.json();
-      setPtoData(data.data);
+      const safeProps = (data.data.props || []).filter((p: any, i: number) => {
+        const valid = p && typeof p === 'object' && p.prop && p.prop.sport;
+        if (!valid) {
+          console.warn(`[PropBuilder] Skipping malformed prop at index ${i}:`, p);
+        }
+        return valid;
+      });
+      console.log('[PropBuilder] Filtered safeProps:', safeProps);
+      setPtoData({ ...data.data, props: safeProps });
     } catch (err) {
       setError(err instanceof Error ? err.message : "Unknown error");
     } finally {
@@ -364,132 +378,36 @@ const PropBuilder: React.FC = () => {
         {scraperStatus?.is_running && filteredProps.length === 0 ? (
           <CircularProgress size={32} />
         ) : filteredProps.length > 0 ? (
-          <Grid container spacing={1} sx={{ width: "100%" }}>
-            {filteredProps.map((propData, index) => {
-              const prop = propData.prop;
-              const teams = prop.teams?.filter((t) => t) || [];
-              const teamsText =
-                teams.length >= 2
-                  ? `${teams[0]} vs ${teams[1]}`
-                  : teams[0] || "TBD";
-
-              return (
-                <Grid item xs={12} md={6} lg={4} key={index}>
-                  <Card
-                    sx={{ height: "100%", position: "relative" }}
-                  >
-                    <CardContent sx={{ p: 1.5 }}>
-                      {/* Header */}
-                      <Box
-                        sx={{ display: "flex", alignItems: "center", mb: 0.5 }}
-                      >
-                        {getSportEmoji(prop.sport)}
-                        <Typography
-                          variant="subtitle2"
-                          sx={{ ml: 0.5, fontWeight: "bold" }}
-                        >
-                          {prop.sport.toUpperCase()}
-                        </Typography>
-                        <Box sx={{ flexGrow: 1 }} />
-                        {getEvTrend(prop.ev)}
-                      </Box>
-
-                      {/* Teams and Time */}
-                      <Typography
-                        variant="body2"
-                        color="text.secondary"
-                        sx={{ mb: 0.5 }}
-                      >
-                        {teamsText}
-                      </Typography>
-                      {prop.gameTime && (
-                        <Typography
-                          variant="caption"
-                          color="text.secondary"
-                        >
-                          ⏰ {prop.gameTime}
-                        </Typography>
-                      )}
-
-                      <Divider sx={{ my: 0.5 }} />
-
-                      {/* Prop Description */}
-                      <Typography
-                        variant="body2"
-                        sx={{ fontWeight: "bold", mb: 0.5 }}
-                      >
-                        {prop.propDesc} | {prop.betType}
-                      </Typography>
-
-                      {/* Odds and EV */}
-                      <Box
-                        sx={{
-                          display: "flex",
-                          justifyContent: "space-between",
-                          alignItems: "center",
-                          mb: 0.5,
-                        }}
-                      >
-                        <Typography variant="body2">
-                          Odds:{" "}
-                          <Chip
-                            label={prop.odds}
-                            size="small"
-                            variant="outlined"
-                          />
-                        </Typography>
-                        {prop.fairValue && (
-                          <Typography variant="body2">
-                            FV:{" "}
-                            <Chip
-                              label={prop.fairValue}
-                              size="small"
-                              variant="outlined"
-                            />
-                          </Typography>
-                        )}
-                      </Box>
-
-                      {/* Width and EV */}
-                      <Box
-                        sx={{
-                          display: "flex",
-                          justifyContent: "space-between",
-                          alignItems: "center",
-                        }}
-                      >
-                        <Typography variant="body2">
-                          Width:{" "}
-                          <Chip
-                            label={prop.width}
-                            size="small"
-                          />
-                        </Typography>
-                        <Chip
-                          label={`EV: ${prop.ev}`}
-                          size="small"
-                          sx={{
-                            backgroundColor: getEvColor(prop.ev),
-                            color: "white",
-                            fontWeight: "bold",
-                          }}
-                        />
-                      </Box>
-
-                      {/* Timestamp */}
-                      <Typography
-                        variant="caption"
-                        color="text.secondary"
-                        sx={{ mt: 0.5, display: "block" }}
-                      >
-                        Updated: {new Date(prop.timestamp).toLocaleTimeString()}
-                      </Typography>
-                    </CardContent>
-                  </Card>
-                </Grid>
-              );
-            })}
-          </Grid>
+          <TableContainer component={Paper} sx={{ background: '#181c24', borderRadius: 2, boxShadow: 3, mt: 2 }}>
+            <Table>
+              <TableHead>
+                <TableRow>
+                  <TableCell>Sport</TableCell>
+                  <TableCell>Teams</TableCell>
+                  <TableCell>Game Time</TableCell>
+                  <TableCell>Prop</TableCell>
+                  <TableCell>Odds</TableCell>
+                  <TableCell>Width</TableCell>
+                  <TableCell>EV</TableCell>
+                  <TableCell>Link</TableCell>
+                </TableRow>
+              </TableHead>
+              <TableBody>
+                {filteredProps.map((prop, idx) => (
+                  <TableRow key={idx} hover>
+                    <TableCell>{getSportEmoji(prop.prop.sport || 'Unknown')}</TableCell>
+                    <TableCell>{(prop.prop.teams && prop.prop.teams.length === 2) ? `${prop.prop.teams[0]} vs ${prop.prop.teams[1]}` : ''}</TableCell>
+                    <TableCell>{prop.prop.gameTime}</TableCell>
+                    <TableCell>{prop.prop.propDesc} | {prop.prop.betType}</TableCell>
+                    <TableCell><b>{prop.prop.odds}</b></TableCell>
+                    <TableCell sx={{ color: '#ffb300' }}>{prop.prop.width}</TableCell>
+                    <TableCell sx={{ color: parseFloat((prop.prop.ev||'0').replace('%','')) >= 0 ? '#4caf50' : '#e53935' }}><b>{prop.prop.ev}</b></TableCell>
+                    <TableCell><a href="https://betbck.com/Qubic/propbuilder.php" target="_blank" rel="noopener noreferrer">Bet</a></TableCell>
+                  </TableRow>
+                ))}
+              </TableBody>
+            </Table>
+          </TableContainer>
         ) : null}
       </Box>
     </Paper>
