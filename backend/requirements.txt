@@ -1,0 +1,20 @@
+fastapi
+uvicorn[standard]
+pydantic
+python-dotenv
+aiohttp
+requests
+beautifulsoup4
+starlette
+anyio
+idna
+sniffio
+colorama
+httptools
+PyYAML
+watchfiles
+websockets
+python-dateutil
+fuzzywuzzy
+python-Levenshtein  # Optional but recommended for better performance
+selenium 
