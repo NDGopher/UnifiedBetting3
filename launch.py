@@ -218,42 +218,41 @@ def launch_application():
         logger.info(f"Project directory: {project_dir}")
         # Check for problematic files
         check_for_problematic_files(project_dir)
-        # Prompt for PTO profile setup FIRST
+        
+        # Check PTO profile automatically without prompting
         backend_dir = project_dir / "backend"
         python_cmd = sys.executable
-        while True:
-            print("\nPTO Chrome Profile Setup Tool")
-            print("=" * 40)
-            print("1. Setup new PTO profile (AUTO-CLEAN)")
-            print("2. Use/test existing profile")
-            print("3. Exit")
-            choice = input("\nSelect option (1-3): ").strip()
-            if choice == "1":
-                logger.info("\n=== Setting up new PTO Chrome Profile ===")
-                subprocess.run(f"{python_cmd} setup_pto_profile.py", cwd=backend_dir, shell=True)
-                logger.info("[LOG] Skipping test_profile after setup; please proceed to run the scraper.")
-                break
-            elif choice == "2":
-                logger.info("\n=== Testing existing PTO Chrome Profile ===")
-                test_cmd = (
-                    f'{python_cmd} -c "from pto_scraper import PTOScraper; import json; '
-                    f'config=json.load(open(\\\'config.json\\\')); '
-                    f'scraper=PTOScraper(config[\\\'pto\\\']); '
-                    f'print(\\\'Profile test:\\\', scraper.test_profile())"'
-                )
-                result = subprocess.run(test_cmd, shell=True, cwd=backend_dir, capture_output=True, text=True)
-                logger.info(f"[LOG] Test profile output: {result.stdout}")
-                if "Profile test: True" in result.stdout:
-                    logger.info("✅ PTO profile is working correctly")
-                    break
+        
+        # Check if PTO profile exists and is working
+        config_path = backend_dir / "config.json"
+        if config_path.exists():
+            try:
+                with open(config_path, 'r') as f:
+                    config = json.load(f)
+                
+                pto_config = config.get("pto", {})
+                profile_dir = pto_config.get("chrome_user_data_dir")
+                
+                if profile_dir and os.path.exists(profile_dir):
+                    logger.info("PTO profile directory exists, testing...")
+                    test_cmd = f'{python_cmd} -c "from pto_scraper import PTOScraper; import json; config=json.load(open(\'config.json\')); scraper=PTOScraper(config[\'pto\']); print(\'Profile test:\', scraper.test_profile())"'
+                    result = subprocess.run(test_cmd, shell=True, cwd=backend_dir, capture_output=True, text=True)
+                    if "Profile test: True" in result.stdout:
+                        logger.info("✅ PTO profile is working correctly")
+                    else:
+                        logger.warning("⚠️ PTO profile exists but test failed - will need setup")
+                        logger.info("💡 You can run 'python setup_pto_profile.py' in the backend directory to fix this")
                 else:
-                    logger.error("❌ PTO profile test failed. Try option 1 to setup a new profile.")
-            elif choice == "3":
-                logger.info("Exiting...")
-                sys.exit(0)
-            else:
-                print("Invalid choice. Please select 1, 2, or 3.")
-        # Continue with the rest of the launch sequence ONLY after profile is ready
+                    logger.info("ℹ️ PTO profile not found - will need setup")
+                    logger.info("💡 You can run 'python setup_pto_profile.py' in the backend directory to set it up")
+            except Exception as e:
+                logger.error(f"Error checking PTO profile: {e}")
+                logger.info("💡 You can run 'python setup_pto_profile.py' in the backend directory to set it up")
+        else:
+            logger.warning("config.json not found, PTO setup will be needed")
+            logger.info("💡 You can run 'python setup_pto_profile.py' in the backend directory to set it up")
+        
+        # Continue with the rest of the launch sequence
         # Kill any existing processes on ports 3000-3010 and 5001
         logger.info("Checking for existing processes...")
         for port in range(3000, 3011):

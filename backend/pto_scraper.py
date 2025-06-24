@@ -339,47 +339,29 @@ class PTOScraper:
     def switch_to_prop_builder(self, driver, timeout=20):
         """Switch to Prop Builder tab in PTO with robust checking and retry logic"""
         wait = WebDriverWait(driver, timeout)
-        for attempt in range(3):
-            try:
-                logger.info(f"🔄 Attempting to switch to Prop Builder (attempt {attempt + 1})")
-                # Check if already on Prop Builder tab
-                try:
-                    selected_tab = driver.find_element(By.XPATH, "//button[.//p[contains(text(), 'Prop Builder')] and contains(@class, 'Mui-selected')]")
-                    if selected_tab:
-                        logger.info("✅ Already on Prop Builder tab, no action needed.")
-                        return True
-                except Exception:
-                    pass
-                # Click the dropdown button (the one with the current tab name)
-                try:
-                    dropdown_btn = wait.until(EC.element_to_be_clickable(
-                        (By.XPATH, "//button[.//p[contains(text(), 'Prop Builder')]]")
-                    ))
-                    dropdown_btn.click()
-                except Exception as e:
-                    logger.error(f"❌ Could not click dropdown button: {e}")
-                    continue
-                # Wait for the tab to be selected
-                try:
-                    wait.until(EC.presence_of_element_located(
-                        (By.XPATH, "//button[.//p[contains(text(), 'Prop Builder')] and contains(@class, 'Mui-selected')]")
-                    ))
-                    logger.info("✅ Successfully switched to Prop Builder tab")
-                    return True
-                except Exception as e:
-                    logger.error(f"❌ Prop Builder tab did not load: {e}")
-                    continue
-            except TimeoutException as e:
-                logger.warning(f"⚠️ Timeout on attempt {attempt + 1}: {e}")
-                if attempt < 2:
-                    time.sleep(2)
-                    continue
-                else:
-                    logger.error("❌ Failed to switch to Prop Builder after 3 attempts")
-                    return False
-            except Exception as e:
-                logger.error(f"❌ Error switching to Prop Builder: {e}")
-                return False
+        # Check if already on Prop Builder tab
+        try:
+            selected_tab = driver.find_element(By.XPATH, "//button[.//p[contains(text(), 'Prop Builder')] and contains(@class, 'Mui-selected')]")
+            if selected_tab:
+                logger.info("✅ Already on Prop Builder tab, no action needed.")
+                return True
+        except Exception:
+            pass
+        # Try to select the tab ONCE (not 3 times)
+        try:
+            logger.info(f"🔄 Attempting to switch to Prop Builder tab (single attempt)")
+            dropdown_btn = wait.until(EC.element_to_be_clickable(
+                (By.XPATH, "//button[.//p[contains(text(), 'Prop Builder')]]")
+            ))
+            dropdown_btn.click()
+            wait.until(EC.presence_of_element_located(
+                (By.XPATH, "//button[.//p[contains(text(), 'Prop Builder')] and contains(@class, 'Mui-selected')]")
+            ))
+            logger.info("✅ Successfully switched to Prop Builder tab")
+            return True
+        except Exception as e:
+            logger.warning(f"⚠️ Could not switch to Prop Builder tab, but will continue scraping anyway: {e}")
+            return False
 
     def start_scraping(self):
         """Start the PTO scraping process in a background thread"""
@@ -426,11 +408,7 @@ class PTOScraper:
                         raise Exception("Login required but not completed")
                 # Only switch to Prop Builder if not already selected (startup)
                 if not self.is_on_prop_builder(self.driver):
-                    if not self.switch_to_prop_builder(self.driver):
-                        logger.critical("❌ Failed to switch to Prop Builder tab after retries. Pausing scraper. Please check manually.")
-                        while self.is_running:
-                            time.sleep(30)
-                        return
+                    self.switch_to_prop_builder(self.driver)  # Try once, but always continue
                 logger.info("✅ PTO setup complete, starting prop monitoring...")
                 retry_count = 0  # Reset retry count on success
                 initial_login_complete = True
@@ -444,11 +422,7 @@ class PTOScraper:
                                 raise Exception("Cloudflare challenge on refresh")
                             # Only switch to Prop Builder after refresh
                             if not self.is_on_prop_builder(self.driver):
-                                if not self.switch_to_prop_builder(self.driver):
-                                    logger.critical("❌ Failed to switch to Prop Builder after refresh. Pausing scraper. Please check manually.")
-                                    while self.is_running:
-                                        time.sleep(30)
-                                    return
+                                self.switch_to_prop_builder(self.driver)  # Try once, but always continue
                             last_refresh_time = time.time()
                             self.refresh_interval = random.uniform(2 * 60 * 60, 2.5 * 60 * 60)
                         # If redirected to account/user-control-panel, PAUSE and LOG a critical error (never try to recover)
@@ -459,7 +433,7 @@ class PTOScraper:
                                 time.sleep(30)
                             return
                         # Scrape props
-                        elements = self.driver.find_elements(By.CSS_SELECTOR, 'div[class*="MuiBox-root"] > div[class*="css-ndwsoy"]')
+                        elements = self.driver.find_elements(By.CSS_SELECTOR, 'div.css-ndwsoy')
                         logger.info(f"Selenium found prop cards: {len(elements)}")
                         card_texts = [el.text for el in elements]
                         if not card_texts:

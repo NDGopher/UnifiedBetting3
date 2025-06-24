@@ -307,9 +307,10 @@ def main():
     print("=" * 40)
     print("1. Setup new PTO profile (AUTO-CLEAN)")
     print("2. Test existing profile")
-    print("3. Exit")
+    print("3. Use existing profile without testing")
+    print("4. Exit")
     
-    choice = input("\nSelect option (1-3): ").strip()
+    choice = input("\nSelect option (1-4): ").strip()
     
     if choice == "1":
         success = setup.setup_profile()
@@ -324,10 +325,15 @@ def main():
         if success:
             print("\n✅ Profile is working correctly!")
         else:
-            print("\n❌ Profile test failed. Run setup again.")
+            print("\n❌ Profile test failed. Run setup again or use option 3 to skip test.")
     
     elif choice == "3":
+        print("\n✅ Skipping test. Using existing profile as-is. You can now run the PTO scraper.")
+        sys.exit(0)
+    
+    elif choice == "4":
         print("Goodbye!")
+        sys.exit(0)
     
     else:
         print("Invalid choice. Please run the script again.")
