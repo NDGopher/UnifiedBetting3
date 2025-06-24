@@ -32,6 +32,7 @@ class PTOScraper:
         self.scraping_interval = config.get("scraping_interval_seconds", 2)  # 2-3 seconds like original
         self.min_ev_threshold = config.get("min_ev_threshold", 3.0)  # Show only 3%+ EV by default
         self.telegram_enabled = config.get("telegram_enabled", True)
+        self.dry_run = False  # Default to False for live operation
         
         # Initialize Telegram alerts if enabled
         if self.telegram_enabled:
@@ -317,8 +318,10 @@ class PTOScraper:
 
     def send_telegram_alert(self, prop, is_new=True, prev_ev=None, message_id=None):
         """Send or update Telegram alert for prop"""
-        if not self.telegram_enabled or not self.telegram:
-            return None
+        if not self.telegram_enabled or not self.telegram or self.dry_run:
+            action = "send" if is_new or not message_id else "edit"
+            logger.info(f"[DRY RUN] Would {action} Telegram alert for: {prop.get('propDesc','')} (EV: {prop.get('ev','')})")
+            return 123456 if is_new or not message_id else message_id  # Fake message_id for testing
         try:
             alert_text = self.format_telegram_alert(prop, prev_ev=prev_ev)
             if is_new or not message_id:
@@ -388,11 +391,22 @@ class PTOScraper:
             self.driver = None
         logger.info("PTO scraper stopped")
 
+    def build_stable_prop_id(self, prop):
+        # Use lower, strip, and fallback to 'unknown' for missing fields
+        sport = (prop.get('sport') or 'unknown').strip().lower()
+        prop_desc = (prop.get('propDesc') or 'unknown').strip().lower()
+        bet_type = (prop.get('betType') or 'unknown').strip().lower()
+        team1 = (prop.get('teams', ['unknown', 'unknown'])[0] or 'unknown').strip().lower()
+        team2 = (prop.get('teams', ['unknown', 'unknown'])[1] or 'unknown').strip().lower()
+        return f"{sport}|{prop_desc}|{bet_type}|{team1}|{team2}"
+
     def _scraping_loop(self):
         """Main scraping loop with enhanced error handling and fast updates"""
         retry_count = 0
         last_refresh_time = time.time()
         initial_login_complete = False
+        # Track consecutive misses for each prop
+        miss_threshold = 3
         while self.is_running and retry_count < self.max_retries:
             try:
                 logger.info(f"🔄 Starting scraping session (attempt {retry_count + 1})")
@@ -440,11 +454,6 @@ class PTOScraper:
                         elements = self.driver.find_elements(By.CSS_SELECTOR, 'div.css-ndwsoy')
                         logger.info(f"Selenium found prop cards: {len(elements)}")
                         card_texts = [el.text for el in elements]
-                        if not card_texts:
-                            logger.info("[DEBUG] No prop cards found. Waiting...")
-                            time.sleep(self.scraping_interval)
-                            self.live_props.clear()
-                            continue
                         current_props = {}
                         now = datetime.now()
                         for card_text in card_texts:
@@ -460,35 +469,54 @@ class PTOScraper:
                                     continue  # Skip props below threshold
                             except (ValueError, AttributeError):
                                 continue
-                            prop_id = f"{prop.get('sport','')}|{prop.get('propDesc','')}|{prop.get('betType','')}|{prop.get('odds','')}|{prop.get('gameTime','')}|{prop.get('teams', ['',''])[0]}|{prop.get('teams', ['',''])[1]}"
+                            prop_id = self.build_stable_prop_id(prop)
+                            logger.debug(f"[LOG] Built prop_id: {prop_id}")
                             current_props[prop_id] = prop
-                            if prop_id not in self.live_props:
-                                logger.info(f"New prop found: {prop.get('propDesc','')} (EV: {prop.get('ev','')})")
-                                message_id = self.send_telegram_alert(prop, is_new=True)
-                                self.live_props[prop_id] = {"prop": prop, "created_at": now, "updated_at": now, "message_id": message_id}
-                            else:
+                            prev_ev = None
+                            prev_width = None
+                            prev_team1 = None
+                            prev_team2 = None
+                            if prop_id in self.live_props:
                                 old_prop = self.live_props[prop_id]["prop"]
                                 old_message_id = self.live_props[prop_id].get("message_id")
-                                if prop != old_prop:
-                                    logger.info(f"Prop updated: {prop.get('propDesc','')} (EV: {prop.get('ev','')})")
-                                    prev_ev = old_prop.get("ev")
+                                prev_ev = old_prop.get("ev")
+                                prev_width = old_prop.get("width")
+                                prev_team1 = (old_prop.get('teams', ['unknown', 'unknown'])[0] or 'unknown').strip().lower()
+                                prev_team2 = (old_prop.get('teams', ['unknown', 'unknown'])[1] or 'unknown').strip().lower()
+                                # Only edit if EV, width, or team names change
+                                ev_changed = prop.get("ev") != prev_ev
+                                width_changed = prop.get("width") != prev_width
+                                team1_changed = (prop.get('teams', ['unknown', 'unknown'])[0] or 'unknown').strip().lower() != prev_team1
+                                team2_changed = (prop.get('teams', ['unknown', 'unknown'])[1] or 'unknown').strip().lower() != prev_team2
+                                if ev_changed or width_changed or team1_changed or team2_changed:
+                                    logger.info(f"Prop updated: {prop.get('propDesc','')} (EV: {prop.get('ev','')}) [edit]")
                                     message_id = self.send_telegram_alert(prop, is_new=False, prev_ev=prev_ev, message_id=old_message_id)
                                     self.live_props[prop_id]["prop"] = prop
                                     self.live_props[prop_id]["updated_at"] = now
                                     self.live_props[prop_id]["message_id"] = message_id
-                        # Remove props that are no longer active
-                        to_remove = [pid for pid in self.live_props if pid not in current_props]
-                        for pid in to_remove:
-                            logger.info(f"Prop removed: {self.live_props[pid]['prop'].get('propDesc','')}")
-                            # Delete the Telegram message for this prop
-                            message_id = self.live_props[pid].get("message_id")
-                            if message_id:
-                                try:
-                                    self.telegram.delete_message(message_id)
-                                    logger.info(f"🗑️ Deleted Telegram alert for: {self.live_props[pid]['prop'].get('propDesc','')}")
-                                except Exception as e:
-                                    logger.error(f"[ERROR] Failed to delete Telegram alert for {pid}: {e}")
-                            del self.live_props[pid]
+                                self.live_props[prop_id]["miss_count"] = 0  # Reset miss count if seen
+                            else:
+                                logger.info(f"New prop found: {prop.get('propDesc','')} (EV: {prop.get('ev','')}) [new]")
+                                message_id = self.send_telegram_alert(prop, is_new=True)
+                                self.live_props[prop_id] = {"prop": prop, "created_at": now, "updated_at": now, "message_id": message_id, "miss_count": 0}
+                        # Remove props that are no longer active (after N misses)
+                        for pid in list(self.live_props.keys()):
+                            if pid not in current_props:
+                                self.live_props[pid]["miss_count"] = self.live_props[pid].get("miss_count", 0) + 1
+                                logger.debug(f"[LOG] Prop {pid} missed {self.live_props[pid]['miss_count']} times")
+                                if self.live_props[pid]["miss_count"] >= miss_threshold:
+                                    logger.info(f"Prop removed: {self.live_props[pid]['prop'].get('propDesc','')} [delete]")
+                                    message_id = self.live_props[pid].get("message_id")
+                                    if message_id:
+                                        if self.dry_run:
+                                            logger.info(f"[DRY RUN] Would delete Telegram alert for: {self.live_props[pid]['prop'].get('propDesc','')}")
+                                        else:
+                                            try:
+                                                self.telegram.delete_message(message_id)
+                                                logger.info(f"🗑️ Deleted Telegram alert for: {self.live_props[pid]['prop'].get('propDesc','')}")
+                                            except Exception as e:
+                                                logger.error(f"[ERROR] Failed to delete Telegram alert for {pid}: {e}")
+                                    del self.live_props[pid]
                         time.sleep(self.scraping_interval)
                     except Exception as e:
                         logger.error(f"❌ Error in scraping loop: {e}")
