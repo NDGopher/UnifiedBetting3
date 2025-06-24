@@ -1,4 +1,4 @@
-import React, { useState } from 'react';
+import React, { useState } from "react";
 import {
   Box,
   Paper,
@@ -11,8 +11,8 @@ import {
   Select,
   MenuItem,
   SelectChangeEvent,
-} from '@mui/material';
-import { americanToDecimal, calculateEV } from '../utils/oddsUtils';
+} from "@mui/material";
+import { americanToDecimal, calculateEV } from "../utils/oddsUtils";
 
 interface EVResult {
   ev: number;
@@ -21,10 +21,10 @@ interface EVResult {
 }
 
 const EVCalculator: React.FC = () => {
-  const [betAmount, setBetAmount] = useState<string>('');
-  const [betOdds, setBetOdds] = useState<string>('');
-  const [trueOdds, setTrueOdds] = useState<string>('');
-  const [oddsFormat, setOddsFormat] = useState<string>('american');
+  const [betAmount, setBetAmount] = useState<string>("");
+  const [betOdds, setBetOdds] = useState<string>("");
+  const [trueOdds, setTrueOdds] = useState<string>("");
+  const [oddsFormat, setOddsFormat] = useState<string>("american");
   const [result, setResult] = useState<EVResult | null>(null);
 
   const handleOddsFormatChange = (event: SelectChangeEvent) => {
@@ -40,13 +40,13 @@ const EVCalculator: React.FC = () => {
       const trueOddsNum = parseFloat(trueOdds);
 
       if (isNaN(betAmountNum) || isNaN(betOddsNum) || isNaN(trueOddsNum)) {
-        throw new Error('Please enter valid numbers');
+        throw new Error("Please enter valid numbers");
       }
 
       let betDecimalOdds: number;
       let trueDecimalOdds: number;
 
-      if (oddsFormat === 'american') {
+      if (oddsFormat === "american") {
         betDecimalOdds = americanToDecimal(betOddsNum);
         trueDecimalOdds = americanToDecimal(trueOddsNum);
       } else {
@@ -63,7 +63,7 @@ const EVCalculator: React.FC = () => {
         impliedProbability,
       });
     } catch (error) {
-      console.error('Error calculating EV:', error);
+      console.error("Error calculating EV:", error);
       setResult(null);
     }
   };
@@ -107,8 +107,8 @@ const EVCalculator: React.FC = () => {
             value={betOdds}
             onChange={(e) => setBetOdds(e.target.value)}
             InputProps={{
-              startAdornment: oddsFormat === 'american' && (
-                <Typography>{parseFloat(betOdds) > 0 ? '+' : ''}</Typography>
+              startAdornment: oddsFormat === "american" && (
+                <Typography>{parseFloat(betOdds) > 0 ? "+" : ""}</Typography>
               ),
             }}
           />
@@ -121,8 +121,8 @@ const EVCalculator: React.FC = () => {
             value={trueOdds}
             onChange={(e) => setTrueOdds(e.target.value)}
             InputProps={{
-              startAdornment: oddsFormat === 'american' && (
-                <Typography>{parseFloat(trueOdds) > 0 ? '+' : ''}</Typography>
+              startAdornment: oddsFormat === "american" && (
+                <Typography>{parseFloat(trueOdds) > 0 ? "+" : ""}</Typography>
               ),
             }}
           />
@@ -139,7 +139,7 @@ const EVCalculator: React.FC = () => {
         </Grid>
         {result && (
           <Grid item xs={12}>
-            <Box sx={{ mt: 2, p: 2, bgcolor: 'background.paper', borderRadius: 1 }}>
+            <Box sx={{ mt: 2, p: 2, bgcolor: "background.paper", borderRadius: 1 }}>
               <Typography variant="subtitle1" gutterBottom>
                 Results:
               </Typography>
@@ -160,4 +160,4 @@ const EVCalculator: React.FC = () => {
   );
 };
 
-export default EVCalculator; 
+export default EVCalculator;

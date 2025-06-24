@@ -1,4 +1,4 @@
-import React, { useEffect, useState, useCallback } from 'react';
+import React, { useEffect, useState, useCallback } from "react";
 import {
   Table,
   TableBody,
@@ -17,9 +17,9 @@ import {
   CircularProgress,
   Alert,
   Grid,
-} from '@mui/material';
-import { Refresh as RefreshIcon } from '@mui/icons-material';
-import StarIcon from '@mui/icons-material/Star';
+} from "@mui/material";
+import { Refresh as RefreshIcon } from "@mui/icons-material";
+import StarIcon from "@mui/icons-material/Star";
 
 interface Market {
   market: string;
@@ -59,41 +59,19 @@ const PODAlerts: React.FC = () => {
 
   const fetchEvents = useCallback(async () => {
     try {
-      console.log("[DEBUG] PODAlerts: Starting fetchEvents");
       setError(null);
       const res = await fetch('http://localhost:5001/get_active_events_data');
-      console.log("[DEBUG] PODAlerts: Response status:", res.status);
-      console.log("[DEBUG] PODAlerts: Response ok:", res.ok);
-      
       if (res.ok) {
         const data = await res.json() as { [eventId: string]: EventData };
-        console.log("[DEBUG] PODAlerts: Received data:", data);
-        console.log("[DEBUG] PODAlerts: Data type:", typeof data);
-        console.log("[DEBUG] PODAlerts: Data keys:", Object.keys(data));
-        console.log("[DEBUG] PODAlerts: Number of events:", Object.keys(data).length);
-        
-        // Log each event structure
-        Object.entries(data).forEach(([eventId, eventData]) => {
-          console.log(`[DEBUG] Event ${eventId}:`, eventData);
-          console.log(`[DEBUG] Event ${eventId} keys:`, Object.keys(eventData));
-          if (eventData.markets) {
-            console.log(`[DEBUG] Event ${eventId} markets count:`, eventData.markets.length);
-            console.log(`[DEBUG] Event ${eventId} markets:`, eventData.markets);
-          }
-        });
-        
         setEvents(data);
         setLastUpdate(new Date());
-        setRetryCount(0); // Reset retry count on success
-        setLoading(false); // FIXED: Set loading to false on successful data fetch
-        console.log("[DEBUG] PODAlerts: Successfully updated events state");
+        setRetryCount(0);
+        setLoading(false);
       } else {
         const errorText = await res.text();
-        console.error("[DEBUG] PODAlerts: Response not ok, error text:", errorText);
         throw new Error(`Failed to fetch events data: ${errorText}`);
       }
     } catch (e) {
-      console.error("[DEBUG] PODAlerts: Error in fetchEvents:", e);
       const newRetryCount = retryCount + 1;
       setRetryCount(newRetryCount);
       if (newRetryCount >= MAX_RETRIES) {
@@ -103,35 +81,28 @@ const PODAlerts: React.FC = () => {
     }
   }, [retryCount]);
 
-  // Polling logic
   useEffect(() => {
     fetchEvents();
     const poller = setInterval(fetchEvents, POLL_INTERVAL);
     return () => clearInterval(poller);
   }, [fetchEvents]);
 
-  // Reset retry count when user manually refreshes
   const handleManualRefresh = useCallback(() => {
     setRetryCount(0);
     setLoading(true);
     fetchEvents();
   }, [fetchEvents]);
 
-  // Test connection function
   const testConnection = useCallback(async () => {
     try {
-      console.log("[DEBUG] Testing backend connection...");
       const res = await fetch('http://localhost:5001/test');
       const data = await res.json();
-      console.log("[DEBUG] Test response:", data);
       alert(`Backend connection test: ${data.message}`);
     } catch (e) {
-      console.error("[DEBUG] Test connection failed:", e);
       alert(`Backend connection failed: ${e instanceof Error ? e.message : 'Unknown error'}`);
     }
   }, []);
 
-  // Auto-dismiss logic
   useEffect(() => {
     const now = Date.now();
     Object.entries(events).forEach(([eventId, event]) => {
@@ -150,10 +121,8 @@ const PODAlerts: React.FC = () => {
   const handleEVClick = (event: EventData, market: Market) => {
     setModalMarket({ event, market });
   };
-
   const closeModal = () => setModalMarket(null);
 
-  // Helper to sort markets by EV descending
   const sortMarkets = (markets: Market[]) => {
     return [...markets].sort((a, b) => {
       const evA = parseFloat(a.ev);
@@ -162,23 +131,19 @@ const PODAlerts: React.FC = () => {
     });
   };
 
-  // Helper to get the best EV for an event
   const getBestEV = (markets: Market[]) => {
     if (!markets || markets.length === 0) return -Infinity;
     return Math.max(...markets.map(m => parseFloat(m.ev)));
   };
 
-  // Sort events by best EV
   const activeEvents = Object.entries(events)
     .filter(([eventId]) => !dismissed.has(eventId))
     .sort(([, a], [, b]) => getBestEV(b.markets) - getBestEV(a.markets));
 
-  // Helper to format start time in Central Time, 12-hour format
   const formatStartTime = (isoString: string) => {
     if (!isoString) return '';
     const date = new Date(isoString);
     if (isNaN(date.getTime())) return isoString;
-    // Format: M/D/YY h:mm AM/PM in Central Time
     return date.toLocaleString('en-US', {
       timeZone: 'America/Chicago',
       year: '2-digit',
@@ -190,57 +155,32 @@ const PODAlerts: React.FC = () => {
     });
   };
 
-  console.log("[DEBUG] PODAlerts: Rendering - total events:", Object.keys(events).length);
-  console.log("[DEBUG] PODAlerts: Rendering - dismissed events:", Array.from(dismissed));
-  console.log("[DEBUG] PODAlerts: Rendering - active events:", activeEvents.length);
-  console.log("[DEBUG] PODAlerts: Rendering - active event IDs:", activeEvents.map(([id]) => id));
-
   return (
     <Box>
       <Box sx={{ mb: 2, display: 'flex', alignItems: 'center', justifyContent: 'space-between' }}>
         <Box sx={{ display: 'flex', alignItems: 'center', gap: 1 }}>
-          <Typography variant="subtitle1">
-            POD Alerts
-          </Typography>
+          <Typography variant="subtitle1"> POD Alerts </Typography>
           <Typography variant="caption" color="text.secondary">
             Last update: {lastUpdate.toLocaleTimeString()}
           </Typography>
         </Box>
         <Box sx={{ display: 'flex', gap: 1 }}>
-          <Button
-            startIcon={<RefreshIcon />}
-            onClick={handleManualRefresh}
-            disabled={loading}
-            variant="outlined"
-            size="small"
-          >
+          <Button startIcon={<RefreshIcon />} onClick={handleManualRefresh} disabled={loading} variant="outlined" size="small">
             Refresh
           </Button>
-          <Button
-            onClick={testConnection}
-            variant="outlined"
-            size="small"
-            color="secondary"
-          >
+          <Button onClick={testConnection} variant="outlined" size="small" color="secondary">
             Test Connection
           </Button>
-          <Button
-            onClick={() => setShowOnlyEV(ev => !ev)}
-            variant={showOnlyEV ? "contained" : "outlined"}
-            size="small"
-            color="success"
-          >
+          <Button onClick={() => setShowOnlyEV(ev => !ev)} variant={showOnlyEV ? "contained" : "outlined"} size="small" color="success">
             {showOnlyEV ? "Show All" : "Show +EV Only"}
           </Button>
         </Box>
       </Box>
-
       {error && (
         <Alert severity="error" sx={{ mb: 2 }}>
           {error}
         </Alert>
       )}
-
       {loading ? (
         <Box display="flex" justifyContent="center" alignItems="center" minHeight={200}>
           <CircularProgress />
@@ -264,32 +204,26 @@ const PODAlerts: React.FC = () => {
                       <Box>
                         <Typography variant="subtitle1" className="event-title">{event.title}</Typography>
                         <Typography variant="body2" className="event-meta-info">
-                          {event.meta_info}
-                          {event.start_time && (
-                            <span> | {formatStartTime(event.start_time)}</span>
-                          )}
+                          {event.meta_info} {event.start_time && (<span> | {formatStartTime(event.start_time)}</span>)}
                         </Typography>
                         <Typography variant="caption" color="text.secondary">
                           Alert: {event.alert_description} {event.alert_meta}
-                          {event.old_odds && event.new_odds && (
-                            (() => {
-                              const oldOdds = parseFloat(event.old_odds);
-                              const newOdds = parseFloat(event.new_odds);
-                              if (!isNaN(oldOdds) && !isNaN(newOdds)) {
-                                const drop = oldOdds - newOdds;
-                                const dropPct = (drop / Math.abs(oldOdds)) * 100;
-                                return <span> | Drop: {drop > 0 ? '-' : ''}{Math.abs(drop).toFixed(2)} ({dropPct.toFixed(1)}%)</span>;
-                              }
-                              return null;
-                            })()
-                          )}
+                          {event.old_odds && event.new_odds && (() => {
+                            const oldOdds = parseFloat(event.old_odds!);
+                            const newOdds = parseFloat(event.new_odds!);
+                            if (!isNaN(oldOdds) && !isNaN(newOdds)) {
+                              const drop = oldOdds - newOdds;
+                              const dropPct = (drop / Math.abs(oldOdds)) * 100;
+                              return <span> | Drop: {drop > 0 ? '-' : ''}{Math.abs(drop).toFixed(2)} ({dropPct.toFixed(1)}%)</span>;
+                            }
+                            return null;
+                          })()}
                         </Typography>
                       </Box>
                       <Button onClick={() => handleDismiss(eventId)} variant="outlined" color="secondary" size="small">
                         Dismiss
                       </Button>
                     </Box>
-                    
                     <TableContainer component={Paper} sx={{ background: 'transparent', boxShadow: 'none', width: '100%', maxWidth: 900, overflowX: 'hidden' }}>
                       <Table size="small" aria-label="Odds Table" sx={{ width: '100%', tableLayout: 'auto' }}>
                         <TableHead>
@@ -370,7 +304,6 @@ const PODAlerts: React.FC = () => {
             })}
         </Grid>
       )}
-
       <Dialog open={!!modalMarket} onClose={closeModal} maxWidth="sm" fullWidth>
         <DialogTitle>Bet Details</DialogTitle>
         <DialogContent>
@@ -387,7 +320,6 @@ const PODAlerts: React.FC = () => {
   );
 };
 
-// Live-updating modal for EV and Pinnacle NVP
 const LiveEVModal: React.FC<{ event: EventData; market: Market }> = ({ event, market }) => {
   const [liveMarket, setLiveMarket] = useState<Market>(market);
   useEffect(() => {
@@ -398,9 +330,7 @@ const LiveEVModal: React.FC<{ event: EventData; market: Market }> = ({ event, ma
           const data = await res.json();
           const updatedEvent = data[event.title];
           if (updatedEvent) {
-            const updatedMarket = updatedEvent.markets.find((m: Market) =>
-              m.market === market.market && m.selection === market.selection && m.line === market.line
-            );
+            const updatedMarket = updatedEvent.markets.find((m: Market) => m.market === market.market && m.selection === market.selection && m.line === market.line);
             if (updatedMarket) setLiveMarket(updatedMarket);
           }
         }
@@ -408,6 +338,7 @@ const LiveEVModal: React.FC<{ event: EventData; market: Market }> = ({ event, ma
     }, 3000);
     return () => clearInterval(interval);
   }, [event, market]);
+
   return (
     <Box sx={{ mt: 2 }}>
       <Typography variant="subtitle1" gutterBottom>{event.title}</Typography>
@@ -416,15 +347,11 @@ const LiveEVModal: React.FC<{ event: EventData; market: Market }> = ({ event, ma
       <Typography variant="body2" gutterBottom>Line: {liveMarket.line}</Typography>
       <Typography variant="body2" gutterBottom>Pinnacle NVP: {liveMarket.pinnacle_nvp}</Typography>
       <Typography variant="body2" gutterBottom>BetBCK Odds: {liveMarket.betbck_odds}</Typography>
-      <Typography
-        variant="body2"
-        color={parseFloat(liveMarket.ev) > 0 ? 'success.main' : 'text.primary'}
-        sx={{ fontWeight: 'bold' }}
-      >
+      <Typography variant="body2" color={parseFloat(liveMarket.ev) > 0 ? 'success.main' : 'text.primary'} sx={{ fontWeight: 'bold' }}>
         EV: {liveMarket.ev}
       </Typography>
     </Box>
   );
 };
 
-export default PODAlerts; 
+export default PODAlerts;

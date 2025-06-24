@@ -1,4 +1,4 @@
-import React, { useState, useEffect } from 'react';
+import React, { useState, useEffect } from "react";
 import {
   Paper,
   Typography,
@@ -20,8 +20,8 @@ import {
   IconButton,
   Tooltip,
   Divider,
-  Badge
-} from '@mui/material';
+  Badge,
+} from "@mui/material";
 import {
   PlayArrow,
   Stop,
@@ -34,8 +34,8 @@ import {
   SportsFootball,
   SportsBaseball,
   SportsHockey,
-  Casino
-} from '@mui/icons-material';
+  Casino,
+} from "@mui/icons-material";
 
 interface PTOProp {
   prop: {
@@ -69,45 +69,55 @@ interface ScraperStatus {
 
 const PropBuilder: React.FC = () => {
   const [ptoData, setPtoData] = useState<PTOData | null>(null);
-  const [scraperStatus, setScraperStatus] = useState<ScraperStatus | null>(null);
+  const [scraperStatus, setScraperStatus] = useState<ScraperStatus | null>(
+    null,
+  );
   const [loading, setLoading] = useState(false);
   const [error, setError] = useState<string | null>(null);
   const [minEvFilter, setMinEvFilter] = useState<number>(3.0);
-  const [sportFilter, setSportFilter] = useState<string>('all');
+  const [sportFilter, setSportFilter] = useState<string>("all");
   const [autoRefresh, setAutoRefresh] = useState(true);
   const [showOnlyPositiveEv, setShowOnlyPositiveEv] = useState(true);
   const [initialLoad, setInitialLoad] = useState(true);
   const [manualRefresh, setManualRefresh] = useState(false);
 
-  const API_BASE = 'http://localhost:5001';
+  const API_BASE = "http://localhost:5001";
 
   const getSportEmoji = (sport: string): React.ReactElement => {
     const sportLower = sport.toLowerCase();
-    if (sportLower.includes('nba') || sportLower.includes('wnba')) return <SportsBasketball />;
-    if (sportLower.includes('mlb')) return <SportsBaseball />;
-    if (sportLower.includes('nfl')) return <SportsFootball />;
-    if (sportLower.includes('nhl')) return <SportsHockey />;
-    if (sportLower.includes('soccer') || sportLower.includes('futbol') || sportLower.includes('football')) return <SportsSoccer />;
+    if (sportLower.includes("nba") || sportLower.includes("wnba"))
+      return <SportsBasketball />;
+    if (sportLower.includes("mlb")) return <SportsBaseball />;
+    if (sportLower.includes("nfl")) return <SportsFootball />;
+    if (sportLower.includes("nhl")) return <SportsHockey />;
+    if (
+      sportLower.includes("soccer") ||
+      sportLower.includes("futbol") ||
+      sportLower.includes("football")
+    )
+      return <SportsSoccer />;
     return <Casino />;
   };
 
   const getEvColor = (ev: string): string => {
     try {
-      const evValue = parseFloat(ev.replace('%', ''));
-      if (evValue > 5) return '#4caf50'; // Green for high EV
-      if (evValue > 0) return '#8bc34a'; // Light green for positive EV
-      if (evValue > -5) return '#ff9800'; // Orange for slightly negative
-      return '#f44336'; // Red for very negative
+      const evValue = parseFloat(ev.replace("%", ""));
+      if (evValue > 5) return "#4caf50"; // Green for high EV
+      if (evValue > 0) return "#8bc34a"; // Light green for positive EV
+      if (evValue > -5) return "#ff9800"; // Orange for slightly negative
+      return "#f44336"; // Red for very negative
     } catch {
-      return '#757575'; // Gray for invalid values
+      return "#757575"; // Gray for invalid values
     }
   };
 
   const getEvTrend = (ev: string): React.ReactElement | null => {
     try {
-      const evValue = parseFloat(ev.replace('%', ''));
-      if (evValue > 0) return <TrendingUp sx={{ color: '#4caf50' }} />;
-      if (evValue < 0) return <TrendingDown sx={{ color: '#f44336' }} />;
+      const evValue = parseFloat(ev.replace("%", ""));
+      if (evValue > 0)
+        return <TrendingUp sx={{ color: "#4caf50" }} />;
+      if (evValue < 0)
+        return <TrendingDown sx={{ color: "#f44336" }} />;
       return null;
     } catch {
       return null;
@@ -118,13 +128,15 @@ const PropBuilder: React.FC = () => {
     if (initialLoad || isManual) setLoading(true);
     setError(null);
     try {
-      const endpoint = showOnlyPositiveEv ? `/pto/props/ev/${minEvFilter}` : '/pto/props';
+      const endpoint = showOnlyPositiveEv
+        ? `/pto/props/ev/${minEvFilter}`
+        : "/pto/props";
       const response = await fetch(`${API_BASE}${endpoint}`);
-      if (!response.ok) throw new Error('Failed to fetch PTO data');
+      if (!response.ok) throw new Error("Failed to fetch PTO data");
       const data = await response.json();
       setPtoData(data.data);
     } catch (err) {
-      setError(err instanceof Error ? err.message : 'Unknown error');
+      setError(err instanceof Error ? err.message : "Unknown error");
     } finally {
       if (initialLoad) setInitialLoad(false);
       setLoading(false);
@@ -140,20 +152,22 @@ const PropBuilder: React.FC = () => {
         setScraperStatus(data.data);
       }
     } catch (err) {
-      console.error('Failed to fetch scraper status:', err);
+      console.error("Failed to fetch scraper status:", err);
     }
   };
 
   const toggleScraper = async (start: boolean) => {
     try {
-      const endpoint = start ? '/pto/scraper/start' : '/pto/scraper/stop';
-      const response = await fetch(`${API_BASE}${endpoint}`, { method: 'POST' });
+      const endpoint = start ? "/pto/scraper/start" : "/pto/scraper/stop";
+      const response = await fetch(`${API_BASE}${endpoint}`, {
+        method: "POST",
+      });
       if (response.ok) {
         await fetchScraperStatus();
         if (start) await fetchPTOData();
       }
     } catch (err) {
-      setError(err instanceof Error ? err.message : 'Failed to toggle scraper');
+      setError(err instanceof Error ? err.message : "Failed to toggle scraper");
     }
   };
 
@@ -177,19 +191,24 @@ const PropBuilder: React.FC = () => {
     fetchPTOData();
   }, [minEvFilter, showOnlyPositiveEv]);
 
-  const filteredProps = ptoData?.props.filter(prop => {
-    if (sportFilter !== 'all' && !prop.prop.sport.toLowerCase().includes(sportFilter.toLowerCase())) {
-      return false;
-    }
-    return true;
-  }) || [];
+  const filteredProps =
+    ptoData?.props.filter((prop) => {
+      if (
+        sportFilter !== "all" &&
+        !prop.prop.sport.toLowerCase().includes(sportFilter.toLowerCase())
+      ) {
+        return false;
+      }
+      return true;
+    }) || [];
 
-  const sports = ptoData?.props.reduce((acc: string[], p) => {
-    if (!acc.includes(p.prop.sport)) {
-      acc.push(p.prop.sport);
-    }
-    return acc;
-  }, []) || [];
+  const sports =
+    ptoData?.props.reduce((acc: string[], p) => {
+      if (!acc.includes(p.prop.sport)) {
+        acc.push(p.prop.sport);
+      }
+      return acc;
+    }, []) || [];
 
   // Manual refresh handler
   const handleManualRefresh = () => {
@@ -198,27 +217,45 @@ const PropBuilder: React.FC = () => {
   };
 
   return (
-    <Paper sx={{ p: 2, height: '100%', display: 'flex', flexDirection: 'column' }}>
-      <Box sx={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center', mb: 1 }}>
+    <Paper
+      sx={{ p: 2, height: "100%", display: "flex", flexDirection: "column" }}
+    >
+      <Box
+        sx={{
+          display: "flex",
+          justifyContent: "space-between",
+          alignItems: "center",
+          mb: 1,
+        }}
+      >
         <Typography variant="h6" gutterBottom>
           Prop Builder EV
         </Typography>
-        <Box sx={{ display: 'flex', gap: 1, alignItems: 'center' }}>
-          <Tooltip title={scraperStatus?.is_running ? 'Stop Scraper' : 'Start Scraper'}>
+        <Box
+          sx={{ display: "flex", gap: 1, alignItems: "center" }}
+        >
+          <Tooltip title={scraperStatus?.is_running ? "Stop Scraper" : "Start Scraper"}>
             <IconButton
               onClick={() => toggleScraper(!scraperStatus?.is_running)}
-              color={scraperStatus?.is_running ? 'error' : 'success'}
+              color={scraperStatus?.is_running ? "error" : "success"}
               size="small"
             >
               {scraperStatus?.is_running ? <Stop /> : <PlayArrow />}
             </IconButton>
           </Tooltip>
           <Tooltip title="Refresh Data">
-            <IconButton onClick={handleManualRefresh} disabled={loading} size="small">
+            <IconButton
+              onClick={handleManualRefresh}
+              disabled={loading}
+              size="small"
+            >
               <Refresh />
             </IconButton>
           </Tooltip>
-          <Badge badgeContent={ptoData?.total_count || 0} color="primary">
+          <Badge
+            badgeContent={ptoData?.total_count || 0}
+            color="primary"
+          >
             <FilterList />
           </Badge>
         </Box>
@@ -246,8 +283,10 @@ const PropBuilder: React.FC = () => {
                 label="Sport"
               >
                 <MenuItem value="all">All Sports</MenuItem>
-                {sports.map(sport => (
-                  <MenuItem key={sport} value={sport}>{sport}</MenuItem>
+                {sports.map((sport) => (
+                  <MenuItem key={sport} value={sport}>
+                    {sport}
+                  </MenuItem>
                 ))}
               </Select>
             </FormControl>
@@ -281,49 +320,74 @@ const PropBuilder: React.FC = () => {
 
       {/* Compact Status Alert */}
       {scraperStatus && (
-        <Alert 
-          severity={scraperStatus.is_running ? 'success' : 'warning'} 
+        <Alert
+          severity={scraperStatus.is_running ? "success" : "warning"}
           sx={{ mb: 1, py: 0.5 }}
         >
-          {scraperStatus.is_running ? '🟢 Running' : '🔴 Stopped'} | 
-          Props: {scraperStatus.total_props} | 
-          Last: {new Date(scraperStatus.last_refresh * 1000).toLocaleTimeString()}
+          {scraperStatus.is_running ? "🟢 Running" : "🔴 Stopped"} | Props:{" "}
+          {scraperStatus.total_props} | Last:{" "}
+          {new Date(scraperStatus.last_refresh * 1000).toLocaleTimeString()}
         </Alert>
       )}
 
       {/* Error Display */}
       {error && (
-        <Alert severity="error" sx={{ mb: 1, py: 0.5 }} onClose={() => setError(null)}>
+        <Alert
+          severity="error"
+          sx={{ mb: 1, py: 0.5 }}
+          onClose={() => setError(null)}
+        >
           {error}
         </Alert>
       )}
 
       {/* Loading State */}
       {loading && (initialLoad || manualRefresh) && (
-        <Box sx={{ display: 'flex', justifyContent: 'center', p: 1 }}>
+        <Box
+          sx={{ display: "flex", justifyContent: "center", p: 1 }}
+        >
           <CircularProgress size={20} />
         </Box>
       )}
 
       {/* Props Display */}
-      <Box sx={{ flexGrow: 1, minHeight: '60vh', display: 'flex', alignItems: 'center', justifyContent: 'center', overflow: 'hidden' }}>
+      <Box
+        sx={{
+          flexGrow: 1,
+          minHeight: "60vh",
+          display: "flex",
+          alignItems: "center",
+          justifyContent: "center",
+          overflow: "hidden",
+        }}
+      >
         {scraperStatus?.is_running && filteredProps.length === 0 ? (
           <CircularProgress size={32} />
         ) : filteredProps.length > 0 ? (
-          <Grid container spacing={1} sx={{ width: '100%' }}>
+          <Grid container spacing={1} sx={{ width: "100%" }}>
             {filteredProps.map((propData, index) => {
               const prop = propData.prop;
-              const teams = prop.teams?.filter(t => t) || [];
-              const teamsText = teams.length >= 2 ? `${teams[0]} vs ${teams[1]}` : teams[0] || 'TBD';
-              
+              const teams = prop.teams?.filter((t) => t) || [];
+              const teamsText =
+                teams.length >= 2
+                  ? `${teams[0]} vs ${teams[1]}`
+                  : teams[0] || "TBD";
+
               return (
                 <Grid item xs={12} md={6} lg={4} key={index}>
-                  <Card sx={{ height: '100%', position: 'relative' }}>
+                  <Card
+                    sx={{ height: "100%", position: "relative" }}
+                  >
                     <CardContent sx={{ p: 1.5 }}>
                       {/* Header */}
-                      <Box sx={{ display: 'flex', alignItems: 'center', mb: 0.5 }}>
+                      <Box
+                        sx={{ display: "flex", alignItems: "center", mb: 0.5 }}
+                      >
                         {getSportEmoji(prop.sport)}
-                        <Typography variant="subtitle2" sx={{ ml: 0.5, fontWeight: 'bold' }}>
+                        <Typography
+                          variant="subtitle2"
+                          sx={{ ml: 0.5, fontWeight: "bold" }}
+                        >
                           {prop.sport.toUpperCase()}
                         </Typography>
                         <Box sx={{ flexGrow: 1 }} />
@@ -331,11 +395,18 @@ const PropBuilder: React.FC = () => {
                       </Box>
 
                       {/* Teams and Time */}
-                      <Typography variant="body2" color="text.secondary" sx={{ mb: 0.5 }}>
+                      <Typography
+                        variant="body2"
+                        color="text.secondary"
+                        sx={{ mb: 0.5 }}
+                      >
                         {teamsText}
                       </Typography>
                       {prop.gameTime && (
-                        <Typography variant="caption" color="text.secondary">
+                        <Typography
+                          variant="caption"
+                          color="text.secondary"
+                        >
                           ⏰ {prop.gameTime}
                         </Typography>
                       )}
@@ -343,40 +414,74 @@ const PropBuilder: React.FC = () => {
                       <Divider sx={{ my: 0.5 }} />
 
                       {/* Prop Description */}
-                      <Typography variant="body2" sx={{ fontWeight: 'bold', mb: 0.5 }}>
+                      <Typography
+                        variant="body2"
+                        sx={{ fontWeight: "bold", mb: 0.5 }}
+                      >
                         {prop.propDesc} | {prop.betType}
                       </Typography>
 
                       {/* Odds and EV */}
-                      <Box sx={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center', mb: 0.5 }}>
+                      <Box
+                        sx={{
+                          display: "flex",
+                          justifyContent: "space-between",
+                          alignItems: "center",
+                          mb: 0.5,
+                        }}
+                      >
                         <Typography variant="body2">
-                          Odds: <Chip label={prop.odds} size="small" variant="outlined" />
+                          Odds:{" "}
+                          <Chip
+                            label={prop.odds}
+                            size="small"
+                            variant="outlined"
+                          />
                         </Typography>
                         {prop.fairValue && (
                           <Typography variant="body2">
-                            FV: <Chip label={prop.fairValue} size="small" variant="outlined" />
+                            FV:{" "}
+                            <Chip
+                              label={prop.fairValue}
+                              size="small"
+                              variant="outlined"
+                            />
                           </Typography>
                         )}
                       </Box>
 
                       {/* Width and EV */}
-                      <Box sx={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center' }}>
+                      <Box
+                        sx={{
+                          display: "flex",
+                          justifyContent: "space-between",
+                          alignItems: "center",
+                        }}
+                      >
                         <Typography variant="body2">
-                          Width: <Chip label={prop.width} size="small" />
+                          Width:{" "}
+                          <Chip
+                            label={prop.width}
+                            size="small"
+                          />
                         </Typography>
                         <Chip
                           label={`EV: ${prop.ev}`}
                           size="small"
                           sx={{
                             backgroundColor: getEvColor(prop.ev),
-                            color: 'white',
-                            fontWeight: 'bold'
+                            color: "white",
+                            fontWeight: "bold",
                           }}
                         />
                       </Box>
 
                       {/* Timestamp */}
-                      <Typography variant="caption" color="text.secondary" sx={{ mt: 0.5, display: 'block' }}>
+                      <Typography
+                        variant="caption"
+                        color="text.secondary"
+                        sx={{ mt: 0.5, display: "block" }}
+                      >
                         Updated: {new Date(prop.timestamp).toLocaleTimeString()}
                       </Typography>
                     </CardContent>
@@ -391,4 +496,4 @@ const PropBuilder: React.FC = () => {
   );
 };
 
-export default PropBuilder; 
+export default PropBuilder;
