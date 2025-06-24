@@ -480,6 +480,14 @@ class PTOScraper:
                         to_remove = [pid for pid in self.live_props if pid not in current_props]
                         for pid in to_remove:
                             logger.info(f"Prop removed: {self.live_props[pid]['prop'].get('propDesc','')}")
+                            # Delete the Telegram message for this prop
+                            message_id = self.live_props[pid].get("message_id")
+                            if message_id:
+                                try:
+                                    self.telegram.delete_message(message_id)
+                                    logger.info(f"🗑️ Deleted Telegram alert for: {self.live_props[pid]['prop'].get('propDesc','')}")
+                                except Exception as e:
+                                    logger.error(f"[ERROR] Failed to delete Telegram alert for {pid}: {e}")
                             del self.live_props[pid]
                         time.sleep(self.scraping_interval)
                     except Exception as e:
