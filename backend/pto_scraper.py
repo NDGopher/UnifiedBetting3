@@ -315,25 +315,29 @@ class PTOScraper:
         alert += '\n<a href="https://betbck.com/Qubic/propbuilder.php">Bet on BetBCK</a>'
         return alert
 
-    def send_telegram_alert(self, prop, is_new=True, prev_ev=None):
-        """Send Telegram alert for prop"""
+    def send_telegram_alert(self, prop, is_new=True, prev_ev=None, message_id=None):
+        """Send or update Telegram alert for prop"""
         if not self.telegram_enabled or not self.telegram:
             return None
-            
         try:
             alert_text = self.format_telegram_alert(prop, prev_ev=prev_ev)
-            if is_new:
+            if is_new or not message_id:
+                # Send new alert
                 message_id = self.telegram.send_alert(alert_text)
                 logger.info(f"📱 Sent Telegram alert for new prop: {prop.get('propDesc','')}")
                 return message_id
             else:
-                # For updates, we'd need to track message IDs
-                # For now, just send new alerts
-                message_id = self.telegram.send_alert(alert_text)
-                logger.info(f"📱 Sent Telegram alert for updated prop: {prop.get('propDesc','')}")
-                return message_id
+                # Edit existing alert
+                success = self.telegram.edit_message(message_id, alert_text)
+                if success:
+                    logger.info(f"✏️ Edited Telegram alert for updated prop: {prop.get('propDesc','')}")
+                    return message_id
+                else:
+                    logger.warning(f"⚠️ Failed to edit Telegram alert, sending new one instead.")
+                    message_id = self.telegram.send_alert(alert_text)
+                    return message_id
         except Exception as e:
-            logger.error(f"❌ Failed to send Telegram alert: {e}")
+            logger.error(f"❌ Failed to send/edit Telegram alert: {e}")
             return None
 
     def switch_to_prop_builder(self, driver, timeout=20):
@@ -460,16 +464,18 @@ class PTOScraper:
                             current_props[prop_id] = prop
                             if prop_id not in self.live_props:
                                 logger.info(f"New prop found: {prop.get('propDesc','')} (EV: {prop.get('ev','')})")
-                                self.live_props[prop_id] = {"prop": prop, "created_at": now, "updated_at": now}
-                                self.send_telegram_alert(prop, is_new=True)
+                                message_id = self.send_telegram_alert(prop, is_new=True)
+                                self.live_props[prop_id] = {"prop": prop, "created_at": now, "updated_at": now, "message_id": message_id}
                             else:
                                 old_prop = self.live_props[prop_id]["prop"]
+                                old_message_id = self.live_props[prop_id].get("message_id")
                                 if prop != old_prop:
                                     logger.info(f"Prop updated: {prop.get('propDesc','')} (EV: {prop.get('ev','')})")
                                     prev_ev = old_prop.get("ev")
+                                    message_id = self.send_telegram_alert(prop, is_new=False, prev_ev=prev_ev, message_id=old_message_id)
                                     self.live_props[prop_id]["prop"] = prop
                                     self.live_props[prop_id]["updated_at"] = now
-                                    self.send_telegram_alert(prop, is_new=False, prev_ev=prev_ev)
+                                    self.live_props[prop_id]["message_id"] = message_id
                         # Remove props that are no longer active
                         to_remove = [pid for pid in self.live_props if pid not in current_props]
                         for pid in to_remove:
