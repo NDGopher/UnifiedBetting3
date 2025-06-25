@@ -1,13 +1,9 @@
-import React, { useState, useEffect } from "react";
+import React, { useState, useEffect, useRef } from "react";
 import {
   Paper,
   Typography,
   Box,
-  Card,
-  CardContent,
   Grid,
-  Chip,
-  Button,
   TextField,
   FormControl,
   InputLabel,
@@ -19,7 +15,6 @@ import {
   CircularProgress,
   IconButton,
   Tooltip,
-  Divider,
   Badge,
   TableContainer,
   Table,
@@ -33,8 +28,6 @@ import {
   Stop,
   Refresh,
   FilterList,
-  TrendingUp,
-  TrendingDown,
   SportsBasketball,
   SportsSoccer,
   SportsFootball,
@@ -86,6 +79,7 @@ const PropBuilder: React.FC = () => {
   const [showOnlyPositiveEv, setShowOnlyPositiveEv] = useState(true);
   const [initialLoad, setInitialLoad] = useState(true);
   const [manualRefresh, setManualRefresh] = useState(false);
+  const prevPropsRef = useRef<any[]>([]);
 
   const API_BASE = "http://localhost:5001";
 
@@ -105,31 +99,6 @@ const PropBuilder: React.FC = () => {
     return <Casino />;
   };
 
-  const getEvColor = (ev: string): string => {
-    try {
-      const evValue = parseFloat(ev.replace("%", ""));
-      if (evValue > 5) return "#4caf50"; // Green for high EV
-      if (evValue > 0) return "#8bc34a"; // Light green for positive EV
-      if (evValue > -5) return "#ff9800"; // Orange for slightly negative
-      return "#f44336"; // Red for very negative
-    } catch {
-      return "#757575"; // Gray for invalid values
-    }
-  };
-
-  const getEvTrend = (ev: string): React.ReactElement | null => {
-    try {
-      const evValue = parseFloat(ev.replace("%", ""));
-      if (evValue > 0)
-        return <TrendingUp sx={{ color: "#4caf50" }} />;
-      if (evValue < 0)
-        return <TrendingDown sx={{ color: "#f44336" }} />;
-      return null;
-    } catch {
-      return null;
-    }
-  };
-
   const fetchPTOData = async (isManual = false) => {
     if (initialLoad || isManual) setLoading(true);
     setError(null);
@@ -147,7 +116,6 @@ const PropBuilder: React.FC = () => {
         }
         return valid;
       });
-      console.log('[PropBuilder] Filtered safeProps:', safeProps);
       setPtoData({ ...data.data, props: safeProps });
     } catch (err) {
       setError(err instanceof Error ? err.message : "Unknown error");
@@ -189,7 +157,7 @@ const PropBuilder: React.FC = () => {
     fetchPTOData();
     fetchScraperStatus();
     // eslint-disable-next-line
-  }, []);
+  }, [fetchPTOData, fetchScraperStatus]);
 
   useEffect(() => {
     if (autoRefresh) {
@@ -199,11 +167,31 @@ const PropBuilder: React.FC = () => {
       }, 5000);
       return () => clearInterval(interval);
     }
-  }, [autoRefresh]);
+  }, [autoRefresh, fetchPTOData, fetchScraperStatus]);
 
   useEffect(() => {
     fetchPTOData();
-  }, [minEvFilter, showOnlyPositiveEv]);
+  }, [minEvFilter, showOnlyPositiveEv, fetchPTOData]);
+
+  useEffect(() => {
+    if (ptoData && ptoData.props && ptoData.props.length > 0) {
+      ptoData.props.forEach((p, idx) => {
+        const prev = prevPropsRef.current[idx];
+        if (prev && prev.prop) {
+          if (
+            p.prop.ev !== prev.prop.ev ||
+            p.prop.width !== prev.prop.width
+          ) {
+            console.log(
+              `[PropBuilder] EV/Width changed for ${p.prop.propDesc} (${p.prop.teams?.join(' vs ') || ''}):`,
+              `EV: ${prev.prop.ev} → ${p.prop.ev}, Width: ${prev.prop.width} → ${p.prop.width}`
+            );
+          }
+        }
+      });
+      prevPropsRef.current = ptoData.props;
+    }
+  }, [ptoData]);
 
   const filteredProps =
     ptoData?.props.filter((prop) => {
@@ -368,43 +356,57 @@ const PropBuilder: React.FC = () => {
       <Box
         sx={{
           flexGrow: 1,
-          minHeight: "60vh",
-          display: "flex",
-          alignItems: "center",
-          justifyContent: "center",
+          mt: 0,
+          mb: 0,
           overflow: "hidden",
         }}
       >
         {scraperStatus?.is_running && filteredProps.length === 0 ? (
-          <CircularProgress size={32} />
+          <CircularProgress
         ) : filteredProps.length > 0 ? (
-          <TableContainer component={Paper} sx={{ background: '#181c24', borderRadius: 2, boxShadow: 3, mt: 2 }}>
+          <TableContainer component={Paper} sx={{ background: '#181c24', borderRadius: 2, boxShadow: 3, mt: 0 }}>
             <Table>
               <TableHead>
                 <TableRow>
                   <TableCell>Sport</TableCell>
                   <TableCell>Teams</TableCell>
                   <TableCell>Game Time</TableCell>
+                  <TableCell>Player</TableCell>
                   <TableCell>Prop</TableCell>
                   <TableCell>Odds</TableCell>
+                  <TableCell>Fair Value</TableCell>
                   <TableCell>Width</TableCell>
                   <TableCell>EV</TableCell>
                   <TableCell>Link</TableCell>
                 </TableRow>
               </TableHead>
               <TableBody>
-                {filteredProps.map((prop, idx) => (
-                  <TableRow key={idx} hover>
-                    <TableCell>{getSportEmoji(prop.prop.sport || 'Unknown')}</TableCell>
-                    <TableCell>{(prop.prop.teams && prop.prop.teams.length === 2) ? `${prop.prop.teams[0]} vs ${prop.prop.teams[1]}` : ''}</TableCell>
-                    <TableCell>{prop.prop.gameTime}</TableCell>
-                    <TableCell>{prop.prop.propDesc} | {prop.prop.betType}</TableCell>
-                    <TableCell><b>{prop.prop.odds}</b></TableCell>
-                    <TableCell sx={{ color: '#ffb300' }}>{prop.prop.width}</TableCell>
-                    <TableCell sx={{ color: parseFloat((prop.prop.ev||'0').replace('%','')) >= 0 ? '#4caf50' : '#e53935' }}><b>{prop.prop.ev}</b></TableCell>
-                    <TableCell><a href="https://betbck.com/Qubic/propbuilder.php" target="_blank" rel="noopener noreferrer">Bet</a></TableCell>
-                  </TableRow>
-                ))}
+                {filteredProps.map((prop, idx) => {
+                  // Attempt to split propDesc into player and prop
+                  let player = '';
+                  let propName = '';
+                  if (prop.prop.propDesc && prop.prop.propDesc.includes(' - ')) {
+                    const parts = prop.prop.propDesc.split(' - ');
+                    propName = parts[0];
+                    player = parts[1] || '';
+                  } else {
+                    propName = prop.prop.propDesc || '';
+                  }
+                  return (
+                    <TableRow key={idx} hover>
+                      <TableCell>{getSportEmoji(prop.prop.sport || 'Unknown')}</TableCell>
+                      <TableCell>{(prop.prop.teams && prop.prop.teams.length === 2) ? `${prop.prop.teams[0]} vs ${prop.prop.teams[1]}` : ''}</TableCell>
+                      <TableCell>{prop.prop.gameTime}</TableCell>
+                      <TableCell>{player}</TableCell>
+                      <TableCell>{propName} {prop.prop.betType ? `| ${prop.prop.betType}` : ''}</TableCell>
+                      <TableCell><b>{prop.prop.odds}</b></TableCell>
+                      <TableCell><b>{prop.prop.fairValue || ''}</b></TableCell>
+                      <TableCell sx={{ color: '#ffb300' }}>{prop.prop.width}</TableCell>
+                      <TableCell sx={{ color: parseFloat((prop.prop.ev||'0').replace('%','')) >= 0 ? '#4caf50' : '#e53935' }}><b>{prop.prop.ev}</b></TableCell>
+                      <TableCell><a href="https://betbck.com/Qubic/propbuilder.php" target="_blank" rel="noopener noreferrer">Bet</a></TableCell>
+                    </TableRow>
+                  );
+                })}
               </TableBody>
             </Table>
           </TableContainer>
