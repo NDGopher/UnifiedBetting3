@@ -5,6 +5,7 @@ import re
 import os
 import time
 from utils import normalize_team_name_for_matching
+from utils.pod_utils import skip_indicators, is_prop_or_corner_alert, fuzzy_team_match
 
 # Attempt to import fuzzywuzzy for robust team matching
 try:
@@ -437,6 +438,19 @@ def scrape_betbck_for_game(pod_home_team, pod_away_team, search_team_name_betbck
         print(f"[BetbckScraper-CORE] DEBUG: Saved BetBCK search HTML to {debug_fn}")
     except Exception as e: print(f"[BetbckScraper-CORE] DEBUG: ERROR saving HTML: {e}")
     parsed_game_data = parse_specific_game_from_search_html(search_results_html, pod_home_team, pod_away_team)
+    # --- Add BetBCK payload for POD alerts ---
+    if parsed_game_data and isinstance(parsed_game_data, dict):
+        from bs4 import BeautifulSoup
+        soup = BeautifulSoup(search_results_html, "html.parser")
+        wager_input = soup.find('input', {'id': 'inetWagerNumber'}) or soup.find('input', {'name': 'inetWagerNumber'})
+        inetWagerNumber = wager_input['value'] if wager_input and 'value' in wager_input.attrs else None
+        sport_input = soup.find('input', {'id': 'inetSportSelection'}) or soup.find('input', {'name': 'inetSportSelection'})
+        inetSportSelection = sport_input['value'] if sport_input and 'value' in sport_input.attrs else 'sport'
+        parsed_game_data['betbck_payload'] = {
+            'inetWagerNumber': inetWagerNumber,
+            'inetSportSelection': inetSportSelection,
+            'keyword_search': actual_search_query
+        }
     if parsed_game_data: print(f"[BetbckScraper-CORE] Scraper returned parsed game data.")
     else: print(f"[BetbckScraper-CORE] Scraper did NOT find or parse specific game from HTML.")
     return parsed_game_data 
