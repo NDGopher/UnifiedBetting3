@@ -307,7 +307,8 @@ async def get_active_events_data():
                 "alert_meta": f"(Alert: {entry['old_odds']} → {entry['new_odds']}, NVP: {entry['no_vig']})",
                 "betbck_status": f"Data Fetched: {home_team} vs {away_team}" if entry["betbck_data"].get("status") == "success" else entry["betbck_data"].get("message", "Odds check pending..."),
                 "markets": markets,
-                "alert_arrival_timestamp": entry.get("alert_arrival_timestamp", None)
+                "alert_arrival_timestamp": entry.get("alert_arrival_timestamp", None),
+                "betbck_payload": bet_data.get("betbck_payload") or {}
             }
             # logger.info(f"[DEBUG] Event {eid} data_to_send keys: {list(data_to_send[eid].keys())}")  # Remove log spam
         except Exception as e:
@@ -388,6 +389,23 @@ async def get_pto_scraper_status():
         return JSONResponse({"status": "success", "data": status})
     except Exception as e:
         logger.error(f"[ERROR] Error getting PTO scraper status: {e}")
+        return JSONResponse({"status": "error", "message": str(e)}, status_code=500)
+
+@app.post("/api/betbck/open_bet")
+async def open_bet(request: Request):
+    payload = await request.json()
+    import requests
+    from betbck_scraper import login_to_betbck, SEARCH_ACTION_URL, BASE_HEADERS
+    session = requests.Session()
+    if not login_to_betbck(session):
+        return JSONResponse({"status": "error", "message": "Failed to login to BetBCK"}, status_code=500)
+    try:
+        response = session.post(SEARCH_ACTION_URL, data=payload, headers=BASE_HEADERS, timeout=15)
+        if response.ok:
+            return JSONResponse({"status": "success", "message": "Bet page opened"})
+        else:
+            return JSONResponse({"status": "error", "message": "Failed to open bet page"}, status_code=500)
+    except Exception as e:
         return JSONResponse({"status": "error", "message": str(e)}, status_code=500)
 
 if __name__ == "__main__":
