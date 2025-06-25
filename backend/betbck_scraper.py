@@ -4,6 +4,7 @@ import json
 import re
 import os
 import time
+import threading
 from utils import normalize_team_name_for_matching
 from utils.pod_utils import skip_indicators, is_prop_or_corner_alert, fuzzy_team_match
 
@@ -52,6 +53,17 @@ except (KeyError, TypeError, json.JSONDecodeError) as e:
     exit()
 except Exception as e_cfg:
     print(f"CRITICAL ERROR: General error loading config: {e_cfg}. Exiting."); exit()
+
+# --- Thread-Local Storage for Market Type Context ---
+_market_type_context = threading.local()
+
+def get_market_type_context():
+    if not hasattr(_market_type_context, 'value'):
+        _market_type_context.value = "Spread"
+    return _market_type_context.value
+
+def set_market_type_context(value):
+    _market_type_context.value = value
 
 # --- Core Scraper Functions ---
 def login_to_betbck(session):
@@ -155,10 +167,7 @@ def normalize_team_name_for_matching(name):
         print(f"[NORM_DEBUG] Original: '{original_name_for_debug}' ---> Normalized: '{final_normalized_name}'")
     return final_normalized_name if final_normalized_name else (original_name_for_debug.lower().strip() if original_name_for_debug else "")
 
-market_type_context_for_normalization = "Spread"
-
 def normalize_asian_handicap(line_str_input): # CORRECTED STRUCTURE
-    global market_type_context_for_normalization
     if line_str_input is None:
         return None
 
@@ -174,7 +183,7 @@ def normalize_asian_handicap(line_str_input): # CORRECTED STRUCTURE
                 v2 = 0.0 if "pk" in parts[1].lower() else float(parts[1])
                 avg = (v1 + v2) / 2.0
                 fmt = "" 
-                if market_type_context_for_normalization == "Spread":
+                if get_market_type_context() == "Spread":
                     if avg == 0: return "0"
                     fmt = f"{avg:+.2f}"
                 else:  # Totals
@@ -193,7 +202,7 @@ def normalize_asian_handicap(line_str_input): # CORRECTED STRUCTURE
                 v1, v2 = float(parts[0]), float(parts[1])
                 avg = (v1 + v2) / 2.0
                 fmt = ""
-                if market_type_context_for_normalization == "Spread":
+                if get_market_type_context() == "Spread":
                     if avg == 0: return "0"
                     fmt = f"{avg:+.2f}"
                 else:  # Totals
@@ -206,7 +215,7 @@ def normalize_asian_handicap(line_str_input): # CORRECTED STRUCTURE
     try:
         val = float(line_str)
         fmt = "" 
-        if market_type_context_for_normalization == "Spread":
+        if get_market_type_context() == "Spread":
             if val == 0: return "0"
             fmt = f"{val:+.2f}"
             return fmt[:-3] if fmt.endswith(".00") else fmt.replace(".50", ".5")
@@ -221,7 +230,7 @@ def normalize_asian_handicap(line_str_input): # CORRECTED STRUCTURE
         return line_str_input
 
 def extract_line_value_from_text(text_content_or_td_element, market_type="Spread"):
-    global market_type_context_for_normalization; market_type_context_for_normalization = market_type
+    set_market_type_context(market_type)
     if not text_content_or_td_element: return None
     text = ""
     if isinstance(text_content_or_td_element, str): text = text_content_or_td_element
@@ -255,9 +264,9 @@ def extract_american_odds_from_text(text_content_or_td_element):
     m = list(re.finditer(r'(?<!\.\d)([+-]\d{3,})',text)); return m[-1].group(1) if m else None
 
 def extract_all_spread_options_from_text(cell_td_element): 
-    options = []; global market_type_context_for_normalization; original_context = market_type_context_for_normalization
-    market_type_context_for_normalization = "Spread"
-    if not cell_td_element or not hasattr(cell_td_element, 'find_all'): market_type_context_for_normalization=original_context; return []
+    options = []; original_context = get_market_type_context()
+    set_market_type_context("Spread")
+    if not cell_td_element or not hasattr(cell_td_element, 'find_all'): set_market_type_context(original_context); return []
     select_element = cell_td_element.find('select')
     if select_element:
         for option_tag in select_element.find_all('option'):
@@ -274,7 +283,7 @@ def extract_all_spread_options_from_text(cell_td_element):
             raw_line, odds_str = match.group(1).replace(' ',''), match.group(2)
             norm_line = normalize_asian_handicap(raw_line)
             if norm_line is not None: options.append({"line":norm_line, "odds":odds_str})
-    market_type_context_for_normalization = original_context; return options
+    set_market_type_context(original_context); return options
 
 def get_cleaned_team_name_from_div(team_div): 
     if not team_div: return ""
