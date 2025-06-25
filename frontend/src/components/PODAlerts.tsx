@@ -41,9 +41,10 @@ interface EventData {
   start_time?: string;
   old_odds?: string;
   new_odds?: string;
+  betbck_payload?: any;
 }
 
-const POLL_INTERVAL = 3000; // 3 seconds, matches old realtime.js
+const POLL_INTERVAL = 1000; // 1 second for fast POD alert updates
 const AUTO_DISMISS_MS = 5 * 60 * 1000; // 5 minutes
 const MAX_RETRIES = 3; // Maximum number of retries before showing error
 
@@ -182,6 +183,13 @@ const PODAlerts: React.FC = () => {
     );
   }, [events]);
 
+  const formatTotal = (line: string) => {
+    if (typeof line === 'string' && line.endsWith('.0')) {
+      return line.slice(0, -2);
+    }
+    return line;
+  };
+
   return (
     <Box>
       <Box sx={{ mb: 2, display: 'flex', alignItems: 'center', justifyContent: 'space-between' }}>
@@ -301,7 +309,7 @@ const PODAlerts: React.FC = () => {
                                 }}
                               >
                                 <TableCell sx={{ textAlign: 'left', pl: 0, whiteSpace: 'normal' }}>{selectionDisplay}</TableCell>
-                                <TableCell align="center">{lineDisplay}</TableCell>
+                                <TableCell align="center">{market.market.toLowerCase() === 'total' ? formatTotal(lineDisplay) : lineDisplay}</TableCell>
                                 <TableCell align="center">{market.pinnacle_nvp && !market.pinnacle_nvp.startsWith('-') && !market.pinnacle_nvp.startsWith('+') ? `+${market.pinnacle_nvp}` : market.pinnacle_nvp}</TableCell>
                                 <TableCell align="center">{market.betbck_odds}</TableCell>
                                 <TableCell align="center">
@@ -347,7 +355,27 @@ const PODAlerts: React.FC = () => {
         </DialogContent>
         <DialogActions>
           <Button onClick={closeModal}>Close</Button>
-          <Button variant="contained" color="success" disabled>Place Bet (Coming Soon)</Button>
+          <Button
+            variant="contained"
+            color="success"
+            onClick={async () => {
+              if (!modalMarket) return;
+              const event = Object.values(events).find(e => e.title === modalMarket.event.title);
+              const payload = event?.betbck_payload;
+              if (!payload) {
+                alert("BetBCK payload not found for this event.");
+                return;
+              }
+              await fetch('http://localhost:5001/api/betbck/open_bet', {
+                method: 'POST',
+                headers: { 'Content-Type': 'application/json' },
+                body: JSON.stringify(payload),
+              });
+              alert("Bet page is being opened in your browser!");
+            }}
+          >
+            Place Bet
+          </Button>
         </DialogActions>
       </Dialog>
     </Box>
