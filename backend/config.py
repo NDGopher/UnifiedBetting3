@@ -29,6 +29,10 @@ class Settings(BaseSettings):
     # CORS settings
     CORS_ORIGINS: list = ["http://localhost:3000"]  # Frontend URL
     
+    # Chrome profile settings for PTO scraper
+    chrome_user_data_dir: str = "C:/Users/steph/OneDrive/Desktop/ProdProjects/PropBuilderEV/pto_chrome_profile"
+    chrome_profile_dir: str = "Profile 1"
+    
     class Config:
         env_file = ".env"
 

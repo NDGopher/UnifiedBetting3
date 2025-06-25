@@ -32,7 +32,7 @@ class PTOScraper:
         self.scraping_interval = config.get("scraping_interval_seconds", 2)  # 2-3 seconds like original
         self.min_ev_threshold = config.get("min_ev_threshold", 3.0)  # Show only 3%+ EV by default
         self.telegram_enabled = config.get("telegram_enabled", True)
-        self.dry_run = False  # Default to False for live operation
+        self.dry_run = False  # Enable Telegram alerts now that parsing is fixed
         
         # Initialize Telegram alerts if enabled
         if self.telegram_enabled:
@@ -191,21 +191,45 @@ class PTOScraper:
     def parse_prop_card_text(self, card_text: str) -> Optional[Dict[str, Any]]:
         """Parse prop card text and extract structured data"""
         lines = [line.strip() for line in card_text.split('\n') if line.strip()]
+        logger.debug(f"[PTO DEBUG] Raw card lines: {lines}")
         if not lines or len(lines) < 6:
             return None
-            
         sport = lines[0]
+        if 'mlb' in sport.lower():
+            # MLB: Find lines that look like team names, skipping odds, dollar values, and pitcher names
+            team_lines = []
+            for l in lines[1:]:
+                # Stop if we hit a time or prop line
+                if (':' in l and ('am' in l.lower() or 'pm' in l.lower())) or re.match(r'\d{1,2}:\d{2}', l):
+                    break
+                # Skip lines with $ (dollar values), odds, percents, or numbers
+                if ('$' in l or '%' in l or re.match(r'^[+-]?\d+(\.\d+)?$', l) or re.match(r'^[+-]?\d{1,4}$', l)):
+                    continue
+                # Skip lines that look like pitcher names (single initial + dot + last name)
+                if re.match(r'^[A-Z]\. [A-Za-z\-]+$', l):
+                    continue
+                # Skip lines that look like bet types (Over/Under)
+                if l.lower().startswith('over') or l.lower().startswith('under'):
+                    continue
+                # Skip lines that are all uppercase (often not team names)
+                if l.isupper():
+                    continue
+                team_lines.append(l)
+                if len(team_lines) == 2:
+                    break
+            teams = team_lines if len(team_lines) == 2 else [None, None]
+            logger.debug(f"[PTO DEBUG] MLB teams extracted: {teams}")
+        else:
+            team_lines = []
+            for l in lines[1:]:
+                if (':' in l and ('am' in l.lower() or 'pm' in l.lower())) or re.match(r'\d{1,2}:\d{2}', l):
+                    break
+                if l.isupper() or any(char.isdigit() for char in l):
+                    continue
+                team_lines.append(l)
+            teams = team_lines[:2] if len(team_lines) >= 2 else [None, None]
+            logger.debug(f"[PTO DEBUG] Other sport teams extracted: {teams}")
         
-        # Find all lines that look like team names (between sport and game time)
-        team_lines = []
-        for l in lines[1:]:
-            if (':' in l and ('am' in l.lower() or 'pm' in l.lower())) or re.match(r'\d{1,2}:\d{2}', l):
-                break
-            if l.isupper() or any(char.isdigit() for char in l):
-                continue
-            team_lines.append(l)
-            
-        teams = team_lines[:2] if len(team_lines) >= 2 else [None, None]
         game_time = next((l for l in lines if (('am' in l.lower() or 'pm' in l.lower()) and ':' in l) or re.match(r'\d{1,2}:\d{2}', l)), None)
         prop_desc = next((l for l in lines if '-' in l and not l.startswith('Width')), None)
         bet_type = next((l for l in lines if l.startswith('Over') or l.startswith('Under')), None)
@@ -344,25 +368,25 @@ class PTOScraper:
             return None
 
     def switch_to_prop_builder(self, driver, timeout=20):
-        """Switch to Prop Builder tab in PTO with robust checking and retry logic"""
+        """Switch to the Prop Builder tab"""
         wait = WebDriverWait(driver, timeout)
-        # Check if already on Prop Builder tab
         try:
-            selected_tab = driver.find_element(By.XPATH, "//button[.//p[contains(text(), 'Prop Builder')] and contains(@class, 'Mui-selected')]")
-            if selected_tab:
-                logger.info("✅ Already on Prop Builder tab, no action needed.")
-                return True
-        except Exception:
-            pass
-        # Try to select the tab ONCE (not 3 times)
-        try:
-            logger.info(f"🔄 Attempting to switch to Prop Builder tab (single attempt)")
+            logger.info("🔄 Attempting to switch to Prop Builder tab (old logic)")
+            # Click the dropdown button (the one with the current tab name)
             dropdown_btn = wait.until(EC.element_to_be_clickable(
-                (By.XPATH, "//button[.//p[contains(text(), 'Prop Builder')]]")
+                (By.XPATH, "//button[.//p[contains(text(), 'Default')] or .//p[contains(text(), 'Prop Builder')] or .//p[contains(text(), 'EV LIVE')] or .//p[contains(text(), 'LIVE PROPS')]]")
             ))
+            logger.info("✅ Found dropdown button, clicking...")
             dropdown_btn.click()
-            wait.until(EC.presence_of_element_located(
-                (By.XPATH, "//button[.//p[contains(text(), 'Prop Builder')] and contains(@class, 'Mui-selected')]")
+            # Click the 'Prop Builder' option in the dropdown
+            prop_builder_option = wait.until(EC.element_to_be_clickable(
+                (By.XPATH, "//li[.//p[contains(text(), 'Prop Builder')]]")
+            ))
+            logger.info("✅ Found Prop Builder option, clicking...")
+            prop_builder_option.click()
+            # Wait for the Prop Builder tab to load (adjust selector as needed)
+            wait.until(EC.visibility_of_element_located(
+                (By.XPATH, "//p[contains(text(), 'Prop Builder')]")
             ))
             logger.info("✅ Successfully switched to Prop Builder tab")
             return True
@@ -406,7 +430,7 @@ class PTOScraper:
         last_refresh_time = time.time()
         initial_login_complete = False
         # Track consecutive misses for each prop
-        miss_threshold = 3
+        miss_threshold = 1  # Used to be 3; changed to 1 for faster removal of missing props
         while self.is_running and retry_count < self.max_retries:
             try:
                 logger.info(f"🔄 Starting scraping session (attempt {retry_count + 1})")
@@ -452,7 +476,10 @@ class PTOScraper:
                             return
                         # Scrape props
                         elements = self.driver.find_elements(By.CSS_SELECTOR, 'div.css-ndwsoy')
-                        logger.info(f"Selenium found prop cards: {len(elements)}")
+                        # Find all prop cards
+                        prop_cards = self.driver.find_elements(By.CSS_SELECTOR, "div[data-testid='prop-card']")
+                        if len(prop_cards) > 0:
+                            self.logger.info(f"Selenium found prop cards: {len(prop_cards)}")
                         card_texts = [el.text for el in elements]
                         current_props = {}
                         now = datetime.now()
@@ -554,27 +581,39 @@ class PTOScraper:
 
     def get_live_props(self) -> Dict[str, Any]:
         """Get current live props data"""
+        # Wrap each prop dict for frontend compatibility, ensure datetimes are ISO strings
+        wrapped_props = [
+            {
+                'prop': v['prop'],
+                'created_at': v.get('created_at').isoformat() if isinstance(v.get('created_at'), datetime) else v.get('created_at'),
+                'updated_at': v.get('updated_at').isoformat() if isinstance(v.get('updated_at'), datetime) else v.get('updated_at')
+            }
+            for v in self.live_props.values()
+        ]
         return {
             "status": "success",
             "data": {
-                "props": list(self.live_props.values()),
+                "props": wrapped_props,
                 "total_count": len(self.live_props),
                 "last_update": datetime.now().isoformat()
             }
         }
 
     def get_props_by_ev_threshold(self, min_ev: float = 0.0) -> Dict[str, Any]:
-        """Get props filtered by minimum EV threshold"""
+        """Get props filtered by minimum EV threshold, returning a flat list of prop dicts for frontend."""
         filtered_props = []
         for prop_data in self.live_props.values():
-            prop = prop_data["prop"]
+            prop = prop_data.get("prop")
             try:
-                ev_value = float(prop.get("ev", "0").replace("%", ""))
+                ev_value = float(str(prop.get("ev", "0")).replace("%", ""))
                 if ev_value >= min_ev:
-                    filtered_props.append(prop_data)
-            except (ValueError, AttributeError):
+                    filtered_props.append({
+                        'prop': prop,
+                        'created_at': prop_data.get('created_at').isoformat() if isinstance(prop_data.get('created_at'), datetime) else prop_data.get('created_at'),
+                        'updated_at': prop_data.get('updated_at').isoformat() if isinstance(prop_data.get('updated_at'), datetime) else prop_data.get('updated_at')
+                    })
+            except (ValueError, AttributeError, TypeError):
                 continue
-                
         return {
             "status": "success",
             "data": {
