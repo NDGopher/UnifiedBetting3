@@ -362,7 +362,7 @@ const PropBuilder: React.FC = () => {
         }}
       >
         {scraperStatus?.is_running && filteredProps.length === 0 ? (
-          <CircularProgress
+          <CircularProgress />
         ) : filteredProps.length > 0 ? (
           <TableContainer component={Paper} sx={{ background: '#181c24', borderRadius: 2, boxShadow: 3, mt: 0 }}>
             <Table>
