@@ -152,6 +152,19 @@ def open_pinnacle_odds_dropper():
         logger.error(f"Failed to open Pinnacle Odds Dropper: {e}")
         return False
 
+def refresh_pinnacle_odds_dropper():
+    """Refresh the Pinnacle Odds Dropper tab to ensure Chrome extension is working"""
+    logger.info("\n=== Refreshing Pinnacle Odds Dropper ===")
+    try:
+        url = "https://pinnacleoddsdropper.com"
+        logger.info(f"Refreshing {url} in existing browser window...")
+        webbrowser.open(url, new=1)  # new=1 refreshes existing window
+        logger.info("✅ Pinnacle Odds Dropper refreshed successfully")
+        return True
+    except Exception as e:
+        logger.error(f"Failed to refresh Pinnacle Odds Dropper: {e}")
+        return False
+
 def setup_backend():
     """Set up the backend environment and install dependencies"""
     logger.info("\n=== Setting up Backend ===")
@@ -272,9 +285,9 @@ def launch_application():
         logger.info("\n=== Starting Backend (FastAPI/Uvicorn) on port 5001 ===")
         # Use relative paths for better portability
         if sys.platform == "win32":
-            activate_cmd = f'cd {backend_dir} && call venv\\Scripts\\activate.bat && set PYTHONPATH={project_dir} && {backend_dir}\\venv\\Scripts\\python.exe -m uvicorn main:app --host 0.0.0.0 --port 5001'
+            activate_cmd = f'cd {backend_dir} && call venv\\Scripts\\activate.bat && set PYTHONPATH={project_dir} && {backend_dir}\\venv\\Scripts\\python.exe -m uvicorn main:app --host 0.0.0.0 --port 5001 --no-access-log'
         else:
-            activate_cmd = f'cd {backend_dir} && source venv/bin/activate && PYTHONPATH={project_dir} {backend_dir}/venv/bin/python -m uvicorn main:app --host 0.0.0.0 --port 5001'
+            activate_cmd = f'cd {backend_dir} && source venv/bin/activate && PYTHONPATH={project_dir} {backend_dir}/venv/bin/python -m uvicorn main:app --host 0.0.0.0 --port 5001 --no-access-log'
         backend_process = subprocess.Popen(
             activate_cmd,
             cwd=backend_dir,  # Set working directory to backend directory
@@ -346,6 +359,7 @@ def launch_application():
         logger.info("="*60)
         logger.info("Press Ctrl+C to stop all services")
         logger.info("="*60)
+        
         # Keep the main thread alive
         try:
             while True:
