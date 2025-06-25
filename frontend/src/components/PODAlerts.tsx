@@ -1,4 +1,4 @@
-import React, { useEffect, useState, useCallback } from "react";
+import React, { useEffect, useState, useCallback, useRef } from "react";
 import {
   Table,
   TableBody,
@@ -56,6 +56,7 @@ const PODAlerts: React.FC = () => {
   const [lastUpdate, setLastUpdate] = useState<Date>(new Date());
   const [retryCount, setRetryCount] = useState(0);
   const [showOnlyEV, setShowOnlyEV] = useState(false);
+  const prevMarketsRef = useRef<{ [eventId: string]: Market[] }>({});
 
   const fetchEvents = useCallback(async () => {
     try {
@@ -155,6 +156,32 @@ const PODAlerts: React.FC = () => {
     });
   };
 
+  useEffect(() => {
+    // Compare new markets to previous markets for NVP/EV changes
+    Object.entries(events).forEach(([eventId, event]) => {
+      const prevMarkets = prevMarketsRef.current[eventId] || [];
+      event.markets.forEach((market, idx) => {
+        const prev = prevMarkets[idx];
+        if (prev) {
+          if (
+            (market.pinnacle_nvp !== prev.pinnacle_nvp || market.ev !== prev.ev) &&
+            parseFloat(market.ev) > 0
+          ) {
+            // Only log if changed and new EV is positive
+            console.log(
+              `[PODAlerts] NVP/EV changed for ${event.title} [${market.market} ${market.selection} ${market.line}]:`,
+              `NVP: ${prev.pinnacle_nvp} → ${market.pinnacle_nvp}, EV: ${prev.ev} → ${market.ev}`
+            );
+          }
+        }
+      });
+    });
+    // Save current markets for next comparison
+    prevMarketsRef.current = Object.fromEntries(
+      Object.entries(events).map(([eventId, event]) => [eventId, event.markets])
+    );
+  }, [events]);
+
   return (
     <Box>
       <Box sx={{ mb: 2, display: 'flex', alignItems: 'center', justifyContent: 'space-between' }}>
@@ -253,7 +280,14 @@ const PODAlerts: React.FC = () => {
                             if (!evDisplay.startsWith('-') && !evDisplay.startsWith('0') && !evDisplay.startsWith('+')) {
                               evDisplay = '+' + evDisplay;
                             }
-                            let lineDisplay = market.market.toLowerCase() === 'moneyline' ? 'ML' : (market.market.toLowerCase().includes('moneyline') ? 'ML' : (market.market.toLowerCase().includes('spread') && market.line && !market.line.startsWith('-') && !market.line.startsWith('+') ? `+${market.line}` : market.line));
+                            let lineDisplay = market.line;
+                            if (lineDisplay === "0" || lineDisplay === "+0" || lineDisplay === "-0") {
+                              lineDisplay = "PK";
+                            } else if (market.market.toLowerCase() === 'moneyline' || market.market.toLowerCase().includes('moneyline')) {
+                              lineDisplay = 'ML';
+                            } else if (market.market.toLowerCase().includes('spread') && market.line && !market.line.startsWith('-') && !market.line.startsWith('+')) {
+                              lineDisplay = `+${market.line}`;
+                            }
                             return (
                               <TableRow
                                 key={idx}
