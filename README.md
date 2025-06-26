@@ -1,5 +1,17 @@
 # 🎯 Unified Betting App
 
+## ✅ Quick Checklist (Before You Start)
+
+- [ ] Python 3.8+
+- [ ] Node.js 16+
+- [ ] Google Chrome browser
+- [ ] Windows 10/11 (primary support)
+- [ ] **BetBCK Chrome Extension** (from `betbck_extension/` in this repo, see below)
+- [ ] **Pinnacle Odds Dropper (POD) Chrome Extension** (must be obtained separately, see below)
+- [ ] (Optional but recommended) All Chrome windows closed before launching
+- [ ] (First time only) PTO Chrome profile set up (`python backend/setup_pto_profile.py`)
+- [ ] (First time only) Config files in place (see below)
+
 A comprehensive betting automation platform that combines real-time odds analysis, automated scraping, and intelligent betting recommendations.
 
 ## 🚀 Features
@@ -315,4 +327,25 @@ This project is licensed under the MIT License - see the [LICENSE](LICENSE) file
 
 ---
 
-**🎯 Ready to start betting smarter? Run `launch.bat` and let the automation begin!** 
+**🎯 Ready to start betting smarter? Run `launch.bat` and let the automation begin!**
+
+## 🚨 Required Chrome Extensions
+
+### 1. **BetBCK Chrome Extension**
+- **Location:** This repo, in the `betbck_extension/` folder.
+- **How to install:**
+  1. Open Chrome and go to `chrome://extensions/`
+  2. Enable **Developer mode** (top right)
+  3. Click **Load unpacked**
+  4. Select the `betbck_extension/` folder from this repo
+
+### 2. **Pinnacle Odds Dropper (POD) Chrome Extension**
+- **Location:** _Not included in this repo_ (must be obtained separately)
+- **How to install:**
+  1. Obtain the extension from the official source or your team
+  2. Open Chrome and go to `chrome://extensions/`
+  3. Enable **Developer mode**
+  4. Click **Load unpacked**
+  5. Select the folder containing the POD extension
+
+**⚠️ Both extensions must be loaded and enabled in Chrome for the Unified Betting App to function correctly.** 
