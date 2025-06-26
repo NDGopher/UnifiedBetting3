@@ -14,6 +14,10 @@ import signal
 import psutil
 import atexit
 import ctypes
+import msvcrt
+import win32gui
+import win32con
+import win32api
 
 # Configure Windows console for colors
 if platform.system() == "Windows":
@@ -104,83 +108,178 @@ backend_process = None
 frontend_process = None
 chrome_processes = []
 all_child_processes = []
+cleanup_done = False
+
+def handle_chrome_restore_dialog():
+    """Automatically handle Chrome restore dialog if it appears"""
+    try:
+        import win32gui
+        import win32con
+        import win32api
+        import time
+        
+        # Wait a moment for the dialog to appear
+        time.sleep(2)
+        
+        # Look for Chrome restore dialog window with multiple approaches
+        def enum_windows_callback(hwnd, windows):
+            if win32gui.IsWindowVisible(hwnd):
+                window_text = win32gui.GetWindowText(hwnd)
+                # Look for various restore dialog variations
+                if any(keyword in window_text.lower() for keyword in [
+                    'restore', 'chrome', 'session', 'reopen', 'recovery'
+                ]):
+                    windows.append((hwnd, window_text))
+            return True
+        
+        windows = []
+        win32gui.EnumWindows(enum_windows_callback, windows)
+        
+        for hwnd, window_text in windows:
+            try:
+                print_status(f"Found Chrome dialog: {window_text}", "INFO", Colors.YELLOW)
+                
+                # Try multiple approaches to close the dialog
+                # Method 1: Send Alt+N (Don't restore)
+                win32api.SendMessage(hwnd, win32con.WM_SYSKEYDOWN, ord('N'), 0x001C0001)
+                win32api.SendMessage(hwnd, win32con.WM_SYSKEYUP, ord('N'), 0xC01C0001)
+                time.sleep(0.5)
+                
+                # Method 2: Send Escape key
+                win32api.SendMessage(hwnd, win32con.WM_KEYDOWN, win32con.VK_ESCAPE, 0)
+                win32api.SendMessage(hwnd, win32con.WM_KEYUP, win32con.VK_ESCAPE, 0)
+                time.sleep(0.5)
+                
+                # Method 3: Send Enter key
+                win32api.SendMessage(hwnd, win32con.WM_KEYDOWN, win32con.VK_RETURN, 0)
+                win32api.SendMessage(hwnd, win32con.WM_KEYUP, win32con.VK_RETURN, 0)
+                
+                print_status("✅ Automatically handled Chrome restore dialog", "SUCCESS", Colors.GREEN)
+                return True
+            except Exception as e:
+                print_status(f"Failed to handle dialog: {e}", "WARNING", Colors.YELLOW)
+                continue
+    except Exception as e:
+        print_status(f"Chrome restore dialog handling failed: {e}", "WARNING", Colors.YELLOW)
+    return False
 
 def cleanup_on_exit():
     """Cleanup function to be called when the script exits"""
-    print_status("🔄 Cleaning up processes and windows...", "PROGRESS", Colors.YELLOW)
+    global cleanup_done
+    if cleanup_done:
+        return
+    cleanup_done = True
+    
+    print_status("🔄 Force cleaning up ALL processes and windows...", "PROGRESS", Colors.YELLOW)
+    print_status("💡 If Chrome shows a 'restore pages' dialog, click 'Don't restore'", "INFO", Colors.YELLOW)
     
     # Kill backend and frontend processes
     if backend_process and backend_process.poll() is None:
-        print_status("Stopping backend process...", "INFO", Colors.BLUE)
+        print_status("Force killing backend process...", "INFO", Colors.BLUE)
         try:
-            backend_process.terminate()
-            backend_process.wait(timeout=5)
-        except:
             backend_process.kill()
+        except:
+            pass
     
     if frontend_process and frontend_process.poll() is None:
-        print_status("Stopping frontend process...", "INFO", Colors.BLUE)
+        print_status("Force killing frontend process...", "INFO", Colors.BLUE)
         try:
-            frontend_process.terminate()
-            frontend_process.wait(timeout=5)
-        except:
             frontend_process.kill()
+        except:
+            pass
     
-    # Kill all child processes
+    # Kill all child processes aggressively
     for proc in all_child_processes:
         if proc and proc.poll() is None:
             try:
-                proc.terminate()
+                proc.kill()
             except:
                 pass
+    
+    # Force kill ALL Chrome processes (this is the main issue)
+    print_status("Force killing ALL Chrome processes...", "INFO", Colors.RED)
+    try:
+        subprocess.run("taskkill /f /im chrome.exe", shell=True, capture_output=True)
+        subprocess.run("taskkill /f /im chromedriver.exe", shell=True, capture_output=True)
+        
+        # Wait a moment for Chrome to potentially show restore dialog
+        time.sleep(1)
+        
+        # Automatically handle Chrome restore dialog if it appears
+        handle_chrome_restore_dialog()
+        
+    except:
+        pass
     
     # Close Chrome windows related to the app
     close_chrome_windows()
     
-    # Kill processes on our ports
+    # Kill processes on our ports aggressively
     for port in [5001, 3000, 3001, 3002, 3003, 3004, 3005, 3006, 3007, 3008, 3009, 3010]:
         kill_process_on_port(port)
     
-    print_status("✅ Cleanup complete!", "SUCCESS", Colors.GREEN)
+    # Force kill any remaining node and python processes related to our app
+    try:
+        import psutil
+        for proc in psutil.process_iter(['pid', 'name', 'cmdline']):
+            try:
+                if proc.info['name']:
+                    name = proc.info['name'].lower()
+                    cmdline = ' '.join(proc.info['cmdline'] or [])
+                    
+                    # Kill ALL node processes (they might be running our frontend)
+                    if name == 'node.exe':
+                        print_status(f"Force killing Node process: {proc.info['pid']}", "INFO", Colors.YELLOW)
+                        proc.kill()
+                    
+                    # Kill ALL python processes (they might be running our backend)
+                    elif name == 'python.exe':
+                        print_status(f"Force killing Python process: {proc.info['pid']}", "INFO", Colors.YELLOW)
+                        proc.kill()
+                    
+                    # Kill ALL Chrome processes
+                    elif name == 'chrome.exe' or name == 'chromedriver.exe':
+                        print_status(f"Force killing Chrome process: {proc.info['pid']}", "INFO", Colors.YELLOW)
+                        proc.kill()
+            except (psutil.NoSuchProcess, psutil.AccessDenied):
+                pass
+    except:
+        pass
+    
+    print_status("✅ Force cleanup complete!", "SUCCESS", Colors.GREEN)
 
 def close_chrome_windows():
     """Close Chrome windows related to the betting app"""
     try:
         import psutil
         
-        # Keywords to identify our Chrome windows
-        target_keywords = [
-            'pinnacleoddsdropper.com',
-            'betbck.com',
-            'localhost:3000',
-            'localhost:5001',
-            'unified betting',
-            'POD',
-            'PTO'
-        ]
+        print_status("🔍 Force closing ALL Chrome windows...", "INFO", Colors.CYAN)
         
-        print_status("🔍 Looking for Chrome windows to close...", "INFO", Colors.CYAN)
+        # Force kill ALL Chrome processes
+        try:
+            subprocess.run("taskkill /f /im chrome.exe", shell=True, capture_output=True)
+            subprocess.run("taskkill /f /im chromedriver.exe", shell=True, capture_output=True)
+            print_status("✅ All Chrome processes force killed", "SUCCESS", Colors.GREEN)
+        except:
+            pass
         
+        # Also try to find and kill specific Chrome processes
+        chrome_closed = False
         for proc in psutil.process_iter(['pid', 'name', 'cmdline']):
             try:
                 if proc.info['name'] and 'chrome' in proc.info['name'].lower():
-                    # Check if this Chrome process has our target windows
-                    cmdline = ' '.join(proc.info['cmdline'] or [])
-                    
-                    for keyword in target_keywords:
-                        if keyword.lower() in cmdline.lower():
-                            print_status(f"Closing Chrome window with keyword: {keyword}", "INFO", Colors.YELLOW)
-                            try:
-                                proc.terminate()
-                                time.sleep(0.5)
-                            except:
-                                pass
-                            break
+                    print_status(f"Force killing Chrome process: {proc.info['pid']}", "INFO", Colors.YELLOW)
+                    try:
+                        proc.kill()
+                        chrome_closed = True
+                    except:
+                        pass
             except (psutil.NoSuchProcess, psutil.AccessDenied):
                 pass
+        
+        if not chrome_closed:
+            print_status("No additional Chrome processes found", "INFO", Colors.GRAY)
                 
-    except ImportError:
-        print_status("psutil not available, skipping Chrome window cleanup", "WARNING", Colors.YELLOW)
     except Exception as e:
         print_status(f"Error closing Chrome windows: {e}", "ERROR", Colors.RED)
 
@@ -190,12 +289,42 @@ def signal_handler(signum, frame):
     cleanup_on_exit()
     sys.exit(0)
 
-# Register cleanup function and signal handlers
-atexit.register(cleanup_on_exit)
-if hasattr(signal, 'SIGINT'):
+def windows_console_handler(event_type):
+    """Handle Windows console events for better cleanup"""
+    if event_type in [signal.CTRL_C_EVENT, signal.CTRL_BREAK_EVENT]:
+        print_status("Received shutdown signal, cleaning up...", "INFO", Colors.YELLOW)
+        cleanup_on_exit()
+        sys.exit(0)
+    elif event_type == signal.CTRL_CLOSE_EVENT:
+        print_status("Console window closing, cleaning up...", "INFO", Colors.YELLOW)
+        cleanup_on_exit()
+        sys.exit(0)
+
+# Set up signal handlers for Windows
+if platform.system() == "Windows":
+    try:
+        # Register for console events
+        kernel32 = ctypes.windll.kernel32
+        kernel32.SetConsoleCtrlHandler(ctypes.WINFUNCTYPE(ctypes.c_bool, ctypes.c_ulong)(windows_console_handler), True)
+        
+        # Also set up Python signal handlers as backup
+        signal.signal(signal.SIGINT, signal_handler)
+        signal.signal(signal.SIGTERM, signal_handler)
+        
+        # Register cleanup function to run on exit
+        atexit.register(cleanup_on_exit)
+        
+    except Exception as e:
+        print_status(f"Warning: Could not set up Windows signal handlers: {e}", "WARNING", Colors.YELLOW)
+        # Fallback to Python signal handlers
+        signal.signal(signal.SIGINT, signal_handler)
+        signal.signal(signal.SIGTERM, signal_handler)
+        atexit.register(cleanup_on_exit)
+else:
+    # Unix-like systems
     signal.signal(signal.SIGINT, signal_handler)
-if hasattr(signal, 'SIGTERM'):
     signal.signal(signal.SIGTERM, signal_handler)
+    atexit.register(cleanup_on_exit)
 
 def find_free_port(start_port=3000, max_port=3010):
     """Find a free port in the given range"""
@@ -231,6 +360,7 @@ def run_command(command, cwd=None, silent=False):
     """Run a command and print its output in real-time"""
     if not silent:
         print_status(f"Running command: {command}", "INFO", Colors.GRAY)
+    
     process = subprocess.Popen(
         command,
         stdout=subprocess.PIPE if silent else None,
@@ -243,10 +373,16 @@ def run_command(command, cwd=None, silent=False):
     # Track the process for cleanup
     all_child_processes.append(process)
     
-    if not silent:
+    if silent:
+        # For silent commands, just wait and return the result
+        process.wait()
+        if process.returncode != 0:
+            print_status(f"Silent command failed with return code {process.returncode}", "ERROR", Colors.RED)
+    else:
         process.wait()
         if process.returncode != 0:
             print_status(f"Command failed with return code {process.returncode}", "ERROR", Colors.RED)
+    
     return process
 
 def check_dependencies_installed(backend_dir, frontend_dir):
@@ -304,19 +440,31 @@ def setup_pto_profile(backend_dir, python_cmd):
         # Check if profile already exists and is working
         if profile_dir and os.path.exists(profile_dir):
             print_status("PTO profile directory exists, testing...", "INFO", Colors.BLUE)
-            test_cmd = f'{python_cmd} -c "from pto_scraper import PTOScraper; import json; config=json.load(open(\'config.json\')); scraper=PTOScraper(config[\'pto\']); print(\'Profile test:\', scraper.test_profile())"'
-            result = subprocess.run(test_cmd, shell=True, cwd=backend_dir, capture_output=True, text=True)
-            if "Profile test: True" in result.stdout:
+            
+            # More robust test that handles Chrome restore dialogs
+            test_cmd = f'{python_cmd} -c "from pto_scraper import PTOScraper; import json; config=json.load(open(\'config.json\')); scraper=PTOScraper(config[\'pto\']); result=scraper.test_profile(); print(\'Profile test result:\', result)"'
+            result = subprocess.run(test_cmd, shell=True, cwd=backend_dir, capture_output=True, text=True, timeout=30)
+            
+            # Handle Chrome restore dialog if it appears during testing
+            time.sleep(2)  # Wait for Chrome to potentially show dialog
+            handle_chrome_restore_dialog()
+            
+            if "Profile test result: True" in result.stdout:
                 print_status("✅ PTO profile is working correctly", "SUCCESS", Colors.GREEN)
-                return True
-            else:
-                print_status("⚠️ PTO profile exists but test failed", "WARNING", Colors.YELLOW)
+            elif "Profile test result: False" in result.stdout:
+                print_status("⚠️ PTO profile test failed - may need setup", "WARNING", Colors.YELLOW)
                 print_status("💡 You can run 'python setup_pto_profile.py' in the backend directory to fix this", "INFO", Colors.GRAY)
-                return False
+            else:
+                # Check if it's a Chrome restore dialog issue
+                if "restore" in result.stderr.lower() or "restore" in result.stdout.lower():
+                    print_status("⚠️ Chrome restore dialog detected - profile may need attention", "WARNING", Colors.YELLOW)
+                    print_status("💡 Please close any Chrome restore dialogs and try again", "INFO", Colors.GRAY)
+                else:
+                    print_status("⚠️ PTO profile test failed - will need setup", "WARNING", Colors.YELLOW)
+                    print_status("💡 You can run 'python setup_pto_profile.py' in the backend directory to fix this", "INFO", Colors.GRAY)
         else:
-            print_status("ℹ️ PTO profile not found", "INFO", Colors.YELLOW)
+            print_status("ℹ️ PTO profile not found - will need setup", "INFO", Colors.YELLOW)
             print_status("💡 You can run 'python setup_pto_profile.py' in the backend directory to set it up", "INFO", Colors.GRAY)
-            return False
             
     except Exception as e:
         print_status(f"Error checking PTO profile: {e}", "ERROR", Colors.RED)
@@ -368,18 +516,35 @@ def setup_backend():
         activate_cmd = "venv/bin/activate"
         python_cmd = "venv/bin/python"
     
-    # Always install requirements to ensure all dependencies are present
+    # Check if dependencies are already installed
     if (backend_dir / "requirements.txt").exists():
-        print_status("Installing backend dependencies...", "INFO", Colors.BLUE)
-        # First upgrade pip to avoid warnings (silent)
-        if run_command(f"{python_cmd} -m pip install --upgrade pip", cwd=backend_dir, silent=True).wait() != 0:
-            raise Exception("Failed to upgrade pip")
+        # Check if uvicorn is already installed (indicator that dependencies are installed)
+        try:
+            result = subprocess.run(
+                f'"{python_cmd}" -c "import uvicorn; print(\'deps_installed\')"',
+                shell=True,
+                cwd=backend_dir,
+                capture_output=True,
+                text=True,
+                timeout=10
+            )
+            deps_installed = "deps_installed" in result.stdout
+        except:
+            deps_installed = False
         
-        # Then install requirements (silent)
-        if run_command(f"{python_cmd} -m pip install -r requirements.txt", cwd=backend_dir, silent=True).wait() != 0:
-            raise Exception("Failed to install backend requirements")
-        
-        print_status("✅ Backend dependencies installed successfully", "SUCCESS", Colors.GREEN)
+        if not deps_installed:
+            print_status("Installing backend dependencies...", "INFO", Colors.BLUE)
+            # First upgrade pip to avoid warnings (silent)
+            if run_command(f"{python_cmd} -m pip install --upgrade pip", cwd=backend_dir, silent=True).wait() != 0:
+                raise Exception("Failed to upgrade pip")
+            
+            # Then install requirements (silent)
+            if run_command(f"{python_cmd} -m pip install -r requirements.txt", cwd=backend_dir, silent=True).wait() != 0:
+                raise Exception("Failed to install backend requirements")
+            
+            print_status("✅ Backend dependencies installed successfully", "SUCCESS", Colors.GREEN)
+        else:
+            print_status("✅ Backend dependencies already installed", "SUCCESS", Colors.GREEN)
     else:
         print_status("requirements.txt not found in backend directory", "WARNING", Colors.YELLOW)
     
@@ -390,12 +555,15 @@ def setup_frontend():
     print_status("=== Setting up Frontend ===", "INFO", Colors.BLUE)
     frontend_dir = Path("frontend")
     
-    # Always run npm install to ensure all dependencies are present
-    print_status("Installing frontend dependencies...", "INFO", Colors.BLUE)
-    if run_command("npm install", cwd=frontend_dir, silent=True).wait() != 0:
-        raise Exception("Failed to install frontend dependencies")
-    
-    print_status("✅ Frontend dependencies installed successfully", "SUCCESS", Colors.GREEN)
+    # Check if node_modules already exists
+    if (frontend_dir / "node_modules").exists():
+        print_status("✅ Frontend dependencies already installed", "SUCCESS", Colors.GREEN)
+    else:
+        print_status("Installing frontend dependencies...", "INFO", Colors.BLUE)
+        if run_command("npm install", cwd=frontend_dir, silent=True).wait() != 0:
+            raise Exception("Failed to install frontend dependencies")
+        
+        print_status("✅ Frontend dependencies installed successfully", "SUCCESS", Colors.GREEN)
 
 def wait_for_backend(port=5001, timeout=30):
     """Wait for backend to be ready"""
@@ -444,13 +612,28 @@ def launch_application():
                 
                 if profile_dir and os.path.exists(profile_dir):
                     print_status("PTO profile directory exists, testing...", "INFO", Colors.BLUE)
-                    test_cmd = f'{python_cmd} -c "from pto_scraper import PTOScraper; import json; config=json.load(open(\'config.json\')); scraper=PTOScraper(config[\'pto\']); print(\'Profile test:\', scraper.test_profile())"'
-                    result = subprocess.run(test_cmd, shell=True, cwd=backend_dir, capture_output=True, text=True)
-                    if "Profile test: True" in result.stdout:
+                    
+                    # More robust test that handles Chrome restore dialogs
+                    test_cmd = f'{python_cmd} -c "from pto_scraper import PTOScraper; import json; config=json.load(open(\'config.json\')); scraper=PTOScraper(config[\'pto\']); result=scraper.test_profile(); print(\'Profile test result:\', result)"'
+                    result = subprocess.run(test_cmd, shell=True, cwd=backend_dir, capture_output=True, text=True, timeout=30)
+                    
+                    # Handle Chrome restore dialog if it appears during testing
+                    time.sleep(2)  # Wait for Chrome to potentially show dialog
+                    handle_chrome_restore_dialog()
+                    
+                    if "Profile test result: True" in result.stdout:
                         print_status("✅ PTO profile is working correctly", "SUCCESS", Colors.GREEN)
-                    else:
-                        print_status("⚠️ PTO profile exists but test failed - will need setup", "WARNING", Colors.YELLOW)
+                    elif "Profile test result: False" in result.stdout:
+                        print_status("⚠️ PTO profile test failed - may need setup", "WARNING", Colors.YELLOW)
                         print_status("💡 You can run 'python setup_pto_profile.py' in the backend directory to fix this", "INFO", Colors.GRAY)
+                    else:
+                        # Check if it's a Chrome restore dialog issue
+                        if "restore" in result.stderr.lower() or "restore" in result.stdout.lower():
+                            print_status("⚠️ Chrome restore dialog detected - profile may need attention", "WARNING", Colors.YELLOW)
+                            print_status("💡 Please close any Chrome restore dialogs and try again", "INFO", Colors.GRAY)
+                        else:
+                            print_status("⚠️ PTO profile test failed - will need setup", "WARNING", Colors.YELLOW)
+                            print_status("💡 You can run 'python setup_pto_profile.py' in the backend directory to fix this", "INFO", Colors.GRAY)
                 else:
                     print_status("ℹ️ PTO profile not found - will need setup", "INFO", Colors.YELLOW)
                     print_status("💡 You can run 'python setup_pto_profile.py' in the backend directory to set it up", "INFO", Colors.GRAY)
@@ -507,52 +690,88 @@ def launch_application():
         all_child_processes.append(backend_process)
         
         # Log backend output in a separate thread
+        pto_monitoring_ready = threading.Event()
+        
         def log_backend_output():
             while backend_process.poll() is None:
                 output = backend_process.stdout.readline()
                 if output:
                     output = output.strip()
-                    # Only show important messages, filter out verbose logs
-                    if any(keyword in output.lower() for keyword in [
-                        'error', 'warning', 'critical', 'failed', 'exception',
-                        'server ready', 'uvicorn running', 'startup complete',
-                        'telegram alerts', 'pto scraper started', 'chrome driver',
-                        'cloudflare', 'prop builder', 'setup complete'
-                    ]):
-                        # Clean up the output for better readability
-                        if 'INFO:' in output and 'uvicorn' in output:
-                            continue  # Skip uvicorn startup messages
-                        if 'Requirement already satisfied' in output:
-                            continue  # Skip pip install messages
-                        if 'DevTools listening' in output:
-                            continue  # Skip Chrome DevTools messages
-                        if 'WARNING: All log messages' in output:
-                            continue  # Skip Chrome warnings
-                        if 'Created TensorFlow' in output:
-                            continue  # Skip TensorFlow messages
-                        if 'Attempting to use a delegate' in output:
-                            continue  # Skip TensorFlow delegate messages
-                        if 'USB: usb_service_win.cc' in output:
-                            continue  # Skip USB error messages
-                        if 'voice_transcription' in output:
-                            continue  # Skip voice transcription messages
-                        if 'DEP_WEBPACK_DEV_SERVER' in output:
-                            continue  # Skip webpack deprecation warnings
-                        
-                        # Clean up the message
-                        if '[Backend]' in output:
-                            output = output.replace('[Backend] ', '')
-                        
-                        # Show only essential messages
-                        if any(essential in output for essential in [
-                            'Server ready to receive alerts',
-                            'PTO scraper started',
-                            'Chrome driver created successfully',
-                            'Successfully passed Cloudflare challenge',
-                            'PTO setup complete',
-                            'Telegram alerts configured'
-                        ]):
-                            print(f"{Colors.BLUE}[Backend]{Colors.RESET} {output}")
+                    
+                    # Skip all the verbose Chrome/DevTools/USB/TensorFlow noise
+                    skip_patterns = [
+                        'DevTools listening on ws://',
+                        'WARNING: All log messages',
+                        'Created TensorFlow Lite XNNPACK delegate',
+                        'Attempting to use a delegate',
+                        'USB: usb_service_win.cc',
+                        'voice_transcription',
+                        'DEP_WEBPACK_DEV_SERVER',
+                        'Requirement already satisfied',
+                        'INFO:     Uvicorn running',
+                        'INFO:     Started reloader process',
+                        'INFO:     Will watch for changes',
+                        'Opening in existing browser session',
+                        'Page loaded into a non-browser-tab context',
+                        'Use `node --trace-deprecation`',
+                        'components\\device_event_log\\device_event_log_impl.cc',
+                        'SetupDiGetDeviceProperty',
+                        'Registering VoiceTranscriptionCapability',
+                        'TensorFlow Lite XNNPACK delegate',
+                        'static-sized tensors',
+                        'dynamic-sized tensors',
+                        'content\\browser\\network_service_instance_impl.cc',
+                        'content\\browser\\gpu\\gpu_process_host.cc',
+                        'GPU process exited unexpectedly',
+                        'Network service crashed',
+                        'ERROR:components\\device_event_log',
+                        'USB: usb_service_win.cc:105',
+                        'WARNING: All log messages before absl::InitializeLog()',
+                        'voice_transcription.cc:58',
+                        'Created TensorFlow Lite XNNPACK delegate for CPU',
+                        'Attempting to use a delegate that only supports static-sized tensors',
+                        'dynamic-sized tensors (tensor#-1 is a dynamic-sized tensor)',
+                        'DevTools listening on ws://127.0.0.1:',
+                        'components\\device_event_log\\device_event_log_impl.cc:202',
+                        'ERROR:content\\browser\\network_service_instance_impl.cc',
+                        'Network service crashed, restarting service',
+                        'USB: usb_service_win.cc:105 SetupDiGetDeviceProperty',
+                        'Element not found. (0x490)',
+                        'I0000 00:00:',
+                        'voice_transcription.cc:58] Registering VoiceTranscriptionCapability',
+                        'Created TensorFlow Lite XNNPACK delegate for CPU.',
+                        'Attempting to use a delegate that only supports static-sized tensors with a graph that has dynamic-sized tensors'
+                    ]
+                    
+                    if any(pattern in output for pattern in skip_patterns):
+                        continue
+                    
+                    # Clean up and format important messages
+                    if 'telegram_alerts' in output and 'configured' in output:
+                        print(f"{Colors.YELLOW}📱 Telegram Alerts configured!{Colors.RESET}")
+                    elif 'pto_scraper' in output and 'started' in output:
+                        print(f"{Colors.CYAN}🤖 PTO Scraper started{Colors.RESET}")
+                    elif 'Server ready to receive alerts' in output:
+                        print(f"{Colors.GREEN}✅ Server ready to receive alerts{Colors.RESET}")
+                    elif 'Chrome driver created successfully' in output:
+                        print(f"{Colors.GREEN}✅ Chrome driver created successfully{Colors.RESET}")
+                    elif 'Successfully passed Cloudflare challenge' in output:
+                        print(f"{Colors.GREEN}✅ Successfully passed Cloudflare challenge{Colors.RESET}")
+                    elif 'PTO setup complete' in output and 'prop monitoring' in output:
+                        print(f"{Colors.GREEN}✅ PTO successfully monitoring props{Colors.RESET}")
+                        # Set flag when PTO is actually monitoring
+                        pto_monitoring_ready.set()
+                    elif 'Could not switch to Prop Builder tab' in output:
+                        # This is often a false positive - PTO usually works anyway
+                        print(f"{Colors.YELLOW}⚠️ Prop Builder tab warning (usually works anyway){Colors.RESET}")
+                    elif 'Still on Cloudflare page, waiting longer' in output:
+                        # Skip this warning - only show if it actually fails
+                        continue
+                    elif 'error' in output.lower() or 'exception' in output.lower():
+                        print(f"{Colors.RED}❌ {output}{Colors.RESET}")
+                    elif 'warning' in output.lower():
+                        print(f"{Colors.YELLOW}⚠️ {output}{Colors.RESET}")
+        
         backend_log_thread = threading.Thread(target=log_backend_output, daemon=True)
         backend_log_thread.start()
         
@@ -597,68 +816,79 @@ def launch_application():
         all_child_processes.append(frontend_process)
         
         # Log frontend output in a separate thread
+        frontend_ready_flag = threading.Event()
+        
         def log_frontend_output():
             while frontend_process.poll() is None:
                 output = frontend_process.stdout.readline()
                 if output:
                     output = output.strip()
-                    # Only show important frontend messages
-                    if any(keyword in output.lower() for keyword in [
-                        'compiled successfully', 'development server', 'localhost',
-                        'error', 'warning', 'failed', 'ready'
-                    ]):
-                        # Skip verbose messages
-                        if 'DevTools listening' in output:
-                            continue
-                        if 'DEP_WEBPACK_DEV_SERVER' in output:
-                            continue
-                        if 'node:' in output and 'DEP_' in output:
-                            continue
-                        if 'USB: usb_service_win.cc' in output:
-                            continue
-                        if 'WARNING: All log messages' in output:
-                            continue
-                        if 'Created TensorFlow' in output:
-                            continue
-                        if 'Attempting to use a delegate' in output:
-                            continue
-                        if 'voice_transcription' in output:
-                            continue
-                        
-                        # Clean up the message
-                        if '[Frontend]' in output:
-                            output = output.replace('[Frontend] ', '')
-                        
-                        # Show only essential messages
-                        if any(essential in output for essential in [
-                            'Starting the development server',
-                            'Compiled successfully',
-                            'Local:',
-                            'On Your Network:',
-                            'You can now view'
-                        ]):
-                            print(f"{Colors.MAGENTA}[Frontend]{Colors.RESET} {output}")
+                    
+                    # Skip all the verbose noise
+                    skip_patterns = [
+                        'DevTools listening on ws://',
+                        'WARNING: All log messages',
+                        'Created TensorFlow Lite XNNPACK delegate',
+                        'Attempting to use a delegate',
+                        'USB: usb_service_win.cc',
+                        'voice_transcription',
+                        'DEP_WEBPACK_DEV_SERVER',
+                        'node:',
+                        'Opening in existing browser session'
+                    ]
+                    
+                    if any(pattern in output for pattern in skip_patterns):
+                        continue
+                    
+                    # Clean up and format important messages
+                    if 'Starting the development server' in output:
+                        print(f"{Colors.MAGENTA}🚀 Starting React development server...{Colors.RESET}")
+                    elif 'Compiled successfully' in output:
+                        print(f"{Colors.GREEN}✅ Frontend compiled successfully{Colors.RESET}")
+                        # Set flag when frontend is actually ready
+                        frontend_ready_flag.set()
+                    elif 'Local:' in output and 'localhost:' in output:
+                        print(f"{Colors.GREEN}🌐 {output}{Colors.RESET}")
+                    elif 'error' in output.lower() or 'failed' in output.lower():
+                        print(f"{Colors.RED}❌ {output}{Colors.RESET}")
+                    elif 'warning' in output.lower():
+                        print(f"{Colors.YELLOW}⚠️ {output}{Colors.RESET}")
+        
         frontend_log_thread = threading.Thread(target=log_frontend_output, daemon=True)
         frontend_log_thread.start()
         
         # Wait a bit for frontend to start
-        time.sleep(5)
+        print_status("⏳ Waiting for frontend to start...", "INFO", Colors.YELLOW)
+        time.sleep(3)
         
-        # Open browser manually instead of automatically
-        def open_browser():
-            time.sleep(3)  # Wait a bit more for frontend to be ready
+        # Wait for frontend to be actually ready
+        frontend_ready = False
+        start_time = time.time()
+        while time.time() - start_time < 30 and not frontend_ready:
             try:
-                frontend_url = f"http://localhost:{frontend_port}"
-                print_status(f"Frontend ready at: {frontend_url}", "SUCCESS", Colors.GREEN)
-                print_status("Please open this URL in your browser manually", "INFO", Colors.YELLOW)
-                # Don't auto-open browser since we set BROWSER=none
-                # webbrowser.open(frontend_url)
-            except Exception as e:
-                print_status(f"Failed to get frontend URL: {e}", "ERROR", Colors.RED)
-        browser_thread = threading.Thread(target=open_browser, daemon=True)
-        browser_thread.start()
+                with socket.socket(socket.AF_INET, socket.SOCK_STREAM) as s:
+                    s.connect(('localhost', frontend_port))
+                    frontend_ready = True
+                    break
+            except:
+                time.sleep(1)
         
-        # Print success banner
+        if not frontend_ready:
+            print_status("Frontend failed to start within 30 seconds", "ERROR", Colors.RED)
+            frontend_process.terminate()
+            raise Exception("Frontend startup timeout")
+        
+        # Wait for frontend to actually compile successfully
+        print_status("⏳ Waiting for frontend to compile...", "INFO", Colors.YELLOW)
+        if not frontend_ready_flag.wait(timeout=60):  # Wait up to 60 seconds for compilation
+            print_status("Frontend compilation timeout", "WARNING", Colors.YELLOW)
+        
+        # Wait for PTO to actually be monitoring props
+        print_status("⏳ Waiting for PTO to start monitoring...", "INFO", Colors.YELLOW)
+        if not pto_monitoring_ready.wait(timeout=120):  # Wait up to 2 minutes for PTO monitoring
+            print_status("PTO monitoring timeout", "WARNING", Colors.YELLOW)
+        
+        # Print success banner with next steps (only after everything is truly ready)
         success_banner = f"""
 {Colors.GREEN}{Colors.BOLD}
 ╔══════════════════════════════════════════════════════════════╗
@@ -667,7 +897,14 @@ def launch_application():
 {Colors.CYAN}📊 Frontend:{Colors.RESET} http://localhost:{frontend_port}
 {Colors.CYAN}🔧 Backend API:{Colors.RESET} http://localhost:5001
 {Colors.CYAN}📈 Pinnacle Odds Dropper:{Colors.RESET} https://pinnacleoddsdropper.com
-{Colors.CYAN}✅ PTO Scraper:{Colors.RESET} Active and running
+{Colors.CYAN}✅ PTO Scraper:{Colors.RESET} Active and monitoring
+
+{Colors.YELLOW}{Colors.BOLD}📋 NEXT STEPS:{Colors.RESET}
+{Colors.WHITE}1. Log in to betbck.com{Colors.RESET}
+{Colors.WHITE}2. Refresh pinnacleoddsdropper.com{Colors.RESET}
+{Colors.WHITE}3. Confirm PickTheOdds is showing Prop Builder{Colors.RESET}
+{Colors.WHITE}4. Open http://localhost:{frontend_port} in your browser{Colors.RESET}
+
 {Colors.YELLOW}💡 Press Ctrl+C to stop all services{Colors.RESET}
 {Colors.YELLOW}💡 Close this window to automatically clean up all processes and windows{Colors.RESET}
 {Colors.GREEN}══════════════════════════════════════════════════════════════════{Colors.RESET}

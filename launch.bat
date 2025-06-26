@@ -9,10 +9,15 @@ echo Close this window to stop all services and clean up.
 echo.
 cd /d %~dp0
 
-REM Install psutil if not available
+REM Install psutil and pywin32 if not available
 python -c "import psutil" 2>nul || (
     echo Installing psutil for process management...
     python -m pip install psutil
+)
+
+python -c "import win32api" 2>nul || (
+    echo Installing pywin32 for Windows signal handling...
+    python -m pip install pywin32
 )
 
 REM Launch the application
