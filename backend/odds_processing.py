@@ -217,7 +217,7 @@ def process_alert_and_scrape_betbck(event_id: str, original_alert_details: Dict[
         if isinstance(original_alert_details, dict):
             original_alert_details['betbck_search_term_used'] = betbck_search_query
         print(f"[MainLogic] POD Teams (Raw): '{pod_home_team_raw}' vs '{pod_away_team_raw}'. BetBCK Search: '{betbck_search_query}'")
-        bet_data = scrape_betbck_for_game(pod_home_team_raw, pod_away_team_raw, search_team_name_betbck=betbck_search_query)
+        bet_data = scrape_betbck_for_game(pod_home_team_raw, pod_away_team_raw, search_team_name_betbck=betbck_search_query, event_id=event_id)
         if not isinstance(bet_data, dict) or bet_data.get("source") != "betbck.com":
             error_msg = "Scraper returned no data."
             if isinstance(bet_data, dict) and "message" in bet_data:

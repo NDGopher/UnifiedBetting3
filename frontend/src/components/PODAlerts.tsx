@@ -1,4 +1,4 @@
-import React, { useEffect, useState, useCallback, useRef } from "react";
+import React, { useEffect, useState, useCallback, useRef, useContext } from "react";
 import {
   Table,
   TableBody,
@@ -20,6 +20,7 @@ import {
 } from "@mui/material";
 import { Refresh as RefreshIcon } from "@mui/icons-material";
 import StarIcon from "@mui/icons-material/Star";
+import { BetbckTabContext } from "../App";
 
 interface Market {
   market: string;
@@ -44,7 +45,7 @@ interface EventData {
   betbck_payload?: any;
 }
 
-const POLL_INTERVAL = 1000; // 1 second for fast POD alert updates
+const POLL_INTERVAL = 2000; // 2 seconds for fast POD alert updates
 const AUTO_DISMISS_MS = 5 * 60 * 1000; // 5 minutes
 const MAX_RETRIES = 3; // Maximum number of retries before showing error
 
@@ -58,6 +59,8 @@ const PODAlerts: React.FC = () => {
   const [retryCount, setRetryCount] = useState(0);
   const [showOnlyEV, setShowOnlyEV] = useState(false);
   const prevMarketsRef = useRef<{ [eventId: string]: Market[] }>({});
+  // Track which events have already triggered a notification
+  const notifiedEventsRef = useRef<Set<string>>(new Set());
 
   const fetchEvents = useCallback(async () => {
     try {
@@ -161,21 +164,69 @@ const PODAlerts: React.FC = () => {
     // Compare new markets to previous markets for NVP/EV changes
     Object.entries(events).forEach(([eventId, event]) => {
       const prevMarkets = prevMarketsRef.current[eventId] || [];
+      
+      // Check for new positive EV markets (first time seeing this event)
+      if (prevMarkets.length === 0 && event.markets.length > 0) {
+        const positiveEVMarkets = event.markets.filter(m => parseFloat(m.ev) > 0);
+        if (positiveEVMarkets.length > 0) {
+          console.log(
+            `🎯 NEW POSITIVE EV MARKETS DISCOVERED for ${event.title}:`,
+            `\n   Found ${positiveEVMarkets.length} positive EV markets:`,
+            ...positiveEVMarkets.map(m => 
+              `\n   - ${m.market} ${m.selection} ${m.line}: EV ${m.ev}%, NVP ${m.pinnacle_nvp}, BetBCK ${m.betbck_odds}`
+            )
+          );
+        }
+      }
+      
       event.markets.forEach((market, idx) => {
         const prev = prevMarkets[idx];
         if (prev) {
-          if (
-            (market.pinnacle_nvp !== prev.pinnacle_nvp || market.ev !== prev.ev) &&
-            parseFloat(market.ev) > 0
-          ) {
-            // Only log if changed and new EV is positive
+          const currentEV = parseFloat(market.ev);
+          const prevEV = parseFloat(prev.ev);
+          
+          // Only log changes for positive EV plays
+          if (currentEV > 0 && (market.pinnacle_nvp !== prev.pinnacle_nvp || market.ev !== prev.ev)) {
+            const evChange = currentEV - prevEV;
+            const evChangeDirection = evChange > 0 ? '📈' : evChange < 0 ? '📉' : '➡️';
+            
             console.log(
-              `[PODAlerts] NVP/EV changed for ${event.title} [${market.market} ${market.selection} ${market.line}]:`,
-              `NVP: ${prev.pinnacle_nvp} → ${market.pinnacle_nvp}, EV: ${prev.ev} → ${market.ev}`
+              `[PODAlerts] 🎯 POSITIVE EV CHANGE for ${event.title}`,
+              `\n   Market: ${market.market} ${market.selection} ${market.line}`,
+              `\n   NVP: ${prev.pinnacle_nvp} → ${market.pinnacle_nvp}`,
+              `\n   EV: ${prev.ev} → ${market.ev} ${evChangeDirection}`,
+              `\n   EV Change: ${evChange > 0 ? '+' : ''}${evChange.toFixed(2)}%`,
+              `\n   BetBCK Odds: ${market.betbck_odds}`
             );
+            
+            // Log significant EV improvements
+            if (evChange > 1.0) {
+              console.log(
+                `🚀 SIGNIFICANT EV IMPROVEMENT! ${evChange.toFixed(2)}% increase for ${event.title} - ${market.market} ${market.selection}`
+              );
+            }
           }
         }
       });
+      // --- Trigger notification if any market EV > 2.5% ---
+      const hasHighEV = event.markets.some(m => parseFloat(m.ev) > 2.5);
+      if (hasHighEV && !notifiedEventsRef.current.has(eventId)) {
+        console.log(`🔔 HIGH EV ALERT! ${event.title} has a market with EV > 2.5%`);
+        if (window.Notification && Notification.permission === 'granted') {
+          new Notification('High EV POD Alert!', {
+            body: `${event.title} has a market with EV > 2.5%`,
+          });
+        } else if (window.Notification && Notification.permission !== 'denied') {
+          Notification.requestPermission().then(permission => {
+            if (permission === 'granted') {
+              new Notification('High EV POD Alert!', {
+                body: `${event.title} has a market with EV > 2.5%`,
+              });
+            }
+          });
+        }
+        notifiedEventsRef.current.add(eventId);
+      }
     });
     // Save current markets for next comparison
     prevMarketsRef.current = Object.fromEntries(
@@ -359,19 +410,49 @@ const PODAlerts: React.FC = () => {
             variant="contained"
             color="success"
             onClick={async () => {
-              if (!modalMarket) return;
-              const event = Object.values(events).find(e => e.title === modalMarket.event.title);
-              const payload = event?.betbck_payload;
-              if (!payload) {
-                alert("BetBCK payload not found for this event.");
+              console.log("🎯 PLACE BET button clicked!");
+              console.log("Modal market data:", modalMarket);
+              
+              if (!modalMarket) {
+                console.log("❌ No modal market data found");
                 return;
               }
-              await fetch('http://localhost:5001/api/betbck/open_bet', {
-                method: 'POST',
-                headers: { 'Content-Type': 'application/json' },
-                body: JSON.stringify(payload),
-              });
-              alert("Bet page is being opened in your browser!");
+              
+              const event = Object.values(events).find(e => e.title === modalMarket.event.title);
+              console.log("Found event:", event);
+              
+              const payload = event?.betbck_payload;
+              if (!payload) {
+                console.log("❌ BetBCK payload not found for this event.");
+                return;
+              }
+              
+              console.log("✅ BetBCK payload found:", payload);
+              
+              // Gather bet info for extension
+              const betInfo = {
+                line: modalMarket.market.line,
+                ev: modalMarket.market.ev,
+                betbck_odds: modalMarket.market.betbck_odds,
+                nvp: modalMarket.market.pinnacle_nvp,
+                eventId: Object.keys(events).find(
+                  k => events[k].title === modalMarket.event.title
+                ),
+                keyword_search: payload.keyword_search || ''
+              };
+              
+              console.log("📤 Sending bet info to extension:", betInfo);
+              
+              // Send message to Chrome extension using window.postMessage (no extension ID needed)
+              // The extension content script will listen for this message and relay it to the background script
+              window.postMessage({
+                type: 'FOCUS_BETBCK_TAB',
+                keyword: betInfo.keyword_search,
+                betInfo
+              }, '*');
+              
+              console.log("✅ Message sent to extension via window.postMessage");
+              console.log("🔍 Check the Chrome extension popup for bet details");
             }}
           >
             Place Bet

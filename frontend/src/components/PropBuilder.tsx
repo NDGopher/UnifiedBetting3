@@ -1,4 +1,4 @@
-import React, { useState, useEffect, useRef } from "react";
+import React, { useState, useEffect, useRef, useCallback } from "react";
 import {
   Paper,
   Typography,
@@ -99,7 +99,7 @@ const PropBuilder: React.FC = () => {
     return <Casino />;
   };
 
-  const fetchPTOData = async (isManual = false) => {
+  const fetchPTOData = useCallback(async (isManual = false) => {
     if (initialLoad || isManual) setLoading(true);
     setError(null);
     try {
@@ -124,9 +124,9 @@ const PropBuilder: React.FC = () => {
       setLoading(false);
       setManualRefresh(false);
     }
-  };
+  }, [initialLoad, showOnlyPositiveEv, minEvFilter]);
 
-  const fetchScraperStatus = async () => {
+  const fetchScraperStatus = useCallback(async () => {
     try {
       const response = await fetch(`${API_BASE}/pto/scraper/status`);
       if (response.ok) {
@@ -136,7 +136,7 @@ const PropBuilder: React.FC = () => {
     } catch (err) {
       console.error("Failed to fetch scraper status:", err);
     }
-  };
+  }, []);
 
   const toggleScraper = async (start: boolean) => {
     try {

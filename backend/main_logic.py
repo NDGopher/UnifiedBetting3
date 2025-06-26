@@ -82,7 +82,8 @@ def process_alert_and_scrape_betbck(event_id, original_alert_details, processed_
         if not scrape_betbck:
             return {"status": "success", "data": {}}
 
-        betbck_result = scrape_betbck_for_game(pod_home_team_raw, pod_away_team_raw, search_term)
+        # Pass event_id to scraper to prevent race conditions
+        betbck_result = scrape_betbck_for_game(pod_home_team_raw, pod_away_team_raw, search_term, event_id)
         if not betbck_result:
             return {"status": "error", "message": "Failed to scrape BetBCK"}
 

@@ -17,4 +17,5 @@ websockets
 python-dateutil
 fuzzywuzzy
 python-Levenshtein  # Optional but recommended for better performance
-selenium 
+selenium
+psutil  # For process management and cleanup 

@@ -4,6 +4,7 @@ import json
 import re
 import os
 import time
+import datetime
 import threading
 from utils import normalize_team_name_for_matching
 from utils.pod_utils import skip_indicators, is_prop_or_corner_alert, fuzzy_team_match
@@ -304,24 +305,24 @@ def get_cleaned_team_name_from_div(team_div):
     raw_name = re.sub(r'\s*\((hits\+runs\+errors|h\+r\+e|hre)\)$', '', raw_name, flags=re.IGNORECASE).strip()
     return " ".join(raw_name.split()) if raw_name else ""
 
-def parse_specific_game_from_search_html(html_content, target_home_team_pod, target_away_team_pod):
-    if not html_content: print("[BetbckParser] No HTML content."); return None
+def parse_specific_game_from_search_html(html_content, target_home_team_pod, target_away_team_pod, event_id=None):
+    if not html_content: print(f"[BetbckParser] No HTML content. (Event ID: {event_id})"); return None
     soup = BeautifulSoup(html_content, 'html.parser'); search_context = soup.find('form', {'name': 'GameSelectionForm', 'id': 'GameSelectionForm'}) or soup
     game_wrappers = []
     for gw_class in GAME_WRAPPER_PRIMARY_CLASSES: game_wrappers.extend(f for f in search_context.find_all('table', class_=gw_class) if f not in game_wrappers)
     if not game_wrappers and GAME_WRAPPER_FALLBACK_CLASSES:
-        print(f"[BetbckParser] No primary wrappers. Fallbacks: {GAME_WRAPPER_FALLBACK_CLASSES}")
+        print(f"[BetbckParser] No primary wrappers. Fallbacks: {GAME_WRAPPER_FALLBACK_CLASSES} (Event ID: {event_id})")
         for gw_class in GAME_WRAPPER_FALLBACK_CLASSES:
             for f_table in search_context.find_all('table', class_=gw_class):
                 potential_inner = f_table.find_all('table', class_=lambda x: x and x.startswith('table_container_betting'))
                 if potential_inner: game_wrappers.extend(iw for iw in potential_inner if iw not in game_wrappers)
                 elif f_table.find('table',class_='new_tb_cont') and f_table not in game_wrappers: game_wrappers.append(f_table)
-    print(f"[BetbckParser] Found {len(game_wrappers)} potential game wrapper tables.")
+    print(f"[BetbckParser] Found {len(game_wrappers)} potential game wrapper tables. (Event ID: {event_id})")
     if not game_wrappers: return None
 
     norm_pod_h = normalize_team_name_for_matching(target_home_team_pod)
     norm_pod_a = normalize_team_name_for_matching(target_away_team_pod)
-    print(f"[BetbckParser] Normalized POD Targets: Home='{norm_pod_h}', Away='{norm_pod_a}'")
+    print(f"[BetbckParser] Normalized POD Targets: Home='{norm_pod_h}', Away='{norm_pod_a}' (Event ID: {event_id})")
 
     for idx, game_wrapper_table in enumerate(game_wrappers):
         team_name_td = game_wrapper_table.find('td', class_=lambda x: x and x.startswith('tbl_betAmount_team1_main_name'))
@@ -329,19 +330,19 @@ def parse_specific_game_from_search_html(html_content, target_home_team_pod, tar
         div_t1 = team_name_td.find('div', class_='team1_name_up'); div_t2 = team_name_td.find('div', class_='team2_name_down')
         if not (div_t1 and div_t2): continue
         raw_bck_l, raw_bck_v = get_cleaned_team_name_from_div(div_t1), get_cleaned_team_name_from_div(div_t2)
-        if not raw_bck_l or not raw_bck_v: print(f"[BetbckParser] Wrapper {idx}: Empty raw names. L='{raw_bck_l}', V='{raw_bck_v}'"); continue
+        if not raw_bck_l or not raw_bck_v: print(f"[BetbckParser] Wrapper {idx}: Empty raw names. L='{raw_bck_l}', V='{raw_bck_v}' (Event ID: {event_id})"); continue
         
         skip_indicators = ["1H", "1st Half", "First Half", "1st 5 Innings", "First Five Innings", "1st Period", "2nd Period", "3rd Period", "hits+runs+errors", "h+r+e", "hre", "corners", "series"]
         if any(ind.lower() in raw_bck_l.lower() for ind in skip_indicators) or \
            any(ind.lower() in raw_bck_v.lower() for ind in skip_indicators):
-            print(f"[BetbckParser] Skipping non-full game/prop: {raw_bck_l} vs {raw_bck_v}"); continue
+            print(f"[BetbckParser] Skipping non-full game/prop: {raw_bck_l} vs {raw_bck_v} (Event ID: {event_id})"); continue
             
         norm_bck_l, norm_bck_v = normalize_team_name_for_matching(raw_bck_l), normalize_team_name_for_matching(raw_bck_v)
-        print(f"[BetbckParser] Comparing POD: H='{norm_pod_h}' A='{norm_pod_a}' WITH BCK {idx}: L='{norm_bck_l}' V='{norm_bck_v}' (Raw: L='{raw_bck_l}', V='{raw_bck_v}')")
+        print(f"[BetbckParser] Comparing POD: H='{norm_pod_h}' A='{norm_pod_a}' WITH BCK {idx}: L='{norm_bck_l}' V='{norm_bck_v}' (Raw: L='{raw_bck_l}', V='{raw_bck_v}') (Event ID: {event_id})")
         matched, bck_local_is_pod_home = False, False
 
-        if norm_pod_h == norm_bck_l and norm_pod_a == norm_bck_v: matched, bck_local_is_pod_home = True, True; print(f"[BetbckParser] Exact Match (Order 1) for {raw_bck_l} vs {raw_bck_v}")
-        elif norm_pod_h == norm_bck_v and norm_pod_a == norm_bck_l: matched, bck_local_is_pod_home = True, False; print(f"[BetbckParser] Exact Match (Order 2 - Flipped) for {raw_bck_l} vs {raw_bck_v}")
+        if norm_pod_h == norm_bck_l and norm_pod_a == norm_bck_v: matched, bck_local_is_pod_home = True, True; print(f"[BetbckParser] Exact Match (Order 1) for {raw_bck_l} vs {raw_bck_v} (Event ID: {event_id})")
+        elif norm_pod_h == norm_bck_v and norm_pod_a == norm_bck_l: matched, bck_local_is_pod_home = True, False; print(f"[BetbckParser] Exact Match (Order 2 - Flipped) for {raw_bck_l} vs {raw_bck_v} (Event ID: {event_id})")
         elif fuzz:
             # Try all alias combinations for both orders
             pod_h_aliases = [norm_pod_h] + TEAM_ALIASES.get(norm_pod_h, [])
@@ -357,15 +358,15 @@ def parse_specific_game_from_search_html(html_content, target_home_team_pod, tar
                             s_av = fuzz.token_set_ratio(pa, bv)
                             s_hv = fuzz.token_set_ratio(ph, bv)
                             s_al = fuzz.token_set_ratio(pa, bh)
-                            print(f"[DEBUG] Comparing normalized: POD H='{ph}', A='{pa}' with BCK H='{bh}', A='{bv}' | Scores: (H-L {s_hl} A-V {s_av}) OR (H-V {s_hv} A-L {s_al})")
+                            print(f"[DEBUG] Comparing normalized: POD H='{ph}', A='{pa}' with BCK H='{bh}', A='{bv}' | Scores: (H-L {s_hl} A-V {s_av}) OR (H-V {s_hv} A-L {s_al}) (Event ID: {event_id})")
                             if s_hl >= FUZZY_MATCH_THRESHOLD and s_av >= FUZZY_MATCH_THRESHOLD:
                                 matched, bck_local_is_pod_home = True, True
-                                print(f"[BetbckParser] Fuzzy Alias Match (Order 1)")
+                                print(f"[BetbckParser] Fuzzy Alias Match (Order 1) (Event ID: {event_id})")
                                 found_fuzzy = True
                                 break
                             elif s_hv >= FUZZY_MATCH_THRESHOLD and s_al >= FUZZY_MATCH_THRESHOLD:
                                 matched, bck_local_is_pod_home = True, False
-                                print(f"[BetbckParser] Fuzzy Alias Match (Order 2 - Flipped)")
+                                print(f"[BetbckParser] Fuzzy Alias Match (Order 2 - Flipped) (Event ID: {event_id})")
                                 found_fuzzy = True
                                 break
                         if found_fuzzy: break
@@ -375,17 +376,17 @@ def parse_specific_game_from_search_html(html_content, target_home_team_pod, tar
         
         if not matched: continue
         
-        print(f"[BetbckParser] Game Matched! BetBCK Local is POD Home: {bck_local_is_pod_home}. Parsing odds...")
+        print(f"[BetbckParser] Game Matched! BetBCK Local is POD Home: {bck_local_is_pod_home}. Parsing odds... (Event ID: {event_id})")
         odds_table = game_wrapper_table.find('table', class_='new_tb_cont')
-        if not odds_table: print(f"[BetbckParser] No 'new_tb_cont' odds table for game {idx}."); continue
+        if not odds_table: print(f"[BetbckParser] No 'new_tb_cont' odds table for game {idx}. (Event ID: {event_id})"); continue
         
         output_data = {"source":"betbck.com","betbck_displayed_local":raw_bck_l,"betbck_displayed_visitor":raw_bck_v,"pod_home_team":target_home_team_pod,"pod_away_team":target_away_team_pod,"home_moneyline_american":None,"away_moneyline_american":None,"draw_moneyline_american":None,"home_spreads":[],"away_spreads":[],"game_total_line":None,"game_total_over_odds":None,"game_total_under_odds":None,"home_team_total_over_line":None, "home_team_total_over_odds":None,"home_team_total_under_line":None, "home_team_total_under_odds":None,"away_team_total_over_line":None, "away_team_total_over_odds":None,"away_team_total_under_line":None, "away_team_total_under_odds":None}
         
         data_rows_source = odds_table.find('tbody') or odds_table
         all_tr_in_odds_section = data_rows_source.find_all('tr', recursive=False) 
         data_rows = [r for r in all_tr_in_odds_section if r.find('td', class_=lambda x: x and 'tbl_betAmount_td' in x) and not r.find('td', colspan=True)]
-        print(f"[BetbckParser] Game {idx}: Extracted {len(data_rows)} potential data rows from odds table.")
-        if len(data_rows) < 2: print(f"[BetbckParser] Insufficient data rows ({len(data_rows)}) for game {idx}."); continue 
+        print(f"[BetbckParser] Game {idx}: Extracted {len(data_rows)} potential data rows from odds table. (Event ID: {event_id})")
+        if len(data_rows) < 2: print(f"[BetbckParser] Insufficient data rows ({len(data_rows)}) for game {idx}. (Event ID: {event_id})"); continue 
         
         tds_bck_displayed_local_row = data_rows[0].find_all('td',class_=lambda x: x and 'tbl_betAmount_td' in x)
         tds_bck_displayed_visitor_row = data_rows[1].find_all('td',class_=lambda x: x and 'tbl_betAmount_td' in x)
@@ -415,12 +416,12 @@ def parse_specific_game_from_search_html(html_content, target_home_team_pod, tar
         if len(data_rows)>2 and "draw" in data_rows[2].get_text(strip=True).lower():
             tds_draw = data_rows[2].find_all('td',class_=lambda x:x and 'tbl_betAmount_td' in x)
             if len(tds_draw)>1: output_data["draw_moneyline_american"]=extract_american_odds_from_text(tds_draw[1])
-        print(f"[BetbckParser] Final Parsed Data: {json.dumps(output_data, indent=2)}"); return output_data
-    print(f"[BetbckParser] No game matching POD teams found after all wrappers."); return None
+        print(f"[BetbckParser] Final Parsed Data: {json.dumps(output_data, indent=2)} (Event ID: {event_id})"); return output_data
+    print(f"[BetbckParser] No game matching POD teams found after all wrappers. (Event ID: {event_id})"); return None
 
 # --- Main Callable Function ---
-def scrape_betbck_for_game(pod_home_team, pod_away_team, search_team_name_betbck=None):
-    print(f"\n[BetbckScraper-CORE] Initiating scrape for: '{pod_home_team}' vs '{pod_away_team}'")
+def scrape_betbck_for_game(pod_home_team, pod_away_team, search_team_name_betbck=None, event_id=None):
+    print(f"\n[BetbckScraper-CORE] Initiating scrape for: '{pod_home_team}' vs '{pod_away_team}' (Event ID: {event_id})")
     session = requests.Session();
     if not login_to_betbck(session): print("[BetbckScraper-CORE] Login failed."); return None
     inet_wager, inet_sport_select = get_search_prerequisites(session, MAIN_PAGE_URL_AFTER_LOGIN)
@@ -440,13 +441,17 @@ def scrape_betbck_for_game(pod_home_team, pod_away_team, search_team_name_betbck
     if not search_results_html: print(f"[BetbckScraper-CORE] No search results HTML for '{actual_search_query}'."); return None
     debug_html_dir = os.path.join(SCRIPT_DIR, "betbck_html_logs"); os.makedirs(debug_html_dir, exist_ok=True)
     safe_pod_home = re.sub(r'[^\w\-_.]', '_', normalize_team_name_for_matching(pod_home_team)); safe_pod_away = re.sub(r'[^\w\-_.]', '_', normalize_team_name_for_matching(pod_away_team))
-    pod_teams_fn_part = f"{safe_pod_home}_vs_{safe_pod_away}"[:100]; safe_search_q = re.sub(r'[^\w\-_.]', '_', actual_search_query); ts = time.strftime('%Y%m%d_%H%M%S')
-    debug_fn = os.path.join(debug_html_dir, f"search_{safe_search_q}_{pod_teams_fn_part}_{ts}.html")
+    pod_teams_fn_part = f"{safe_pod_home}_vs_{safe_pod_away}"[:100]; safe_search_q = re.sub(r'[^\w\-_.]', '_', actual_search_query); ts = datetime.datetime.now().strftime('%Y%m%d_%H%M%S_%f')
+    
+    # Add event_id to filename to prevent race conditions
+    event_suffix = f"_event_{event_id}" if event_id else ""
+    debug_fn = os.path.join(debug_html_dir, f"search_{safe_search_q}_{pod_teams_fn_part}_{ts}{event_suffix}.html")
+    
     try:
         with open(debug_fn, "w", encoding="utf-8") as f: f.write(search_results_html)
         print(f"[BetbckScraper-CORE] DEBUG: Saved BetBCK search HTML to {debug_fn}")
     except Exception as e: print(f"[BetbckScraper-CORE] DEBUG: ERROR saving HTML: {e}")
-    parsed_game_data = parse_specific_game_from_search_html(search_results_html, pod_home_team, pod_away_team)
+    parsed_game_data = parse_specific_game_from_search_html(search_results_html, pod_home_team, pod_away_team, event_id)
     # --- Add BetBCK payload for POD alerts ---
     if parsed_game_data and isinstance(parsed_game_data, dict):
         from bs4 import BeautifulSoup

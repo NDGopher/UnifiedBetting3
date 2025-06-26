@@ -1,76 +1,318 @@
-# UnifiedBetting2
+# 🎯 Unified Betting App
 
-UnifiedBetting2 is a robust, full-stack betting analytics and automation platform. It integrates real-time scraping, EV (expected value) calculations, Telegram alerts, and a modern React frontend for sports betting professionals and enthusiasts.
+A comprehensive betting automation platform that combines real-time odds analysis, automated scraping, and intelligent betting recommendations.
 
-## Features
-- **PTO (PickTheOdds) Scraper**: Stealthy Selenium-based scraper with persistent Chrome profile
-- **PropBuilderEV Workflow**: Real-time prop monitoring, robust anti-bot, and session management
-- **Telegram Alerts**: Instant notifications for high-EV props
-- **Modern Frontend**: React UI with real-time updates, filtering, and status indicators
-- **Single-Command Launch**: One BAT/script launches everything (backend, frontend, scraper)
-- **Portable & User-Friendly**: Easy setup, robust error handling, and clear workflow
+## 🚀 Features
 
-## Setup
-1. **Clone the repo:**
-   ```sh
-   git clone https://github.com/NDGopher/UnifiedBetting2.git
+### **Core Functionality**
+- **Real-time EV Analysis**: Automatic calculation of Expected Value (EV) for betting opportunities
+- **Multi-Source Integration**: Combines Pinnacle odds with BetBCK for arbitrage opportunities
+- **POD (Pinnacle Odds Dropper) Integration**: Real-time alerts for odds movements
+- **PTO (Prop Trading Opportunities) Scraper**: Automated prop bet monitoring
+- **Chrome Extension**: Seamless BetBCK integration with one-click betting
+
+### **Advanced Features**
+- **Smart Process Management**: Automatic cleanup of all processes and Chrome windows
+- **Beautiful PowerShell UI**: Colored output with progress indicators and status messages
+- **Comprehensive Logging**: Detailed logging for positive EV changes and system events
+- **Error Recovery**: Robust error handling and automatic retry mechanisms
+- **Port Management**: Automatic port detection and conflict resolution
+
+### **User Experience**
+- **One-Click Launch**: Single `launch.bat` file starts everything
+- **Automatic Cleanup**: Close PowerShell window to stop all services
+- **Real-time Updates**: Live EV/NVP updates in the frontend
+- **Browser Notifications**: Desktop alerts for high EV opportunities
+- **Responsive Design**: Modern React frontend with Material-UI
+
+## 📋 Prerequisites
+
+- **Python 3.8+**
+- **Node.js 16+**
+- **Chrome Browser**
+- **Windows 10/11** (primary support)
+
+## 🛠️ Installation
+
+### **Quick Start**
+1. **Clone the repository**
+   ```bash
+   git clone <repository-url>
    cd UnifiedBetting2
    ```
-2. **Install backend dependencies:**
-   ```sh
+
+2. **Launch the application**
+   ```bash
+   launch.bat
+   ```
+
+That's it! The script will automatically:
+- Install all dependencies
+- Set up virtual environments
+- Start backend and frontend servers
+- Open required browser tabs
+- Launch PTO scraper
+
+### **Manual Setup (Optional)**
+If you prefer manual setup:
+
+1. **Backend Setup**
+   ```bash
    cd backend
    python -m venv venv
-   venv\Scripts\pip install -r requirements.txt
+   venv\Scripts\activate
+   pip install -r requirements.txt
    ```
-3. **Install frontend dependencies:**
-   ```sh
-   cd ../frontend
+
+2. **Frontend Setup**
+   ```bash
+   cd frontend
    npm install
    ```
-4. **Run the setup script for PTO profile:**
-   ```sh
-   cd ../backend
+
+3. **PTO Profile Setup**
+   ```bash
+   cd backend
    python setup_pto_profile.py
    ```
-5. **Launch the app:**
-   ```sh
-   cd ..
-   python launch.py
-   ```
 
-## ⚠️ Important: Missing Files
-After cloning the repository, you need to manually add the following files that are not included in the repo for security/privacy reasons:
+## 🎮 Usage
 
-### Required Files to Add:
-1. **`backend/config.json`** - Configuration file containing:
-   - BetBCK credentials and URLs
-   - Pinnacle API settings
-   - Telegram bot configuration
-   - PTO scraper settings
+### **Starting the App**
+```bash
+launch.bat
+```
 
-2. **`backend/utils/pod_utils.py`** - Utility functions containing:
-   - `skip_indicators()` function
-   - `is_prop_or_corner_alert()` function  
-   - `fuzzy_team_match()` function
-   - `determine_betbck_search_term()` function
-   - Team name normalization and EV calculation utilities
+The app will start and display:
+- Beautiful colored banner
+- Progress indicators for each step
+- Status messages with timestamps
+- Success confirmation with all URLs
 
-3. **`backend/utils/__init__.py`** - Module initialization file with proper imports
+### **Stopping the App**
+Simply **close the PowerShell window** that runs `launch.bat`. The system will automatically:
+- Stop backend and frontend processes
+- Close all Chrome windows (POD, BetBCK, PTO)
+- Kill processes on ports 5001, 3000-3010
+- Clean up all child processes
 
-### How to Add These Files:
-- Copy these files from your existing working installation
-- Place them in the correct locations as shown above
-- Ensure `config.json` contains your actual API keys and credentials
-- The backend will not start without these files
+### **Alternative Stop Methods**
+- **Ctrl+C**: Graceful shutdown
+- **shutdown.bat**: Force cleanup for emergencies
 
-## Usage
-- Access the frontend at [http://localhost:3000](http://localhost:3000)
-- Backend API at [http://localhost:5001](http://localhost:5001)
-- PTO scraper runs in the background and updates props in real time
+## 🏗️ Architecture
 
-## Credits
-- Developed by NDGopher and contributors
-- Special thanks to the open-source community
+### **Backend (FastAPI)**
+- **Port**: 5001
+- **Framework**: FastAPI with Uvicorn
+- **Features**:
+  - Real-time POD alert processing
+  - BetBCK scraping automation
+  - Pinnacle odds fetching
+  - EV calculation engine
+  - PTO scraper integration
 
-## License
-MIT License (see LICENSE) 
+### **Frontend (React)**
+- **Port**: 3000 (auto-detected)
+- **Framework**: React with TypeScript
+- **UI**: Material-UI components
+- **Features**:
+  - Real-time EV display
+  - POD alerts table
+  - PTO props monitoring
+  - EV calculator
+  - One-click betting integration
+
+### **Chrome Extension**
+- **Location**: `betbck_extension/`
+- **Features**:
+  - BetBCK tab automation
+  - Real-time EV/NVP popup
+  - One-click bet placement
+  - Auto-login handling
+
+### **PTO Scraper**
+- **Location**: `backend/pto_scraper.py`
+- **Features**:
+  - Automated prop bet monitoring
+  - Chrome profile management
+  - Real-time data extraction
+  - Cloudflare bypass
+
+## 📊 Components
+
+### **POD Alerts**
+- Real-time odds movement alerts
+- EV calculation and filtering
+- Positive EV market highlighting
+- Browser notifications for high EV opportunities
+
+### **EV Calculator**
+- Manual EV calculations
+- American/Decimal odds support
+- Real-time results
+- Kelly criterion integration
+
+### **Prop Builder**
+- PTO prop monitoring
+- Real-time EV updates
+- Sport filtering
+- Direct BetBCK integration
+
+## 🔧 Configuration
+
+### **Backend Config** (`backend/config.json`)
+```json
+{
+  "pto": {
+    "chrome_user_data_dir": "path/to/chrome/profile",
+    "enable_auto_scraping": true
+  }
+}
+```
+
+### **Chrome Extension**
+- Automatically installed when launching
+- No manual configuration required
+- Uses `window.postMessage` for communication
+
+## 🚨 Troubleshooting
+
+### **Common Issues**
+
+#### **Port Already in Use**
+```bash
+shutdown.bat
+# Wait a few seconds
+launch.bat
+```
+
+#### **Chrome Windows Don't Close**
+- Run `shutdown.bat` to force cleanup
+- Or manually close Chrome tabs
+
+#### **PTO Profile Issues**
+```bash
+cd backend
+python setup_pto_profile.py
+```
+
+#### **Dependencies Missing**
+The launch script automatically installs missing dependencies. If issues persist:
+```bash
+cd backend
+pip install -r requirements.txt
+cd ../frontend
+npm install
+```
+
+### **Logs and Debugging**
+- **Backend logs**: Displayed in PowerShell with color coding
+- **Frontend logs**: Browser console (F12)
+- **Extension logs**: Chrome DevTools for extension
+
+## 📈 Performance
+
+### **Optimizations**
+- **Process Management**: Automatic cleanup prevents memory leaks
+- **Port Detection**: Finds free ports automatically
+- **Error Recovery**: Robust retry mechanisms
+- **Caching**: Intelligent data caching for performance
+
+### **Monitoring**
+- Real-time process status
+- Port usage monitoring
+- Memory usage tracking
+- Error rate monitoring
+
+## 🔒 Security
+
+### **Best Practices**
+- **Local Development**: All services run locally
+- **No Sensitive Data**: Config files excluded from git
+- **Process Isolation**: Each component runs in separate process
+- **Error Handling**: Comprehensive error catching
+
+### **Sensitive Files**
+The following files are excluded from git and should be added manually:
+- `backend/config.json`
+- `backend/.env`
+- Chrome profile directories
+
+## 🤝 Contributing
+
+### **Development Setup**
+1. Fork the repository
+2. Create a feature branch
+3. Make your changes
+4. Test thoroughly
+5. Submit a pull request
+
+### **Code Style**
+- **Python**: PEP 8 compliance
+- **JavaScript/TypeScript**: ESLint configuration
+- **React**: Functional components with hooks
+- **Documentation**: Comprehensive docstrings
+
+## 📝 Recent Updates
+
+### **v2.0 - Major UI/UX Improvements**
+- ✅ **Beautiful PowerShell UI**: Colored output with progress bars
+- ✅ **Automatic Process Cleanup**: Close window to stop everything
+- ✅ **Enhanced Logging**: Positive EV change notifications
+- ✅ **Improved Error Handling**: Better error messages and recovery
+- ✅ **Chrome Window Management**: Automatic cleanup of browser tabs
+
+### **v1.5 - Stability Improvements**
+- ✅ **Race Condition Fixes**: Eliminated shared state issues
+- ✅ **EV Filtering**: Only shows realistic EV values (-20% to +20%)
+- ✅ **Extension Messaging**: Robust communication without hardcoded IDs
+- ✅ **Backend Robustness**: Better error handling and recovery
+
+### **v1.0 - Core Features**
+- ✅ **POD Integration**: Real-time odds alerts
+- ✅ **BetBCK Scraping**: Automated odds collection
+- ✅ **EV Calculation**: Real-time expected value analysis
+- ✅ **Chrome Extension**: BetBCK automation
+- ✅ **PTO Scraper**: Prop bet monitoring
+
+## 📞 Support
+
+### **Getting Help**
+1. **Check the logs**: PowerShell output and browser console
+2. **Run shutdown.bat**: Force cleanup and restart
+3. **Check prerequisites**: Ensure Python/Node.js versions
+4. **Review configuration**: Verify config.json setup
+
+### **Common Commands**
+```bash
+# Start the app
+launch.bat
+
+# Force cleanup
+shutdown.bat
+
+# Manual backend start
+cd backend
+python -m uvicorn main:app --host 0.0.0.0 --port 5001
+
+# Manual frontend start
+cd frontend
+npm start
+```
+
+## 📄 License
+
+This project is licensed under the MIT License - see the [LICENSE](LICENSE) file for details.
+
+## 🙏 Acknowledgments
+
+- **Pinnacle Odds Dropper**: For real-time odds data
+- **BetBCK**: For betting platform integration
+- **Material-UI**: For beautiful React components
+- **FastAPI**: For high-performance backend
+- **Selenium**: For web automation
+
+---
+
+**🎯 Ready to start betting smarter? Run `launch.bat` and let the automation begin!** 
