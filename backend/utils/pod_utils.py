@@ -198,21 +198,20 @@ TEAM_ALIASES = {
     'russia': ['russian federation'],
     'tottenham': ['tottenham hotspur', 'spurs'],
     'psg': ['paris saint germain', 'paris sg'],
+    'tiger cats': ['tiger-cats', 'hamilton tiger cats', 'hamilton tiger-cats'],
+    'blue bombers': ['winnipeg blue bombers'],
+    'roughriders': ['saskatchewan roughriders'],
+    'stampeders': ['calgary stampeders'],
+    'eskimos': ['edmonton eskimos', 'edmonton elks'],
+    'redblacks': ['ottawa redblacks'],
+    'argonauts': ['toronto argonauts'],
+    'alouettes': ['montreal alouettes'],
+    'lions': ['bc lions', 'british columbia lions'],
+    'new york': ['ny'],
+    'los angeles': ['la'],
+    'st louis': ['st. louis'],
     'inter': ['inter milan', 'internazionale'],
-    'altach': ['rheindorf altach', 'scr altach'],
-    'ny': ['new york'],
-    'la': ['los angeles'],
-    'st. louis': ['st louis'],
-    'orense': ['orenseecuador', 'orense ecuador', 'cd orense', 'club deportivo orense'],
-    'manta': ['manta fc', 'manta futbol club', 'club deportivo manta'],
-    'barcelona': ['barcelona sc', 'barcelona sporting club', 'barcelona ecuador'],
-    'emelec': ['club sport emelec', 'cs emelec'],
-    'independiente': ['independiente del valle', 'idv'],
-    'universidad catolica': ['uc', 'universidad catolica quito'],
-    'deportivo cuenca': ['cuenca', 'cd cuenca'],
-    'el nacional': ['nacional', 'club deportivo el nacional'],
-    'liga de quito': ['ldu', 'liga de quito quito'],
-    'aucas': ['aucas quito', 'sociedad deportiva aucas'],
+    'altach': ['rheindorf altach', 'scr altach']
 }
 
 def alias_normalize(name):
@@ -224,7 +223,7 @@ def alias_normalize(name):
     return name
 
 def normalize_team_name_for_matching(name):
-    """Normalize team name for matching"""
+    """Normalize team name for matching with improved dash handling"""
     original_name_for_debug = name
     if not name:
         print(f"[Utils] WARNING: normalize_team_name_for_matching received None or empty input: '{original_name_for_debug}'")
@@ -239,6 +238,10 @@ def normalize_team_name_for_matching(name):
     norm_name = re.sub(r'\s*\((?:games|sets|match|hits\+runs\+errors|h\+r\+e|hre|corners)\)$', '', norm_name).strip()
     norm_name = re.sub(r'\s*\([^)]*\)', '', norm_name).strip()
 
+    # IMPROVED DASH HANDLING - Convert dashes to spaces for better matching
+    # This handles "Tiger-Cats" vs "Tiger Cats"
+    norm_name = re.sub(r'-', ' ', norm_name)
+    
     # Remove country/competition suffixes if not the whole name
     suffix_patterns = [
         r'\s*usa$', r'\s*u21$', r'\s*u19$', r'\s*uefa.*$', r'\s*fifa.*$', r'\s*euro.*$', r'\s*afc.*$', r'\s*concacaf.*$', r'\s*conmebol.*$', r'\s*olympics.*$', r'\s*championship.*$', r'\s*cup.*$', r'\s*league.*$', r'\s*mls$', r'\s*england$', r'\s*scotland$', r'\s*france$', r'\s*spain$', r'\s*italy$', r'\s*germany$', r'\s*netherlands$', r'\s*portugal$', r'\s*denmark$', r'\s*sweden$', r'\s*norway$', r'\s*switzerland$', r'\s*belgium$', r'\s*austria$', r'\s*poland$', r'\s*croatia$', r'\s*serbia$', r'\s*romania$', r'\s*bulgaria$', r'\s*slovakia$', r'\s*slovenia$', r'\s*hungary$', r'\s*czech republic$', r'\s*russia$', r'\s*ukraine$', r'\s*turkey$', r'\s*greece$', r'\s*ireland$', r'\s*wales$', r'\s*northern ireland$'
@@ -267,6 +270,7 @@ def normalize_team_name_for_matching(name):
     for prefix in common_prefixes:
         if norm_name.startswith(prefix): norm_name = norm_name[len(prefix):].strip()
 
+    # Handle specific team name variations
     if "tottenham hotspur" in name.lower(): norm_name = "tottenham"
     elif "paris saint germain" in name.lower() or "paris sg" in name.lower(): norm_name = "psg"
     elif "new york" in name.lower(): norm_name = norm_name.replace("new york", "ny")

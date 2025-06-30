@@ -1,4 +1,4 @@
-from fastapi import FastAPI, Request
+from fastapi import FastAPI, Request, WebSocket, WebSocketDisconnect
 from fastapi.middleware.cors import CORSMiddleware
 from fastapi.responses import JSONResponse
 from typing import List, Dict, Any, Optional
@@ -17,6 +17,10 @@ import copy
 from team_utils import match_betbck_to_pinnacle_markets
 from utils.pod_utils import clean_pod_team_name_for_search, american_to_decimal, calculate_ev, decimal_to_american, normalize_team_name_for_matching, is_prop_or_corner_alert, determine_betbck_search_term
 from pto_scraper import PTOScraper
+from thread_safe_manager import event_manager
+import gc
+import psutil
+from websocket_manager import manager
 
 # Configure logging
 logging.basicConfig(
@@ -71,8 +75,48 @@ _last_pto_props_log_time = 0
 _last_pto_props_ev_log_time = 0
 _pto_props_log_lock = threading.Lock()
 
+# Add memory management
+def check_memory_usage():
+    """Check memory usage and trigger cleanup if needed"""
+    try:
+        memory = psutil.virtual_memory()
+        if memory.percent > 85:
+            logger.warning(f"[Memory] High memory usage detected: {memory.percent}%")
+            # Force garbage collection
+            collected = gc.collect()
+            logger.info(f"[Memory] Garbage collection freed {collected} objects")
+            # Clean up expired events
+            event_manager.cleanup_expired_events()
+            # Get memory stats after cleanup
+            memory_after = psutil.virtual_memory()
+            logger.info(f"[Memory] After cleanup: {memory_after.percent}%")
+            return True
+        return False
+    except Exception as e:
+        logger.error(f"[Memory] Error checking memory usage: {e}")
+        return False
+
+# Add memory monitoring to the background task
+def background_memory_monitor():
+    """Monitor memory usage and trigger cleanup"""
+    while True:
+        try:
+            time.sleep(30)  # Check every 30 seconds
+            check_memory_usage()
+        except Exception as e:
+            logger.error(f"[MemoryMonitor] Error: {e}")
+
+# Start memory monitor in background
+memory_monitor_thread = threading.Thread(target=background_memory_monitor, daemon=True)
+memory_monitor_thread.start()
+
+import asyncio
+main_event_loop = None
+
 @app.on_event("startup")
 async def startup_event():
+    global main_event_loop
+    main_event_loop = asyncio.get_running_loop()
     logger.info("\n=== Starting up Unified Betting App ===")
     logger.info("Initializing services...")
     logger.info("Background event refresher started")
@@ -80,6 +124,8 @@ async def startup_event():
     # Start PTO scraper if enabled
     if config.get("pto", {}).get("enable_auto_scraping", True):
         logger.info("Starting PTO scraper...")
+        # Pass the event loop to the PTO scraper for WebSocket broadcasting
+        pto_scraper._ws_loop = asyncio.get_event_loop()
         pto_scraper.start_scraping()
         logger.info("PTO scraper started")
     else:
@@ -104,73 +150,87 @@ async def handle_pod_alert(request: Request):
             logger.error("[Server-PodAlert] Missing eventId in payload")
             return JSONResponse({"status": "error", "message": "Missing eventId"}, status_code=400)
 
-        now = time.time()
-        logger.info(f"\n[Server-PodAlert] Received alert for Event ID: {event_id_str} ({payload.get('homeTeam','?')})")
+        lock = pod_event_manager.get_event_lock(event_id_str)
+        logger.info(f"[Server-PodAlert] Attempting to acquire lock for Event ID: {event_id_str}")
+        with lock:
+            logger.info(f"[Server-PodAlert] Lock acquired for Event ID: {event_id_str}")
+            now = time.time()
+            logger.info(f"\n[Server-PodAlert] Received alert for Event ID: {event_id_str} ({payload.get('homeTeam','?')})")
 
-        active_events = pod_event_manager.get_active_events()
-        if event_id_str in active_events:
-            last_processed = active_events[event_id_str].get("last_pinnacle_data_update_timestamp", 0)
-            if (now - last_processed) < 15:
-                logger.info(f"[Server-PodAlert] Ignoring duplicate alert for Event ID: {event_id_str}")
-                return JSONResponse({"status": "success", "message": f"Alert for {event_id_str} recently processed."})
+            active_events = pod_event_manager.get_active_events()
+            if event_id_str in active_events:
+                last_processed = active_events[event_id_str].get("last_pinnacle_data_update_timestamp", 0)
+                if (now - last_processed) < 15:
+                    logger.info(f"[Server-PodAlert] Ignoring duplicate alert for Event ID: {event_id_str}")
+                    return JSONResponse({"status": "success", "message": f"Alert for {event_id_str} recently processed."})
 
-        pinnacle_api_result = fetch_live_pinnacle_event_odds(event_id_str)
-        live_pinnacle_odds_processed = process_event_odds_for_display(pinnacle_api_result.get("data"))
-        league_name = live_pinnacle_odds_processed.get("league_name", payload.get("leagueName", "Unknown League"))
-        start_time = live_pinnacle_odds_processed.get("starts", payload.get("startTime", "N/A"))
+            pinnacle_api_result = fetch_live_pinnacle_event_odds(event_id_str)
+            live_pinnacle_odds_processed = process_event_odds_for_display(pinnacle_api_result.get("data"))
+            league_name = live_pinnacle_odds_processed.get("league_name", payload.get("leagueName", "Unknown League"))
+            start_time = live_pinnacle_odds_processed.get("starts", payload.get("startTime", "N/A"))
 
-        pod_home_clean = clean_pod_team_name_for_search(payload.get("homeTeam", ""))
-        pod_away_clean = clean_pod_team_name_for_search(payload.get("awayTeam", ""))
+            pod_home_clean = clean_pod_team_name_for_search(payload.get("homeTeam", ""))
+            pod_away_clean = clean_pod_team_name_for_search(payload.get("awayTeam", ""))
 
-        betbck_last_update = None
-        if event_id_str not in active_events:
-            logger.info(f"[Server-PodAlert] New event {event_id_str}. Initiating scrape.")
-            betbck_result = process_alert_and_scrape_betbck(event_id_str, payload, live_pinnacle_odds_processed)
+            betbck_last_update = None
+            if event_id_str not in active_events:
+                logger.info(f"[Server-PodAlert] New event {event_id_str}. Initiating scrape.")
+                betbck_result = process_alert_and_scrape_betbck(event_id_str, payload, live_pinnacle_odds_processed)
 
-            if not (betbck_result and betbck_result.get("status") == "success"):
-                fail_reason = betbck_result.get("message", "Scraper returned None")
-                logger.error(f"[Server-PodAlert] Scrape failed. Dropping alert. Reason: {fail_reason}")
-                return JSONResponse({"status": "error", "message": f"Scrape failed: {fail_reason}"}, status_code=200)
+                if not (betbck_result and betbck_result.get("status") == "success"):
+                    fail_reason = betbck_result.get("message", "Scraper returned None")
+                    logger.error(f"[Server-PodAlert] Scrape failed. Dropping alert. Reason: {fail_reason}")
+                    logger.info(f"[Server-PodAlert] Lock released for Event ID: {event_id_str}")
+                    return JSONResponse({"status": "error", "message": f"Scrape failed: {fail_reason}"}, status_code=200)
 
-            logger.info(f"[Server-PodAlert] Scrape successful. Storing event {event_id_str} for display.")
-            betbck_last_update = now
-            # Determine if any market has +EV
-            betbck_data = betbck_result.get("data", {})
-            potential_bets = betbck_data.get("potential_bets_analyzed", [])
-            has_positive_ev = any(float(b.get("ev", "0").replace('%','')) > 0 for b in potential_bets)
-            event_data = {
-                "alert_arrival_timestamp": now,
-                "last_pinnacle_data_update_timestamp": now,
-                "pinnacle_data_processed": live_pinnacle_odds_processed,
-                "original_alert_details": payload,
-                "betbck_data": betbck_result,
-                "league_name": league_name,
-                "start_time": start_time,
-                "old_odds": payload.get("oldOdds", "N/A"),
-                "new_odds": payload.get("newOdds", "N/A"),
-                "no_vig": payload.get("noVigPriceFromAlert", "N/A"),
-                "cleaned_home_team": pod_home_clean,
-                "cleaned_away_team": pod_away_clean,
-                "betbck_last_update": betbck_last_update,
-                "has_positive_ev": has_positive_ev,
-                "ev_rescrape_done": False
-            }
-            pod_event_manager.add_active_event(event_id_str, event_data)
-        else:
-            logger.info(f"[Server-PodAlert] Updating existing event {event_id_str} with fresh Pinnacle data.")
-            # Update has_positive_ev if new +EV is found
-            event = active_events[event_id_str]
-            betbck_data = event.get("betbck_data", {}).get("data", {})
-            potential_bets = betbck_data.get("potential_bets_analyzed", [])
-            has_positive_ev = event.get("has_positive_ev", False) or any(float(b.get("ev", "0").replace('%','')) > 0 for b in potential_bets)
-            pod_event_manager.update_event_data(event_id_str, {
-                "last_pinnacle_data_update_timestamp": now,
-                "pinnacle_data_processed": live_pinnacle_odds_processed,
-                "has_positive_ev": has_positive_ev
-            })
+                logger.info(f"[Server-PodAlert] Scrape successful. Storing event {event_id_str} for display.")
+                betbck_last_update = now
+                # Determine if any market has +EV
+                betbck_data = betbck_result.get("data", {})
+                potential_bets = betbck_data.get("potential_bets_analyzed", [])
+                has_positive_ev = any(float(b.get("ev", "0").replace('%','')) > 0 for b in potential_bets)
+                event_data = {
+                    "alert_arrival_timestamp": now,
+                    "last_pinnacle_data_update_timestamp": now,
+                    "pinnacle_data_processed": live_pinnacle_odds_processed,
+                    "original_alert_details": payload,
+                    "betbck_data": betbck_result,
+                    "league_name": league_name,
+                    "start_time": start_time,
+                    "old_odds": payload.get("oldOdds", "N/A"),
+                    "new_odds": payload.get("newOdds", "N/A"),
+                    "no_vig": payload.get("noVigPriceFromAlert", "N/A"),
+                    "cleaned_home_team": pod_home_clean,
+                    "cleaned_away_team": pod_away_clean,
+                    "betbck_last_update": betbck_last_update,
+                    "has_positive_ev": has_positive_ev,
+                    "ev_rescrape_done": False
+                }
+                pod_event_manager.add_active_event(event_id_str, event_data)
+                # Broadcast new event
+                updated_event = pod_event_manager.get_active_events().get(event_id_str)
+                if updated_event:
+                    broadcast_new_alert(event_id_str, updated_event)
+            else:
+                logger.info(f"[Server-PodAlert] Updating existing event {event_id_str} with fresh Pinnacle data.")
+                # Update has_positive_ev if new +EV is found
+                event = active_events[event_id_str]
+                betbck_data = event.get("betbck_data", {}).get("data", {})
+                potential_bets = betbck_data.get("potential_bets_analyzed", [])
+                has_positive_ev = event.get("has_positive_ev", False) or any(float(b.get("ev", "0").replace('%','')) > 0 for b in potential_bets)
+                pod_event_manager.update_event_data(event_id_str, {
+                    "last_pinnacle_data_update_timestamp": now,
+                    "pinnacle_data_processed": live_pinnacle_odds_processed,
+                    "has_positive_ev": has_positive_ev
+                })
+                # Broadcast updated event
+                updated_event = pod_event_manager.get_active_events().get(event_id_str)
+                if updated_event:
+                    broadcast_new_alert(event_id_str, updated_event)
 
-        logger.info("=== [DEBUG] /pod_alert returning ===")
-        return JSONResponse({"status": "success", "message": f"Alert for {event_id_str} processed."})
+            logger.info(f"[Server-PodAlert] Lock released for Event ID: {event_id_str}")
+            logger.info("=== [DEBUG] /pod_alert returning ===")
+            return JSONResponse({"status": "success", "message": f"Alert for {event_id_str} processed."})
 
     except Exception as e:
         logger.error(f"[Server-PodAlert] CRITICAL Error in /pod_alert: {e}")
@@ -208,109 +268,7 @@ async def get_active_events_data():
                 # logger.info(f"[DEBUG] Event {eid} expired (age: {current_time_sec - entry.get('alert_arrival_timestamp', 0)}s)")  # Remove log spam
                 continue
                 
-            bet_data = copy.deepcopy(entry["betbck_data"].get("data", {}))
-            pinnacle_data = copy.deepcopy(entry["pinnacle_data_processed"].get("data", {}))
-            
-            # logger.info(f"[DEBUG] Event {eid} bet_data keys: {list(bet_data.keys())}")  # Remove log spam
-            # logger.info(f"[DEBUG] Event {eid} pinnacle_data keys: {list(pinnacle_data.keys())}")  # Remove log spam
-            
-            if not isinstance(pinnacle_data, dict):
-                logger.warning(f"[DEBUG] Event {eid} pinnacle_data is not dict: {type(pinnacle_data)}")
-                continue
-                
-            # Use event_entry fields instead of payload
-            home_team = normalize_team_name_for_matching(entry.get("cleaned_home_team", ""))
-            away_team = normalize_team_name_for_matching(entry.get("cleaned_away_team", ""))
-            league = entry.get("league_name", "")
-            start_time = entry.get("start_time", "")
-            event_key = f"{home_team}|{away_team}|{league}|{start_time}"
-            
-            # logger.info(f"[DEBUG] Event {eid} teams: {home_team} vs {away_team}")  # Remove log spam
-            
-            league_name = pinnacle_data.get("league_name", entry.get("league_name", "Unknown League"))
-            start_time = pinnacle_data.get("starts", entry.get("start_time", "N/A"))
-            if isinstance(start_time, (int, float)) and start_time > 1000000000:
-                dt = datetime.utcfromtimestamp(start_time/1000).replace(tzinfo=timezone.utc)
-                start_time = dt.isoformat().replace('+00:00', 'Z')
-            elif isinstance(start_time, str):
-                try:
-                    dt = datetime.strptime(start_time, '%Y-%m-%d %H:%M')
-                    dt = dt.replace(tzinfo=timezone.utc)
-                    start_time = dt.isoformat().replace('+00:00', 'Z')
-                except Exception:
-                    pass
-                    
-            # --- FULL port of old Flask logic: always recompute markets using latest odds ---
-            pin_periods = pinnacle_data.get("periods", {})
-            pin_full_game = pin_periods.get("num_0", {})
-            
-            # logger.info(f"[DEBUG] Event {eid} pin_periods keys: {list(pin_periods.keys())}")  # Remove log spam
-            # logger.info(f"[DEBUG] Event {eid} pin_full_game keys: {list(pin_full_game.keys())}")  # Remove log spam
-            
-            # If potential_bets_analyzed is empty but odds are present, re-run EV analysis
-            if not bet_data.get("potential_bets_analyzed") and bet_data and pinnacle_data:
-                logger.info(f"[DEBUG] Re-running EV analysis for event {eid} due to empty markets.")
-                # logger.info(f"[DEBUG] bet_data keys: {list(bet_data.keys())}")  # Remove log spam
-                # logger.info(f"[DEBUG] pinnacle_data keys: {list(pinnacle_data.keys())}")  # Remove log spam
-                # Wrap pinnacle_data in the expected structure for analyze_markets_for_ev
-                wrapped_pinnacle_data = {"data": pinnacle_data}
-                bet_data["potential_bets_analyzed"] = analyze_markets_for_ev(bet_data, wrapped_pinnacle_data)
-                logger.info(f"[DEBUG] analyze_markets_for_ev returned {len(bet_data['potential_bets_analyzed'])} markets")
-                
-            potential_bets = bet_data.get("potential_bets_analyzed", [])
-            # logger.info(f"[DEBUG] Event {eid} potential_bets count: {len(potential_bets)}")  # Remove log spam
-            
-            markets = []
-            for bet in potential_bets:
-                # logger.info(f"[DEBUG] Processing bet: {bet}")  # Remove log spam
-                market_type = bet.get("market")
-                selection = bet.get("selection")
-                line = bet.get("line", "")
-                
-                # Extract odds from the bet object - the analyze_markets_for_ev function returns the correct structure
-                betbck_odds = bet.get("betbck_odds", "N/A")
-                latest_nvp = bet.get("pinnacle_nvp", "N/A")
-                ev_display = bet.get("ev", "N/A")
-                
-                # logger.info(f"[DEBUG] Market {market_type} {selection} {line}: BetBCK={betbck_odds}, NVP={latest_nvp}, EV={ev_display}")  # Remove log spam
-                
-                # If we have both odds, recalculate EV to ensure accuracy
-                if betbck_odds != "N/A" and latest_nvp != "N/A" and betbck_odds is not None and latest_nvp is not None:
-                    try:
-                        bet_decimal = american_to_decimal(betbck_odds)
-                        true_decimal = american_to_decimal(latest_nvp)
-                        ev = calculate_ev(bet_decimal, true_decimal)
-                        ev_display = f"{ev*100:.2f}%" if ev is not None else "N/A"
-                        # logger.info(f"[DEBUG] Recalculated EV: {ev_display} (Bet={bet_decimal}, True={true_decimal})")  # Remove log spam
-                    except Exception as e:
-                        logger.error(f"[GetActiveEvents] Error calculating EV for {market_type} {selection}: {e}")
-                        ev_display = "N/A"
-                
-                markets.append({
-                    "market": market_type,
-                    "selection": selection,
-                    "line": line,
-                    "pinnacle_nvp": str(latest_nvp) if latest_nvp != "N/A" else "N/A",
-                    "betbck_odds": str(betbck_odds) if betbck_odds != "N/A" else "N/A",
-                    "ev": ev_display
-                })
-            # logger.info(f"[DEBUG] Returning {len(markets)} markets for event {eid}")  # Remove log spam
-            # For display, use Pinnacle's original team names if available
-            display_home = pinnacle_data.get('home', home_team)
-            display_away = pinnacle_data.get('away', away_team)
-            data_to_send[eid] = {
-                "title": f"{display_home} vs {display_away}",
-                "meta_info": f"{league_name} | Starts: {start_time}",
-                "last_update": entry.get("last_pinnacle_data_update_timestamp", "N/A"),
-                "betbck_last_update": entry.get("betbck_last_update", None),
-                "alert_description": entry['original_alert_details'].get("betDescription", "POD Alert Processed"),
-                "alert_meta": f"(Alert: {entry['old_odds']} → {entry['new_odds']}, NVP: {entry['no_vig']})",
-                "betbck_status": f"Data Fetched: {home_team} vs {away_team}" if entry["betbck_data"].get("status") == "success" else entry["betbck_data"].get("message", "Odds check pending..."),
-                "markets": markets,
-                "alert_arrival_timestamp": entry.get("alert_arrival_timestamp", None),
-                "betbck_payload": bet_data.get("betbck_payload") or {}
-            }
-            # logger.info(f"[DEBUG] Event {eid} data_to_send keys: {list(data_to_send[eid].keys())}")  # Remove log spam
+            data_to_send[eid] = build_event_object(eid, entry)
         except Exception as e:
             logger.error(f"[GetActiveEvents] Error processing event {eid}: {e}\n{traceback.format_exc()}")
             continue
@@ -407,6 +365,99 @@ async def open_bet(request: Request):
             return JSONResponse({"status": "error", "message": "Failed to open bet page"}, status_code=500)
     except Exception as e:
         return JSONResponse({"status": "error", "message": str(e)}, status_code=500)
+
+@app.websocket("/ws")
+async def websocket_endpoint(websocket: WebSocket):
+    await manager.connect(websocket)
+    try:
+        while True:
+            await websocket.receive_text()  # Keep connection alive
+    except WebSocketDisconnect:
+        await manager.disconnect(websocket)
+
+# Add this helper at module level
+
+def build_event_object(event_id, entry):
+    import copy
+    from datetime import datetime, timezone
+    def normalize_team_name_for_matching(name):
+        return name.strip().lower() if isinstance(name, str) else ''
+    current_time_sec = time.time()
+    bet_data = copy.deepcopy(entry["betbck_data"].get("data", {}))
+    pinnacle_data = copy.deepcopy(entry["pinnacle_data_processed"].get("data", {}))
+    home_team = normalize_team_name_for_matching(entry.get("cleaned_home_team", ""))
+    away_team = normalize_team_name_for_matching(entry.get("cleaned_away_team", ""))
+    league = entry.get("league_name", "")
+    start_time = entry.get("start_time", "")
+    league_name = pinnacle_data.get("league_name", entry.get("league_name", "Unknown League"))
+    start_time_val = pinnacle_data.get("starts", entry.get("start_time", "N/A"))
+    if isinstance(start_time_val, (int, float)) and start_time_val > 1000000000:
+        dt = datetime.utcfromtimestamp(start_time_val/1000).replace(tzinfo=timezone.utc)
+        start_time_val = dt.isoformat().replace('+00:00', 'Z')
+    elif isinstance(start_time_val, str):
+        try:
+            dt = datetime.strptime(start_time_val, '%Y-%m-%d %H:%M')
+            dt = dt.replace(tzinfo=timezone.utc)
+            start_time_val = dt.isoformat().replace('+00:00', 'Z')
+        except Exception:
+            pass
+    # If potential_bets_analyzed is empty but odds are present, re-run EV analysis
+    if not bet_data.get("potential_bets_analyzed") and bet_data and pinnacle_data:
+        try:
+            wrapped_pinnacle_data = {"data": pinnacle_data}
+            bet_data["potential_bets_analyzed"] = analyze_markets_for_ev(bet_data, wrapped_pinnacle_data)
+        except Exception:
+            bet_data["potential_bets_analyzed"] = []
+    potential_bets = bet_data.get("potential_bets_analyzed", [])
+    markets = []
+    for bet in potential_bets:
+        market_type = bet.get("market")
+        selection = bet.get("selection")
+        line = bet.get("line", "")
+        betbck_odds = bet.get("betbck_odds", "N/A")
+        latest_nvp = bet.get("pinnacle_nvp", "N/A")
+        ev_display = bet.get("ev", "N/A")
+        if betbck_odds != "N/A" and latest_nvp != "N/A" and betbck_odds is not None and latest_nvp is not None:
+            try:
+                bet_decimal = american_to_decimal(betbck_odds)
+                true_decimal = american_to_decimal(latest_nvp)
+                ev = calculate_ev(bet_decimal, true_decimal)
+                ev_display = f"{ev*100:.2f}%" if ev is not None else "N/A"
+            except Exception:
+                ev_display = "N/A"
+        markets.append({
+            "market": market_type,
+            "selection": selection,
+            "line": line,
+            "pinnacle_nvp": str(latest_nvp) if latest_nvp != "N/A" else "N/A",
+            "betbck_odds": str(betbck_odds) if betbck_odds != "N/A" else "N/A",
+            "ev": ev_display
+        })
+    display_home = pinnacle_data.get('home', home_team)
+    display_away = pinnacle_data.get('away', away_team)
+    return {
+        "title": f"{display_home} vs {display_away}",
+        "meta_info": f"{league_name} | Starts: {start_time_val}",
+        "last_update": entry.get("last_pinnacle_data_update_timestamp", "N/A"),
+        "betbck_last_update": entry.get("betbck_last_update", None),
+        "alert_description": entry['original_alert_details'].get("betDescription", "POD Alert Processed"),
+        "alert_meta": f"(Alert: {entry['old_odds']} → {entry['new_odds']}, NVP: {entry['no_vig']})",
+        "betbck_status": f"Data Fetched: {home_team} vs {away_team}" if entry["betbck_data"].get("status") == "success" else entry["betbck_data"].get("message", "Odds check pending..."),
+        "markets": markets,
+        "alert_arrival_timestamp": entry.get("alert_arrival_timestamp", None),
+        "betbck_payload": bet_data.get("betbck_payload") or {}
+    }
+
+# In broadcast_new_alert, use build_event_object
+
+def broadcast_new_alert(event_id, event_data):
+    # event_data is the raw entry from pod_event_manager
+    event_obj = build_event_object(event_id, event_data)
+    asyncio.create_task(manager.broadcast({
+        "type": "pod_alert",
+        "eventId": event_id,
+        "event": event_obj
+    }))
 
 if __name__ == "__main__":
     import uvicorn

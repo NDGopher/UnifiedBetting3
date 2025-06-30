@@ -1,26 +1,8 @@
 @echo off
-title Unified Betting App Launcher
-echo ========================================
-echo    UNIFIED BETTING APP LAUNCHER
-echo ========================================
-echo.
-echo Starting the application...
-echo Close this window to stop all services and clean up.
-echo.
-cd /d %~dp0
+REM Unified Betting App Launcher
+REM This batch file launches the app using launch.py, which now always starts the backend with uvicorn for WebSocket support.
+REM No changes needed here unless you want to add more logging or checks.
 
-REM Install psutil and pywin32 if not available
-python -c "import psutil" 2>nul || (
-    echo Installing psutil for process management...
-    python -m pip install psutil
-)
-
-python -c "import win32api" 2>nul || (
-    echo Installing pywin32 for Windows signal handling...
-    python -m pip install pywin32
-)
-
-REM Launch the application
 python launch.py
 
 REM If we get here, the script has exited

@@ -31,10 +31,14 @@
     ]
   },
   "pto": {
+    "pto_url": "https://picktheodds.app/en/expectedvalue",
     "chrome_user_data_dir": "C:\\Users\\steph\\AppData\\Local\\PTO_Chrome_Profile",
     "chrome_profile_dir": "Profile 1",
-    "pto_url": "https://picktheodds.app/en/expectedvalue",
+    "max_retries": 3,
+    "retry_delay": 30,
     "scraping_interval_seconds": 10,
+    "min_ev_threshold": 3.0,
+    "telegram_enabled": true,
     "page_refresh_interval_hours": 2.5,
     "enable_auto_scraping": true
   },

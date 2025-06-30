@@ -21,6 +21,8 @@ import {
 import { Refresh as RefreshIcon } from "@mui/icons-material";
 import StarIcon from "@mui/icons-material/Star";
 import { BetbckTabContext } from "../App";
+import { useWebSocket } from '../hooks/useWebSocket';
+import './PODAlerts.css';
 
 interface Market {
   market: string;
@@ -59,9 +61,50 @@ const PODAlerts: React.FC = () => {
   const [retryCount, setRetryCount] = useState(0);
   const [showOnlyEV, setShowOnlyEV] = useState(false);
   const prevMarketsRef = useRef<{ [eventId: string]: Market[] }>({});
-  // Track which events have already triggered a notification
   const notifiedEventsRef = useRef<Set<string>>(new Set());
+  const { lastMessage, isConnected } = useWebSocket('ws://localhost:5001/ws');
+  const [nvpFlash, setNvpFlash] = useState<{ [key: string]: boolean }>({});
 
+  // Helper to safely convert any value to string
+  const safeString = (val: any) => (val === null || val === undefined ? '' : String(val));
+
+  // Helper to get markets from event
+  const getMarkets = (event: any) => Array.isArray(event.markets) ? event.markets : [];
+
+  // WebSocket real-time updates
+  useEffect(() => {
+    if (lastMessage && lastMessage.data) {
+      try {
+        const data = JSON.parse(lastMessage.data);
+        if (data.type === 'pod_alerts_full' && data.events) {
+          // Replace the entire event list with the latest from backend
+          setEvents(data.events);
+          setLastUpdate(new Date());
+        } else if (data.type === 'pod_alert' && data.eventId && data.event) {
+          // Fallback: update the specific event
+          setEvents(prev => ({ ...prev, [data.eventId]: data.event }));
+          setLastUpdate(new Date());
+          // NVP flash effect logic remains unchanged
+          const event = data.event;
+          if (event.markets && Array.isArray(event.markets)) {
+            event.markets.forEach((market: Market, idx: number) => {
+              const key = `${data.eventId}_${market.market}_${market.selection}_${market.line}`;
+              const prevMarkets = prevMarketsRef.current[data.eventId] || [];
+              const prev = prevMarkets[idx];
+              if (prev && prev.pinnacle_nvp !== market.pinnacle_nvp) {
+                setNvpFlash(flash => ({ ...flash, [key]: true }));
+                setTimeout(() => setNvpFlash(flash => ({ ...flash, [key]: false })), 1500);
+              }
+            });
+          }
+        }
+      } catch (e) {
+        console.error('Error parsing WebSocket message:', e);
+      }
+    }
+  }, [lastMessage]);
+
+  // Polling fallback: only poll if not connected to WebSocket
   const fetchEvents = useCallback(async () => {
     try {
       setError(null);
@@ -87,10 +130,28 @@ const PODAlerts: React.FC = () => {
   }, [retryCount]);
 
   useEffect(() => {
+    if (isConnected) return; // Don't poll if WebSocket is connected
     fetchEvents();
     const poller = setInterval(fetchEvents, POLL_INTERVAL);
     return () => clearInterval(poller);
-  }, [fetchEvents]);
+  }, [fetchEvents, isConnected]);
+
+  // NVP flash effect
+  useEffect(() => {
+    Object.entries(events).forEach(([eventId, event]) => {
+      getMarkets(event).forEach((market: Market, idx: number) => {
+        const key = `${eventId}_${market.market}_${market.selection}_${market.line}`;
+        const prev = prevMarketsRef.current[eventId]?.[idx];
+        if (prev && prev.pinnacle_nvp !== market.pinnacle_nvp) {
+          setNvpFlash(flash => ({ ...flash, [key]: true }));
+          setTimeout(() => setNvpFlash(flash => ({ ...flash, [key]: false })), 1500);
+        }
+      });
+    });
+    prevMarketsRef.current = Object.fromEntries(
+      Object.entries(events).map(([eventId, event]) => [eventId, getMarkets(event)])
+    );
+  }, [events]);
 
   const handleManualRefresh = useCallback(() => {
     setRetryCount(0);
@@ -147,16 +208,17 @@ const PODAlerts: React.FC = () => {
 
   const formatStartTime = (isoString: string) => {
     if (!isoString) return '';
+    // Always parse as UTC and convert to Central Time
     const date = new Date(isoString);
     if (isNaN(date.getTime())) return isoString;
+    // Format as M/D h:mm A Central Time
     return date.toLocaleString('en-US', {
       timeZone: 'America/Chicago',
-      year: '2-digit',
       month: 'numeric',
       day: 'numeric',
       hour: 'numeric',
       minute: '2-digit',
-      hour12: true
+      hour12: true,
     });
   };
 
@@ -361,7 +423,12 @@ const PODAlerts: React.FC = () => {
                               >
                                 <TableCell sx={{ textAlign: 'left', pl: 0, whiteSpace: 'normal' }}>{selectionDisplay}</TableCell>
                                 <TableCell align="center">{market.market.toLowerCase() === 'total' ? formatTotal(lineDisplay) : lineDisplay}</TableCell>
-                                <TableCell align="center">{market.pinnacle_nvp && !market.pinnacle_nvp.startsWith('-') && !market.pinnacle_nvp.startsWith('+') ? `+${market.pinnacle_nvp}` : market.pinnacle_nvp}</TableCell>
+                                <TableCell 
+                                  align="center"
+                                  className={nvpFlash[`${eventId}_${market.market}_${market.selection}_${market.line}`] ? 'nvp-flash' : ''}
+                                >
+                                  {market.pinnacle_nvp && !market.pinnacle_nvp.startsWith('-') && !market.pinnacle_nvp.startsWith('+') ? `+${market.pinnacle_nvp}` : market.pinnacle_nvp}
+                                </TableCell>
                                 <TableCell align="center">{market.betbck_odds}</TableCell>
                                 <TableCell align="center">
                                   <Button

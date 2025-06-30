@@ -29,6 +29,7 @@ function clickErrorDialogIfPresent() {
 }
 
 async function handleBetbckAction(message) {
+  console.log('[BetBCK Helper][Content] handleBetbckAction called:', message);
   // Step 1: If error dialog is present, click it and retry after a short delay
   if (clickErrorDialogIfPresent()) {
     setTimeout(() => handleBetbckAction(message), 1000);
@@ -45,9 +46,12 @@ async function handleBetbckAction(message) {
   if (message.type === 'SEARCH_BETBCK') {
     const keyword = message.keyword;
     const betInfo = message.betInfo || {};
-    // Try to find the search bar (adjust selector as needed)
-    const searchInput = document.querySelector('input[name="keyword_search"], input#keyword_search');
-    if (searchInput) {
+    // Use the correct selectors for the search input and button
+    const searchInput = document.querySelector('input.keyword_search_qubic#keyword_search[name="keyword_search"]');
+    const goButton = document.querySelector('button[type="Submit"]');
+    console.log('[BetBCK Helper][Content] Found search input:', searchInput);
+    console.log('[BetBCK Helper][Content] Found GO button:', goButton);
+    if (searchInput && goButton) {
       searchInput.focus();
       searchInput.value = '';
       // Simulate typing
@@ -58,15 +62,16 @@ async function handleBetbckAction(message) {
         }
         searchInput.dispatchEvent(new Event('input', { bubbles: true }));
         await sleep(200);
-        // Try to submit search
-        const searchBtn = document.querySelector('button[type="submit"], input[type="submit"]');
-        if (searchBtn) searchBtn.click();
-        else searchInput.form && searchInput.form.submit();
+        // Click the GO button instead of submitting the form
+        goButton.click();
         // Show the popup with bet info
         showBetPopup(betInfo, keyword);
       })();
+    } else {
+      console.log('[BetBCK Helper][Content] Could not find search input or GO button.');
     }
   } else if (message.type === 'FOCUS_BETBCK_TAB') {
+    console.log('[BetBCK Helper][Content] Relaying FOCUS_BETBCK_TAB from window to background:', message);
     chrome.runtime.sendMessage({
       type: 'FOCUS_BETBCK_TAB',
       keyword: message.keyword,
@@ -75,35 +80,21 @@ async function handleBetbckAction(message) {
   }
 }
 
-chrome.runtime.onMessage.addListener(async (message, sender, sendResponse) => {
-  if (message.type === 'SEARCH_BETBCK' || message.type === 'FOCUS_BETBCK_TAB') {
-    handleBetbckAction(message);
-  }
-});
-
-// Listen for window.postMessage from the web app
-window.addEventListener('message', function(event) {
-  // Only accept messages from the same window
-  if (event.source !== window) return;
-  const message = event.data;
-  if (message && message.type === 'FOCUS_BETBCK_TAB') {
-    chrome.runtime.sendMessage({
-      type: 'FOCUS_BETBCK_TAB',
-      keyword: message.keyword,
-      betInfo: message.betInfo || {}
-    });
-  }
-});
-
-// --- Popup UI ---
 let betPopup = null;
+let pollInterval = null;
+window.lastBetInfo = null;
+window.lastKeyword = null;
+
 function showBetPopup(betInfo, keyword) {
+  console.log('[BetBCK Helper][Content] Injecting popup for bet:', betInfo, keyword);
+  window.lastBetInfo = betInfo;
+  window.lastKeyword = keyword;
   if (betPopup) betPopup.remove();
   betPopup = document.createElement('div');
   betPopup.style.position = 'fixed';
   betPopup.style.top = '80px';
   betPopup.style.right = '40px';
-  betPopup.style.zIndex = 99999;
+  betPopup.style.zIndex = 2147483647;
   betPopup.style.background = '#181c24';
   betPopup.style.color = '#fff';
   betPopup.style.padding = '18px 22px 18px 18px';
@@ -113,12 +104,16 @@ function showBetPopup(betInfo, keyword) {
   betPopup.style.fontFamily = 'Inter, Roboto, Arial, sans-serif';
   betPopup.style.cursor = 'move';
   betPopup.style.userSelect = 'none';
+  betPopup.style.pointerEvents = 'auto';
   betPopup.innerHTML = `
     <div style="font-weight:700;font-size:1.1em;margin-bottom:6px;">BetBCK Helper</div>
-    <div><b>Search:</b> <span style="color:#00d4ff">${keyword}</span></div>
+    <div><b>Match:</b> ${betInfo.matchup || ''}</div>
+    <div><b>Market:</b> ${betInfo.market || ''}</div>
+    <div><b>Selection:</b> ${betInfo.selection || ''}</div>
     <div><b>Line:</b> ${betInfo.line || ''}</div>
+    <div><b>Bet:</b> ${betInfo.betDescription || ''}</div>
     <div><b>EV:</b> <span id="ev-value">${betInfo.ev || ''}</span></div>
-    <div><b>BetBCK Odds:</b> ${betInfo.betbck_odds || ''}</div>
+    <div><b>BetBCK Odds:</b> <span id="betbck-odds">${betInfo.betbck_odds || ''}</span></div>
     <div><b>NVP:</b> <span id="nvp-value">${betInfo.nvp || ''}</span></div>
     <button id="close-betbck-popup" style="margin-top:10px;padding:4px 12px;border:none;background:#ff6b35;color:#fff;border-radius:6px;cursor:pointer;">Close</button>
   `;
@@ -139,32 +134,59 @@ function showBetPopup(betInfo, keyword) {
     }
   });
   document.addEventListener('mouseup', () => { isDragging = false; betPopup.style.transition = ''; });
-  document.getElementById('close-betbck-popup').onclick = () => betPopup.remove();
+  document.getElementById('close-betbck-popup').onclick = () => {
+    betPopup.remove();
+    if (pollInterval) clearInterval(pollInterval);
+  };
   // Poll for real-time NVP/EV
   if (betInfo.eventId) {
-    pollEVNVP(betInfo.eventId);
+    if (pollInterval) clearInterval(pollInterval);
+    pollInterval = setInterval(async () => {
+      try {
+        const res = await fetch('http://localhost:5001/get_active_events_data');
+        const data = await res.json();
+        for (let eid in data) {
+          if (eid === betInfo.eventId) {
+            const event = data[eid];
+            if (event && event.markets && event.markets.length > 0) {
+              document.getElementById('ev-value').textContent = event.markets[0].ev;
+              document.getElementById('nvp-value').textContent = event.markets[0].pinnacle_nvp;
+            }
+          }
+        }
+      } catch (e) { console.log('Polling error:', e); }
+    }, 3000);
   }
 }
 
-function pollEVNVP(eventId) {
-  // Replace with your backend endpoint as needed
-  const url = `http://localhost:5001/get_active_events_data`;
-  let interval = setInterval(async () => {
-    try {
-      const res = await fetch(url);
-      const data = await res.json();
-      for (let eid in data) {
-        if (eid === eventId) {
-          const event = data[eid];
-          if (event && event.markets && event.markets.length > 0) {
-            // Find the matching market (by line, etc.)
-            // For now, just take the first
-            document.getElementById('ev-value').textContent = event.markets[0].ev;
-            document.getElementById('nvp-value').textContent = event.markets[0].pinnacle_nvp;
-          }
-        }
-      }
-    } catch {}
-  }, 3000);
-  betPopup.addEventListener('remove', () => clearInterval(interval));
-} 
+// MutationObserver to re-inject popup if removed
+const observer = new MutationObserver(() => {
+  if (window.lastBetInfo && !document.body.contains(betPopup)) {
+    showBetPopup(window.lastBetInfo, window.lastKeyword);
+  }
+});
+observer.observe(document.body, { childList: true, subtree: true });
+
+// Add logging for debugging message flow
+console.log('BetBCK Auto-Search content script loaded.');
+chrome.runtime.onMessage.addListener(async (message, sender, sendResponse) => {
+  console.log('[BetBCK Helper][Content] Received message:', message);
+  if (message.type === 'SEARCH_BETBCK' || message.type === 'FOCUS_BETBCK_TAB') {
+    handleBetbckAction(message);
+  }
+});
+
+// Listen for window.postMessage from the web app
+window.addEventListener('message', function(event) {
+  // Only accept messages from the same window
+  if (event.source !== window) return;
+  const message = event.data;
+  if (message && message.type === 'FOCUS_BETBCK_TAB') {
+    console.log('[BetBCK Helper][Content] Relaying FOCUS_BETBCK_TAB from window to background:', message);
+    chrome.runtime.sendMessage({
+      type: 'FOCUS_BETBCK_TAB',
+      keyword: message.keyword,
+      betInfo: message.betInfo || {}
+    });
+  }
+}); 

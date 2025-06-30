@@ -34,7 +34,9 @@ import {
   SportsBaseball,
   SportsHockey,
   Casino,
+  Delete,
 } from "@mui/icons-material";
+import { useWebSocket } from '../hooks/useWebSocket';
 
 interface PTOProp {
   prop: {
@@ -80,6 +82,8 @@ const PropBuilder: React.FC = () => {
   const [initialLoad, setInitialLoad] = useState(true);
   const [manualRefresh, setManualRefresh] = useState(false);
   const prevPropsRef = useRef<any[]>([]);
+  const { lastMessage, isConnected } = useWebSocket('ws://localhost:5001/ws');
+  const [hiddenProps, setHiddenProps] = useState<Set<string>>(new Set());
 
   const API_BASE = "http://localhost:5001";
 
@@ -160,14 +164,15 @@ const PropBuilder: React.FC = () => {
   }, [fetchPTOData, fetchScraperStatus]);
 
   useEffect(() => {
-    if (autoRefresh) {
+    if (autoRefresh && !isConnected) {
+      // Only poll if WebSocket is not connected
       const interval = setInterval(() => {
         fetchPTOData();
         fetchScraperStatus();
       }, 5000);
       return () => clearInterval(interval);
     }
-  }, [autoRefresh, fetchPTOData, fetchScraperStatus]);
+  }, [autoRefresh, fetchPTOData, fetchScraperStatus, isConnected]);
 
   useEffect(() => {
     fetchPTOData();
@@ -193,24 +198,43 @@ const PropBuilder: React.FC = () => {
     }
   }, [ptoData]);
 
-  const filteredProps =
-    ptoData?.props.filter((prop) => {
-      if (
-        sportFilter !== "all" &&
-        !prop.prop.sport.toLowerCase().includes(sportFilter.toLowerCase())
-      ) {
-        return false;
+  // WebSocket: update PTO data on new message
+  useEffect(() => {
+    if (lastMessage && lastMessage.data) {
+      try {
+        const data = JSON.parse(lastMessage.data);
+        if (data.type === 'pto_prop_update' && data.props) {
+          // Replace the entire PTO prop list with the latest from backend
+          setPtoData(data.props);
+        }
+      } catch (e) {
+        // Ignore parse errors
       }
-      return true;
-    }) || [];
+    }
+  }, [lastMessage]);
 
-  const sports =
-    ptoData?.props.reduce((acc: string[], p) => {
-      if (!acc.includes(p.prop.sport)) {
-        acc.push(p.prop.sport);
-      }
-      return acc;
-    }, []) || [];
+  const handleHideProp = (propId: string) => {
+    setHiddenProps(prev => new Set(prev).add(propId));
+  };
+
+  const filteredProps = (ptoData?.props ?? []).filter((prop) => {
+    const propId = prop.prop && prop.prop.propDesc ? prop.prop.propDesc + (prop.prop.teams?.join('-') || '') : '';
+    if (hiddenProps.has(propId)) return false;
+    if (
+      sportFilter !== "all" &&
+      !prop.prop.sport.toLowerCase().includes(sportFilter.toLowerCase())
+    ) {
+      return false;
+    }
+    return true;
+  });
+
+  const sports = (ptoData?.props ?? []).reduce((acc: string[], p) => {
+    if (!acc.includes(p.prop.sport)) {
+      acc.push(p.prop.sport);
+    }
+    return acc;
+  }, []);
 
   // Manual refresh handler
   const handleManualRefresh = () => {
@@ -378,6 +402,7 @@ const PropBuilder: React.FC = () => {
                   <TableCell>Width</TableCell>
                   <TableCell>EV</TableCell>
                   <TableCell>Link</TableCell>
+                  <TableCell>Hide</TableCell>
                 </TableRow>
               </TableHead>
               <TableBody>
@@ -404,6 +429,11 @@ const PropBuilder: React.FC = () => {
                       <TableCell sx={{ color: '#ffb300' }}>{prop.prop.width}</TableCell>
                       <TableCell sx={{ color: parseFloat((prop.prop.ev||'0').replace('%','')) >= 0 ? '#4caf50' : '#e53935' }}><b>{prop.prop.ev}</b></TableCell>
                       <TableCell><a href="https://betbck.com/Qubic/propbuilder.php" target="_blank" rel="noopener noreferrer">Bet</a></TableCell>
+                      <TableCell align="center">
+                        <IconButton size="small" onClick={() => handleHideProp(prop.prop.propDesc + (prop.prop.teams?.join('-') || ''))}>
+                          <Delete fontSize="small" />
+                        </IconButton>
+                      </TableCell>
                     </TableRow>
                   );
                 })}

@@ -12,6 +12,7 @@ from selenium.webdriver.support.ui import WebDriverWait
 from selenium.webdriver.support import expected_conditions as EC
 from selenium.common.exceptions import TimeoutException, WebDriverException
 import logging
+from websocket_manager import manager
 
 logger = logging.getLogger(__name__)
 
@@ -47,9 +48,47 @@ class PTOScraper:
         else:
             self.telegram = None
         
+    def get_driver_fallback(self):
+        """Fallback driver creation without profile directory"""
+        try:
+            logger.info("[DEBUG] Trying fallback driver creation without profile...")
+            
+            options = Options()
+            
+            # Anti-detection flags
+            options.add_argument('--no-sandbox')
+            options.add_argument('--disable-dev-shm-usage')
+            options.add_argument('--disable-blink-features=AutomationControlled')
+            options.add_experimental_option("excludeSwitches", ["enable-automation"])
+            options.add_experimental_option('useAutomationExtension', False)
+            options.add_argument('--start-maximized')
+            options.add_argument('--disable-gpu')
+            
+            logger.info("[DEBUG] Launching Chrome driver (fallback mode)...")
+            driver = webdriver.Chrome(options=options)
+            
+            # Remove the "Chrome is being controlled by automated software" message
+            driver.execute_cdp_cmd('Page.addScriptToEvaluateOnNewDocument', {
+                'source': '''
+                    Object.defineProperty(navigator, 'webdriver', {
+                        get: () => undefined
+                    })
+                '''
+            })
+            
+            logger.info("✅ Chrome driver created successfully (fallback mode)")
+            return driver
+            
+        except Exception as e:
+            logger.error(f"❌ Failed to create Chrome driver (fallback): {e}")
+            raise
+
     def get_driver(self):
         """Initialize Chrome driver with PTO profile and anti-detection flags (old project logic)"""
         try:
+            # Kill any existing Chrome processes that might be using the profile
+            self.kill_chrome_processes()
+            
             logger.info(f"[DEBUG] Creating Chrome driver with profile: {self.chrome_user_data_dir}/{self.chrome_profile_dir}")
             
             options = Options()
@@ -93,7 +132,35 @@ class PTOScraper:
             logger.error(f"❌ Failed to create Chrome driver: {e}")
             logger.error(f"[DEBUG] Profile path: {self.chrome_user_data_dir}")
             logger.error(f"[DEBUG] Profile name: {self.chrome_profile_dir}")
-            raise
+            
+            # Try fallback method without profile
+            logger.info("🔄 Trying fallback driver creation...")
+            return self.get_driver_fallback()
+
+    def kill_chrome_processes(self):
+        """Kill any existing Chrome processes that might be using the profile"""
+        try:
+            import psutil
+            killed_count = 0
+            
+            for proc in psutil.process_iter(['pid', 'name', 'cmdline']):
+                try:
+                    proc_name = proc.info['name']
+                    if proc_name and 'chrome' in proc_name.lower():
+                        logger.info(f"Killing Chrome process: {proc.info['pid']}")
+                        proc.kill()
+                        killed_count += 1
+                except (psutil.NoSuchProcess, psutil.AccessDenied, psutil.ZombieProcess):
+                    continue
+            
+            if killed_count > 0:
+                logger.info(f"✅ Killed {killed_count} Chrome processes")
+                time.sleep(2)  # Wait for processes to fully terminate
+            else:
+                logger.info("ℹ️ No Chrome processes found to kill")
+                
+        except Exception as e:
+            logger.warning(f"Warning: Could not kill Chrome processes: {e}")
 
     def wait_for_cloudflare(self, driver, timeout=60):
         """Wait for Cloudflare challenge to complete"""
@@ -413,6 +480,10 @@ class PTOScraper:
             except:
                 pass
             self.driver = None
+        
+        # Kill any remaining Chrome processes
+        self.kill_chrome_processes()
+        
         logger.info("PTO scraper stopped")
 
     def build_stable_prop_id(self, prop):
@@ -423,6 +494,22 @@ class PTOScraper:
         team1 = (prop.get('teams', ['unknown', 'unknown'])[0] or 'unknown').strip().lower()
         team2 = (prop.get('teams', ['unknown', 'unknown'])[1] or 'unknown').strip().lower()
         return f"{sport}|{prop_desc}|{bet_type}|{team1}|{team2}"
+
+    async def broadcast_prop_update(self):
+        props_list = [
+            {
+                'prop': v['prop'],
+                'created_at': v.get('created_at').isoformat() if isinstance(v.get('created_at'), datetime) else v.get('created_at'),
+                'updated_at': v.get('updated_at').isoformat() if isinstance(v.get('updated_at'), datetime) else v.get('updated_at')
+            }
+            for v in self.live_props.values()
+        ]
+        await manager.broadcast({
+            'type': 'pto_prop_update',
+            'props': props_list,
+            'total_count': len(props_list),
+            'last_update': datetime.now().isoformat()
+        })
 
     def _scraping_loop(self):
         """Main scraping loop with enhanced error handling and fast updates"""
@@ -544,6 +631,23 @@ class PTOScraper:
                                             except Exception as e:
                                                 logger.error(f"[ERROR] Failed to delete Telegram alert for {pid}: {e}")
                                     del self.live_props[pid]
+                        # Broadcast prop updates to all WebSocket clients
+                        try:
+                            # Use a thread-safe approach for WebSocket broadcasting
+                            import threading
+                            if hasattr(self, '_ws_loop') and self._ws_loop and self._ws_loop.is_running():
+                                asyncio.run_coroutine_threadsafe(self.broadcast_prop_update(), self._ws_loop)
+                            else:
+                                # Fallback: try to get the main event loop
+                                try:
+                                    loop = asyncio.get_event_loop()
+                                    if loop.is_running():
+                                        asyncio.run_coroutine_threadsafe(self.broadcast_prop_update(), loop)
+                                except RuntimeError:
+                                    # No event loop available, skip WebSocket broadcast
+                                    pass
+                        except Exception as e:
+                            logger.error(f"[WebSocket] Error broadcasting prop update: {e}")
                         time.sleep(self.scraping_interval)
                     except Exception as e:
                         logger.error(f"❌ Error in scraping loop: {e}")

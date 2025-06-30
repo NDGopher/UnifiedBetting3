@@ -477,11 +477,24 @@ def open_pinnacle_odds_dropper():
     try:
         url = "https://pinnacleoddsdropper.com"
         print_status(f"Opening {url} in default browser...", "INFO", Colors.BLUE)
-        webbrowser.open(url)
-        print_status("✅ Pinnacle Odds Dropper opened successfully", "SUCCESS", Colors.GREEN)
-        return True
+        
+        # Try to force Chrome first
+        try:
+            import webbrowser
+            chrome_browser = webbrowser.get('chrome')
+            chrome_browser.open(url)
+            print_status("✅ Pinnacle Odds Dropper opened successfully in Chrome", "SUCCESS", Colors.GREEN)
+            return True
+        except Exception as chrome_error:
+            print_status(f"Chrome failed: {chrome_error}, trying default browser...", "WARNING", Colors.YELLOW)
+            # Fallback to default browser
+            webbrowser.open(url)
+            print_status("✅ Pinnacle Odds Dropper opened successfully in default browser", "SUCCESS", Colors.GREEN)
+            return True
+            
     except Exception as e:
         print_status(f"Failed to open Pinnacle Odds Dropper: {e}", "ERROR", Colors.RED)
+        print_status("💡 You can manually open https://pinnacleoddsdropper.com in your browser", "INFO", Colors.YELLOW)
         return False
 
 def refresh_pinnacle_odds_dropper():
@@ -669,22 +682,42 @@ def launch_application():
         print_status("🌐 Opening Pinnacle Odds Dropper...", "INFO", Colors.BLUE)
         open_pinnacle_odds_dropper()
         
+        # Kill any existing Chrome processes to prevent profile conflicts
+        print_status("🧹 Cleaning up Chrome processes...", "INFO", Colors.BLUE)
+        try:
+            chrome_killed = 0
+            for proc in psutil.process_iter(['pid', 'name']):
+                try:
+                    if proc.info['name'] and 'chrome' in proc.info['name'].lower():
+                        proc.kill()
+                        chrome_killed += 1
+                except (psutil.NoSuchProcess, psutil.AccessDenied):
+                    pass
+            if chrome_killed > 0:
+                print_status(f"✅ Killed {chrome_killed} Chrome processes", "SUCCESS", Colors.GREEN)
+                time.sleep(2)  # Wait for processes to fully terminate
+        except Exception as e:
+            print_status(f"Warning: Could not clean up Chrome processes: {e}", "WARNING", Colors.YELLOW)
+        
         # Launch backend server
         print_status("🚀 Starting Backend (FastAPI/Uvicorn) on port 5001...", "INFO", Colors.CYAN)
         
-        # Use relative paths for better portability
+        # Use the virtual environment's Python executable directly
         if sys.platform == "win32":
-            activate_cmd = f'cd {backend_dir} && call venv\\Scripts\\activate.bat && set PYTHONPATH={project_dir} && {backend_dir}\\venv\\Scripts\\python.exe -m uvicorn main:app --host 0.0.0.0 --port 5001 --no-access-log'
+            venv_python = backend_dir / "venv" / "Scripts" / "python.exe"
+            uvicorn_cmd = f'"{venv_python}" -m uvicorn main:app --host 0.0.0.0 --port 5001 --no-access-log'
         else:
-            activate_cmd = f'cd {backend_dir} && source venv/bin/activate && PYTHONPATH={project_dir} {backend_dir}/venv/bin/python -m uvicorn main:app --host 0.0.0.0 --port 5001 --no-access-log'
+            venv_python = backend_dir / "venv" / "bin" / "python"
+            uvicorn_cmd = f'"{venv_python}" -m uvicorn main:app --host 0.0.0.0 --port 5001 --no-access-log'
         
         backend_process = subprocess.Popen(
-            activate_cmd,
+            uvicorn_cmd,
             cwd=backend_dir,  # Set working directory to backend directory
             shell=True,
             stdout=subprocess.PIPE,
             stderr=subprocess.STDOUT,
-            text=True
+            text=True,
+            env=dict(os.environ, PYTHONPATH=str(project_dir))  # Set PYTHONPATH environment variable
         )
         # Track backend process for cleanup
         all_child_processes.append(backend_process)
