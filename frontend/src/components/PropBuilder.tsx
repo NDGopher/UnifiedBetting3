@@ -205,10 +205,14 @@ const PropBuilder: React.FC = () => {
         const data = JSON.parse(lastMessage.data);
         if (data.type === 'pto_prop_update' && data.props) {
           // Replace the entire PTO prop list with the latest from backend
-          setPtoData(data.props);
+          setPtoData({
+            props: data.props,
+            total_count: data.total_count || 0,
+            last_update: data.last_update || new Date().toISOString()
+          });
         }
       } catch (e) {
-        // Ignore parse errors
+        console.error('[PropBuilder] WebSocket message parse error:', e);
       }
     }
   }, [lastMessage]);

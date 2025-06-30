@@ -117,6 +117,13 @@ TEAM_ALIASES = {
     'united states': ['usa', 'us', 'united states of america'],
     'iran': ['iran', 'iran isl', 'islamic republic of iran'],
     'russia': ['russian federation'],
+    'inter': ['inter milan', 'internazionale'],
+    'tottenham': ['tottenham hotspur', 'spurs'],
+    'psg': ['paris saint germain', 'paris sg'],
+    'altach': ['rheindorf altach', 'scr altach'],
+    'ny': ['new york'],
+    'la': ['los angeles'],
+    'st. louis': ['st louis'],
     'orense': ['orenseecuador', 'orense ecuador', 'cd orense', 'club deportivo orense'],
     'manta': ['manta fc', 'manta futbol club', 'club deportivo manta'],
     'barcelona': ['barcelona sc', 'barcelona sporting club', 'barcelona ecuador'],
@@ -372,7 +379,23 @@ def parse_specific_game_from_search_html(html_content, target_home_team_pod, tar
                         if found_fuzzy: break
                     if found_fuzzy: break
                 if found_fuzzy: break
-            if not matched: continue
+            if not matched:
+                # --- Tennis-specific last name matching ---
+                # Only attempt if both POD and BetBCK names look like tennis players (contain a space)
+                if 'tennis' in str(game_wrapper_table.get('class', [])).lower():
+                    pod_h_last = extract_last_name(target_home_team_pod)
+                    pod_a_last = extract_last_name(target_away_team_pod)
+                    bck_l_last = extract_last_name(raw_bck_l)
+                    bck_v_last = extract_last_name(raw_bck_v)
+                    print(f"[TENNIS-LASTNAME] POD: H='{pod_h_last}', A='{pod_a_last}' | BCK: L='{bck_l_last}', V='{bck_v_last}' (Event ID: {event_id})")
+                    if pod_h_last == bck_l_last and pod_a_last == bck_v_last:
+                        matched, bck_local_is_pod_home = True, True
+                        print(f"[TENNIS-LASTNAME] Last name match (Order 1) for {raw_bck_l} vs {raw_bck_v} (Event ID: {event_id})")
+                    elif pod_h_last == bck_v_last and pod_a_last == bck_l_last:
+                        matched, bck_local_is_pod_home = True, False
+                        print(f"[TENNIS-LASTNAME] Last name match (Order 2 - Flipped) for {raw_bck_l} vs {raw_bck_v} (Event ID: {event_id})")
+                if not matched:
+                    continue
         
         if not matched: continue
         
@@ -394,6 +417,9 @@ def parse_specific_game_from_search_html(html_content, target_home_team_pod, tar
         h_cells = tds_bck_displayed_local_row if bck_local_is_pod_home else tds_bck_displayed_visitor_row
         a_cells = tds_bck_displayed_visitor_row if bck_local_is_pod_home else tds_bck_displayed_local_row
 
+        # --- Ensure Set Spread and Moneyline are always parsed for tennis ---
+        # The following odds parsing block will extract all available spreads and moneylines, including tennis Set Spread and Moneyline.
+        print(f"[BetbckParser] Parsing all spreads and moneylines (including Set Spread/Moneyline for tennis) (Event ID: {event_id})")
         if len(h_cells)>0: output_data["home_spreads"]=extract_all_spread_options_from_text(h_cells[0])
         if len(a_cells)>0: output_data["away_spreads"]=extract_all_spread_options_from_text(a_cells[0])
         if len(h_cells)>1: output_data["home_moneyline_american"]=extract_american_odds_from_text(h_cells[1])
@@ -468,3 +494,24 @@ def scrape_betbck_for_game(pod_home_team, pod_away_team, search_team_name_betbck
     if parsed_game_data: print(f"[BetbckScraper-CORE] Scraper returned parsed game data.")
     else: print(f"[BetbckScraper-CORE] Scraper did NOT find or parse specific game from HTML.")
     return parsed_game_data 
+
+# --- Tennis Last Name Utility ---
+def extract_last_name(full_name):
+    """Extract last name from a full player name (handles hyphens, Jr., etc)."""
+    if not full_name:
+        return ""
+    # Remove common suffixes - simpler approach
+    name = full_name.strip()
+    suffixes = [' Jr.', ' Sr.', ' II', ' III', ' IV', ' V', ' Jr', ' Sr']
+    for suffix in suffixes:
+        if name.lower().endswith(suffix.lower()):
+            name = name[:-len(suffix)].strip()
+            break
+    # Split by space and take the last part (handles hyphenated last names)
+    parts = name.split()
+    if len(parts) == 0:
+        return ""
+    # If last part is a single character (e.g., initial), use the second to last
+    if len(parts) > 1 and len(parts[-1]) == 1:
+        return parts[-2].lower()
+    return parts[-1].lower() 

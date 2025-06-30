@@ -488,9 +488,9 @@ def open_pinnacle_odds_dropper():
         except Exception as chrome_error:
             print_status(f"Chrome failed: {chrome_error}, trying default browser...", "WARNING", Colors.YELLOW)
             # Fallback to default browser
-            webbrowser.open(url)
-            print_status("✅ Pinnacle Odds Dropper opened successfully in default browser", "SUCCESS", Colors.GREEN)
-            return True
+        webbrowser.open(url)
+        print_status("✅ Pinnacle Odds Dropper opened successfully in default browser", "SUCCESS", Colors.GREEN)
+        return True
             
     except Exception as e:
         print_status(f"Failed to open Pinnacle Odds Dropper: {e}", "ERROR", Colors.RED)
@@ -550,11 +550,9 @@ def setup_backend():
             # First upgrade pip to avoid warnings (silent)
             if run_command(f"{python_cmd} -m pip install --upgrade pip", cwd=backend_dir, silent=True).wait() != 0:
                 raise Exception("Failed to upgrade pip")
-            
             # Then install requirements (silent)
             if run_command(f"{python_cmd} -m pip install -r requirements.txt", cwd=backend_dir, silent=True).wait() != 0:
                 raise Exception("Failed to install backend requirements")
-            
             print_status("✅ Backend dependencies installed successfully", "SUCCESS", Colors.GREEN)
         else:
             print_status("✅ Backend dependencies already installed", "SUCCESS", Colors.GREEN)
@@ -575,7 +573,6 @@ def setup_frontend():
         print_status("Installing frontend dependencies...", "INFO", Colors.BLUE)
         if run_command("npm install", cwd=frontend_dir, silent=True).wait() != 0:
             raise Exception("Failed to install frontend dependencies")
-        
         print_status("✅ Frontend dependencies installed successfully", "SUCCESS", Colors.GREEN)
 
 def wait_for_backend(port=5001, timeout=30):
