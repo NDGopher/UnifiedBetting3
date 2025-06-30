@@ -567,15 +567,26 @@ class PTOScraper:
                         prop_cards = self.driver.find_elements(By.CSS_SELECTOR, "div[data-testid='prop-card']")
                         if len(prop_cards) > 0:
                             self.logger.info(f"Selenium found prop cards: {len(prop_cards)}")
-                        card_texts = [el.text for el in elements]
                         current_props = {}
                         now = datetime.now()
-                        for card_text in card_texts:
+                        for i, card_element in enumerate(elements):
+                            card_text = card_element.text
                             logger.debug(f"[DEBUG] Card text:\n{card_text}")
                             prop = self.parse_prop_card_text(card_text)
                             if not prop:
                                 logger.debug("[DEBUG] Could not parse prop card text.")
                                 continue
+                            # --- Extract sportsbook logos for width ---
+                            books = []
+                            try:
+                                logo_imgs = card_element.find_elements(By.CSS_SELECTOR, '.css-hp68mp img')
+                                for img in logo_imgs:
+                                    book = img.get_attribute('aria-label') or img.get_attribute('alt')
+                                    if book:
+                                        books.append(book.strip())
+                            except Exception as e:
+                                logger.warning(f"[PTO SCRAPER] Failed to extract books for width: {e}")
+                            prop['books'] = books
                             # Check EV threshold
                             try:
                                 ev_value = float(prop.get("ev", "0").replace("%", ""))

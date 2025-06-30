@@ -50,6 +50,7 @@ interface PTOProp {
     fairValue: string;
     ev: string;
     timestamp: string;
+    books: string[];
   };
   created_at: string;
   updated_at: string;
@@ -84,6 +85,7 @@ const PropBuilder: React.FC = () => {
   const prevPropsRef = useRef<any[]>([]);
   const { lastMessage, isConnected } = useWebSocket('ws://localhost:5001/ws');
   const [hiddenProps, setHiddenProps] = useState<Set<string>>(new Set());
+  const [showHidden, setShowHidden] = useState(false);
 
   const API_BASE = "http://localhost:5001";
 
@@ -223,7 +225,7 @@ const PropBuilder: React.FC = () => {
 
   const filteredProps = (ptoData?.props ?? []).filter((prop) => {
     const propId = prop.prop && prop.prop.propDesc ? prop.prop.propDesc + (prop.prop.teams?.join('-') || '') : '';
-    if (hiddenProps.has(propId)) return false;
+    if (!showHidden && hiddenProps.has(propId)) return false;
     if (
       sportFilter !== "all" &&
       !prop.prop.sport.toLowerCase().includes(sportFilter.toLowerCase())
@@ -244,6 +246,34 @@ const PropBuilder: React.FC = () => {
   const handleManualRefresh = () => {
     setManualRefresh(true);
     fetchPTOData(true);
+  };
+
+  // Book logo mapping
+  const bookLogoMap: Record<string, string> = {
+    Pinnacle: '/book_icons/pinnacle.png',
+    PIN: '/book_icons/pinnacle.png',
+    DraftKings: '/book_icons/draftkings.png',
+    DK: '/book_icons/draftkings.png',
+    Bet365: '/book_icons/bet365.png',
+    '365': '/book_icons/bet365.png',
+    MGM: '/book_icons/mgm.png',
+    Bovada: '/book_icons/bovada.png',
+    HardRock: '/book_icons/hardrock.png',
+    Caesars: '/book_icons/caesars.png',
+    FanDuel: '/book_icons/fanduel.png',
+    BetRivers: '/book_icons/betrivers.png',
+    Circa: '/book_icons/circa.png',
+    // Add more as needed
+  };
+
+  const normalizeBook = (book: string) => {
+    const map: Record<string, string> = {
+      PIN: 'Pinnacle',
+      DK: 'DraftKings',
+      '365': 'Bet365',
+      // ...add more as needed
+    };
+    return map[book] || book;
   };
 
   return (
@@ -345,6 +375,14 @@ const PropBuilder: React.FC = () => {
               label="Auto Refresh"
             />
           </Grid>
+          <Grid item xs={6} sm={3} md={2}>
+            <Box sx={{ display: 'flex', alignItems: 'center', mb: 1 }}>
+              <FormControlLabel
+                control={<Switch checked={showHidden} onChange={e => setShowHidden(e.target.checked)} size="small" />}
+                label="Show Hidden"
+              />
+            </Box>
+          </Grid>
         </Grid>
       </Box>
 
@@ -392,59 +430,59 @@ const PropBuilder: React.FC = () => {
         {scraperStatus?.is_running && filteredProps.length === 0 ? (
           <CircularProgress />
         ) : filteredProps.length > 0 ? (
-          <TableContainer component={Paper} sx={{ background: '#181c24', borderRadius: 2, boxShadow: 3, mt: 0 }}>
-            <Table>
-              <TableHead>
-                <TableRow>
-                  <TableCell>Sport</TableCell>
-                  <TableCell>Teams</TableCell>
-                  <TableCell>Game Time</TableCell>
-                  <TableCell>Player</TableCell>
-                  <TableCell>Prop</TableCell>
-                  <TableCell>Odds</TableCell>
-                  <TableCell>Fair Value</TableCell>
-                  <TableCell>Width</TableCell>
-                  <TableCell>EV</TableCell>
-                  <TableCell>Link</TableCell>
-                  <TableCell>Hide</TableCell>
-                </TableRow>
-              </TableHead>
-              <TableBody>
-                {filteredProps.map((prop, idx) => {
-                  // Attempt to split propDesc into player and prop
-                  let player = '';
-                  let propName = '';
-                  if (prop.prop.propDesc && prop.prop.propDesc.includes(' - ')) {
-                    const parts = prop.prop.propDesc.split(' - ');
-                    propName = parts[0];
-                    player = parts[1] || '';
-                  } else {
-                    propName = prop.prop.propDesc || '';
-                  }
-                  return (
-                    <TableRow key={idx} hover>
-                      <TableCell>{getSportEmoji(prop.prop.sport || 'Unknown')}</TableCell>
-                      <TableCell>{(prop.prop.teams && prop.prop.teams.length === 2) ? `${prop.prop.teams[0]} vs ${prop.prop.teams[1]}` : ''}</TableCell>
-                      <TableCell>{prop.prop.gameTime}</TableCell>
-                      <TableCell>{player}</TableCell>
-                      <TableCell>{propName} {prop.prop.betType ? `| ${prop.prop.betType}` : ''}</TableCell>
-                      <TableCell><b>{prop.prop.odds}</b></TableCell>
-                      <TableCell><b>{prop.prop.fairValue || ''}</b></TableCell>
-                      <TableCell sx={{ color: '#ffb300' }}>{prop.prop.width}</TableCell>
-                      <TableCell sx={{ color: parseFloat((prop.prop.ev||'0').replace('%','')) >= 0 ? '#4caf50' : '#e53935' }}><b>{prop.prop.ev}</b></TableCell>
-                      <TableCell><a href="https://betbck.com/Qubic/propbuilder.php" target="_blank" rel="noopener noreferrer">Bet</a></TableCell>
-                      <TableCell align="center">
-                        <IconButton size="small" onClick={() => handleHideProp(prop.prop.propDesc + (prop.prop.teams?.join('-') || ''))}>
-                          <Delete fontSize="small" />
-                        </IconButton>
-                      </TableCell>
-                    </TableRow>
-                  );
-                })}
-              </TableBody>
-            </Table>
-          </TableContainer>
-        ) : null}
+          <Grid container spacing={2}>
+            {filteredProps.map((propObj, idx) => {
+              const prop = propObj.prop;
+              const propId = prop.propDesc + (prop.teams?.join('-') || '');
+              // Debug: log the full prop object and books field
+              console.log('Full prop object:', propObj);
+              console.log('prop.books:', (prop as any).books);
+              return (
+                <Grid item xs={12} md={6} lg={4} key={propId}>
+                  <Paper sx={{ p: 2, borderRadius: 3, boxShadow: 4, mb: 2, background: '#181c24', position: 'relative' }}>
+                    <Box sx={{ display: 'flex', alignItems: 'center', mb: 1 }}>
+                      {getSportEmoji(prop.sport)}
+                      <Typography variant="subtitle1" sx={{ ml: 1, fontWeight: 600 }}>{prop.teams?.join(' vs ')}</Typography>
+                      <Typography variant="body2" sx={{ ml: 2, color: 'gray' }}>{prop.gameTime}</Typography>
+                      <IconButton size="small" sx={{ ml: 'auto' }} onClick={() => handleHideProp(propId)}><Delete fontSize="small" /></IconButton>
+                    </Box>
+                    <Box sx={{ mb: 1 }}>
+                      <Typography variant="body2" sx={{ fontWeight: 500 }}>{prop.propDesc}</Typography>
+                      <Typography variant="body2" sx={{ color: 'lightgreen', fontWeight: 700 }}>{prop.odds}</Typography>
+                      <Box sx={{ display: 'flex', alignItems: 'center', gap: 1 }}>
+                        <Typography variant="body2" sx={{ color: 'cyan', fontWeight: 700 }}>EV: {prop.ev}</Typography>
+                        {prop.fairValue && (
+                          <Typography variant="body2" sx={{ color: 'gray', fontSize: '0.9em' }}>({prop.fairValue})</Typography>
+                        )}
+                      </Box>
+                    </Box>
+                    <Box sx={{ mt: 1 }}>
+                      <Box sx={{ display: 'flex', alignItems: 'center' }}>
+                        <Typography variant="body2" sx={{ mr: 1 }}>Width:</Typography>
+                        <Typography variant="body2" sx={{ fontWeight: 700 }}>{prop.width}</Typography>
+                      </Box>
+                      <Box sx={{ display: 'flex', alignItems: 'center', mt: 0.5 }}>
+                        {Array.isArray(prop.books) && prop.books.map(book => (
+                          <Tooltip key={book} title={book}>
+                            <img
+                              src={bookLogoMap[normalizeBook(book)] || '/book_icons/pinnacle.png'}
+                              alt={book}
+                              style={{ width: 28, height: 28, marginRight: 4, borderRadius: 6, background: '#222' }}
+                            />
+                          </Tooltip>
+                        ))}
+                      </Box>
+                    </Box>
+                  </Paper>
+                </Grid>
+              );
+            })}
+          </Grid>
+        ) : (
+          <Typography variant="body2" sx={{ color: 'gray', textAlign: 'center', mt: 2 }}>
+            No props found.
+          </Typography>
+        )}
       </Box>
     </Paper>
   );
