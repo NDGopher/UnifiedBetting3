@@ -7,7 +7,8 @@ from datetime import datetime, timedelta
 from typing import List, Dict, Any, Optional
 from pathlib import Path
 
-logger = logging.getLogger(__name__)
+# Use the specialized buckeye logger
+logger = logging.getLogger("buckeye")
 
 # Configuration
 ARCADIA_BASE_URL = "https://guest.api.arcadia.pinnacle.com/0.1"
@@ -26,6 +27,8 @@ class BuckeyeScraper:
         
         # Ensure data directory exists
         self.event_ids_file.parent.mkdir(parents=True, exist_ok=True)
+        
+        logger.info("BuckeyeScraper initialized")
     
     def get_date(self):
         """Get today's date"""
@@ -283,29 +286,39 @@ class BuckeyeScraper:
             return None
     
     def get_betbck_odds(self, pinnacle_data: Dict[str, Any]) -> Optional[Dict[str, Any]]:
-        """Get BetBCK odds for the teams in the event"""
+        """Get BetBCK odds for the teams in the event using improved matching logic"""
         try:
             # Extract team names from Pinnacle data
             home_team = pinnacle_data.get("home", "")
             away_team = pinnacle_data.get("away", "")
             
+            logger.info(f"[BETBCK-MATCH] Attempting to match Pinnacle: {home_team} vs {away_team}")
+            
             if not home_team or not away_team:
+                logger.warning(f"[BETBCK-MATCH] Missing team names: home='{home_team}', away='{away_team}'")
                 return None
             
             # Use existing BetBCK scraper logic
             try:
                 from betbck_scraper import scrape_betbck_for_game
                 betbck_data = scrape_betbck_for_game(home_team, away_team)
+                
                 if betbck_data and betbck_data.get("status") == "success":
+                    logger.info(f"[BETBCK-MATCH] Successfully scraped BetBCK data for {home_team} vs {away_team}")
                     return betbck_data
+                else:
+                    logger.warning(f"[BETBCK-MATCH] BetBCK scraper returned no data for {home_team} vs {away_team}")
+                    
             except ImportError:
-                logger.error("BetBCK scraper not available")
+                logger.error("[BETBCK-MATCH] BetBCK scraper not available")
+            except Exception as e:
+                logger.error(f"[BETBCK-MATCH] Error in BetBCK scraper: {e}")
             
-            logger.warning(f"No BetBCK odds found for {home_team} vs {away_team}")
+            logger.warning(f"[BETBCK-MATCH] No BetBCK odds found for {home_team} vs {away_team}")
             return None
             
         except Exception as e:
-            logger.error(f"Error getting BetBCK odds: {e}")
+            logger.error(f"[BETBCK-MATCH] Error getting BetBCK odds: {e}")
             return None
     
     def calculate_ev(self, pinnacle_data: Dict[str, Any], betbck_data: Dict[str, Any]) -> List[Dict[str, Any]]:
@@ -313,55 +326,80 @@ class BuckeyeScraper:
         try:
             from utils.pod_utils import analyze_markets_for_ev
             
+            logger.info(f"[EV-CALC] Calculating EV for {pinnacle_data.get('home', '')} vs {pinnacle_data.get('away', '')}")
+            
             # Use existing EV calculation logic
             ev_results = analyze_markets_for_ev(betbck_data, {"data": pinnacle_data})
+            
+            if ev_results:
+                logger.info(f"[EV-CALC] Found {len(ev_results)} EV opportunities")
+                for result in ev_results:
+                    logger.debug(f"[EV-CALC] Market: {result.get('market', 'Unknown')}, EV: {result.get('ev', 0):.3f}")
+            else:
+                logger.info(f"[EV-CALC] No EV opportunities found")
             
             return ev_results
             
         except Exception as e:
-            logger.error(f"Error calculating EV: {e}")
+            logger.error(f"[EV-CALC] Error calculating EV: {e}")
             return []
     
     def run_main_calculation(self, event_ids: List[str]) -> Dict[str, Any]:
         """Run the main calculation logic on the event IDs"""
         try:
-            logger.info(f"Starting main calculation for {len(event_ids)} events...")
+            logger.info(f"[MAIN-CALC] Starting main calculation for {len(event_ids)} events...")
             
             results = []
             processed_count = 0
+            successful_matches = 0
+            successful_ev_calcs = 0
             
             for event_id in event_ids:
                 try:
+                    logger.info(f"[MAIN-CALC] Processing event {event_id} ({processed_count + 1}/{len(event_ids)})")
+                    
                     # Get Pinnacle odds for this event
                     pinnacle_data = self.get_pinnacle_event_odds(event_id)
                     if not pinnacle_data:
+                        logger.warning(f"[MAIN-CALC] No Pinnacle data for event {event_id}")
                         continue
+                    
+                    logger.info(f"[MAIN-CALC] Got Pinnacle data for {pinnacle_data.get('home', '')} vs {pinnacle_data.get('away', '')}")
                     
                     # Get BetBCK odds for this event
                     betbck_data = self.get_betbck_odds(pinnacle_data)
                     if not betbck_data:
+                        logger.warning(f"[MAIN-CALC] No BetBCK data for event {event_id}")
                         continue
+                    
+                    successful_matches += 1
+                    logger.info(f"[MAIN-CALC] Successfully matched event {event_id}")
                     
                     # Calculate EV for all markets
                     ev_results = self.calculate_ev(pinnacle_data, betbck_data)
                     if ev_results:
+                        successful_ev_calcs += 1
+                        best_ev = max([r.get("ev", 0) for r in ev_results], default=0)
                         results.append({
                             "event_id": event_id,
                             "pinnacle_data": pinnacle_data,
                             "betbck_data": betbck_data,
                             "ev_results": ev_results,
-                            "best_ev": max([r.get("ev", 0) for r in ev_results], default=0)
+                            "best_ev": best_ev
                         })
+                        logger.info(f"[MAIN-CALC] Event {event_id} has EV opportunities (best: {best_ev:.3f})")
+                    else:
+                        logger.info(f"[MAIN-CALC] Event {event_id} has no EV opportunities")
                     
                     processed_count += 1
                     if processed_count % 10 == 0:
-                        logger.info(f"Processed {processed_count}/{len(event_ids)} events...")
+                        logger.info(f"[MAIN-CALC] Progress: {processed_count}/{len(event_ids)} events processed, {successful_matches} matched, {successful_ev_calcs} with EV")
                     
                     # Rate limiting
                     time.sleep(0.5)
                     
                 except Exception as e:
-                    logger.error(f"Error processing event {event_id}: {e}")
+                    logger.error(f"[MAIN-CALC] Error processing event {event_id}: {e}")
                     continue
             
             # Sort by best EV
@@ -370,16 +408,26 @@ class BuckeyeScraper:
             # Save results
             self.save_results(results)
             
-            logger.info(f"Main calculation completed: {len(results)} events with EV opportunities")
+            logger.info(f"[MAIN-CALC] Main calculation completed:")
+            logger.info(f"[MAIN-CALC] - Total events: {len(event_ids)}")
+            logger.info(f"[MAIN-CALC] - Processed: {processed_count}")
+            logger.info(f"[MAIN-CALC] - Successfully matched: {successful_matches}")
+            logger.info(f"[MAIN-CALC] - Events with EV: {successful_ev_calcs}")
+            logger.info(f"[MAIN-CALC] - Match rate: {successful_matches/len(event_ids)*100:.1f}%")
+            logger.info(f"[MAIN-CALC] - EV rate: {successful_ev_calcs/len(event_ids)*100:.1f}%")
+            
             return {
                 "events": results,
                 "total_processed": processed_count,
-                "total_with_ev": len(results),
+                "total_matched": successful_matches,
+                "total_with_ev": successful_ev_calcs,
+                "match_rate": successful_matches/len(event_ids)*100 if event_ids else 0,
+                "ev_rate": successful_ev_calcs/len(event_ids)*100 if event_ids else 0,
                 "timestamp": datetime.now().isoformat()
             }
             
         except Exception as e:
-            logger.error(f"Error in main calculation: {e}")
+            logger.error(f"[MAIN-CALC] Error in main calculation: {e}")
             return {"error": str(e)}
     
     def save_results(self, results: List[Dict[str, Any]]) -> bool:

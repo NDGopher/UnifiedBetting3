@@ -562,7 +562,7 @@ def get_event_ids():
         })
 
 @app.post('/buckeye/run-calculation')
-def run_calculation():
+async def run_calculation():
     try:
         # Step 1: Scrape all BetBCK games
         logger.info("Step 1: Scraping all BetBCK games...")
@@ -597,6 +597,25 @@ def run_calculation():
         from match_games import match_pinnacle_to_betbck, save_matched_games
         matched_games = match_pinnacle_to_betbck(pinnacle_events, betbck_data)
         logger.info(f"Matched {len(matched_games)} games. Example: {matched_games[:2] if matched_games else '[]'}")
+        
+        # Calculate matching statistics
+        total_processed = len(pinnacle_events)
+        total_matched = len(matched_games)
+        match_rate = (total_matched / total_processed * 100) if total_processed > 0 else 0
+        
+        # Broadcast matching statistics via WebSocket
+        try:
+            await manager.broadcast({
+                "type": "buckeye_results",
+                "total_processed": total_processed,
+                "total_matched": total_matched,
+                "match_rate": match_rate,
+                "timestamp": datetime.now().isoformat()
+            })
+            logger.info(f"[WebSocket] Broadcasted matching stats: {total_processed} events, {total_matched} matched ({match_rate:.1f}%)")
+        except Exception as e:
+            logger.warning(f"[WebSocket] Failed to broadcast matching stats: {e}")
+        
         if not matched_games:
             logger.info("No games matched between Pinnacle and BetBCK, returning empty table.")
             return {
@@ -608,6 +627,7 @@ def run_calculation():
                     'total_opportunities': 0
                 }
             }
+        
         save_matched_games(matched_games)
         logger.info(f"Matched {len(matched_games)} games saved.")
         

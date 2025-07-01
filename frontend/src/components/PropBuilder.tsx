@@ -35,6 +35,7 @@ import {
   SportsHockey,
   Casino,
   Delete,
+  Cancel,
 } from "@mui/icons-material";
 import { useWebSocket } from '../hooks/useWebSocket';
 
@@ -248,32 +249,36 @@ const PropBuilder: React.FC = () => {
     fetchPTOData(true);
   };
 
-  // Book logo mapping
+  // Book logo mapping for icons
   const bookLogoMap: Record<string, string> = {
-    Pinnacle: '/book_icons/pinnacle.png',
-    PIN: '/book_icons/pinnacle.png',
-    DraftKings: '/book_icons/draftkings.png',
-    DK: '/book_icons/draftkings.png',
-    Bet365: '/book_icons/bet365.png',
-    '365': '/book_icons/bet365.png',
-    MGM: '/book_icons/mgm.png',
-    Bovada: '/book_icons/bovada.png',
-    HardRock: '/book_icons/hardrock.png',
-    Caesars: '/book_icons/caesars.png',
-    FanDuel: '/book_icons/fanduel.png',
-    BetRivers: '/book_icons/betrivers.png',
-    Circa: '/book_icons/circa.png',
+    'pinnacle': '/book_icons/pinnacle.png',
+    'fanduel': '/book_icons/fanduel.png',
+    'draftkings': '/book_icons/draftkings.png',
+    'betrivers': '/book_icons/betrivers.png',
+    'bovada': '/book_icons/bovada.png',
+    'caesars': '/book_icons/caesars.png',
+    'circa': '/book_icons/circa.png',
+    'hardrock': '/book_icons/hardrock.png',
+    'mgm': '/book_icons/mgm.png',
     // Add more as needed
   };
 
   const normalizeBook = (book: string) => {
-    const map: Record<string, string> = {
-      PIN: 'Pinnacle',
-      DK: 'DraftKings',
-      '365': 'Bet365',
-      // ...add more as needed
-    };
-    return map[book] || book;
+    if (!book) return '';
+    // Lowercase, remove spaces, dashes, special chars
+    let b = book.toLowerCase().replace(/[^a-z0-9]/g, '');
+    // Handle common variants
+    if (b.includes('pinnacle')) return 'pinnacle';
+    if (b.includes('fanduel')) return 'fanduel';
+    if (b.includes('draftkings') || b === 'dk') return 'draftkings';
+    if (b.includes('betrivers')) return 'betrivers';
+    if (b.includes('bovada')) return 'bovada';
+    if (b.includes('caesars')) return 'caesars';
+    if (b.includes('circa')) return 'circa';
+    if (b.includes('hardrock')) return 'hardrock';
+    if (b.includes('mgm')) return 'mgm';
+    // Add more as needed
+    return b;
   };
 
   return (
@@ -464,11 +469,15 @@ const PropBuilder: React.FC = () => {
                       <Box sx={{ display: 'flex', alignItems: 'center', mt: 0.5 }}>
                         {Array.isArray(prop.books) && prop.books.map(book => (
                           <Tooltip key={book} title={book}>
-                            <img
-                              src={bookLogoMap[normalizeBook(book)] || '/book_icons/pinnacle.png'}
-                              alt={book}
-                              style={{ width: 28, height: 28, marginRight: 4, borderRadius: 6, background: '#222' }}
-                            />
+                            {bookLogoMap[normalizeBook(book)] ? (
+                              <img
+                                src={bookLogoMap[normalizeBook(book)]}
+                                alt={book}
+                                style={{ width: 28, height: 28, marginRight: 4, borderRadius: 6, background: '#222' }}
+                              />
+                            ) : (
+                              <Cancel sx={{ color: 'red', width: 28, height: 28, marginRight: 4 }} />
+                            )}
                           </Tooltip>
                         ))}
                       </Box>

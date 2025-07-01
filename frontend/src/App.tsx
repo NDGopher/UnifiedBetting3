@@ -11,6 +11,7 @@ import { TrendingUp, Analytics, Calculate } from "@mui/icons-material";
 import PODAlerts from "./components/PODAlerts";
 import EVCalculator from "./components/EVCalculator";
 import PropBuilder from "./components/PropBuilder";
+import BuckeyeScraper from './components/BuckeyeScraper';
 
 // Modern dark theme inspired by Onlook
 const modernTheme = createTheme({
@@ -258,47 +259,52 @@ function App() {
                   <PropBuilder />
                 </Paper>
               </Grid>
-              {/* EV Calculator Section */}
-              <Grid item xs={12} md={4} lg={3}>
-                <Paper
-                  sx={{
-                    p: 2,
-                    display: "flex",
-                    flexDirection: "column",
-                    maxHeight: "400px",
-                    position: "relative",
-                    overflow: "hidden",
-                    "&::before": {
-                      content: '""',
-                      position: "absolute",
-                      top: 0,
-                      left: 0,
-                      right: 0,
-                      height: "3px",
-                      background:
-                        "linear-gradient(90deg, #00d4ff 0%, #ffffff 100%)",
-                    },
-                  }}
-                >
-                  <Box
+              {/* EV Calculator + BuckeyeScraper Section side by side */}
+              <Grid item xs={12} container spacing={3}>
+                <Grid item xs={12} md={4} lg={3}>
+                  <Paper
                     sx={{
+                      p: 2,
                       display: "flex",
-                      alignItems: "center",
-                      gap: 1,
-                      mb: 2,
+                      flexDirection: "column",
+                      maxHeight: "400px",
+                      position: "relative",
+                      overflow: "hidden",
+                      "&::before": {
+                        content: '""',
+                        position: "absolute",
+                        top: 0,
+                        left: 0,
+                        right: 0,
+                        height: "3px",
+                        background:
+                          "linear-gradient(90deg, #00d4ff 0%, #ffffff 100%)",
+                      },
                     }}
                   >
-                    <Calculate sx={{ color: "#00d4ff", fontSize: "1.2rem" }} />
-                    <Typography
-                      component="h3"
-                      variant="subtitle1"
-                      sx={{ color: "#ffffff", fontWeight: 600 }}
+                    <Box
+                      sx={{
+                        display: "flex",
+                        alignItems: "center",
+                        gap: 1,
+                        mb: 2,
+                      }}
                     >
-                      EV Calculator
-                    </Typography>
-                  </Box>
-                  <EVCalculator />
-                </Paper>
+                      <Calculate sx={{ color: "#00d4ff", fontSize: "1.2rem" }} />
+                      <Typography
+                        component="h3"
+                        variant="subtitle1"
+                        sx={{ color: "#ffffff", fontWeight: 600 }}
+                      >
+                        EV Calculator
+                      </Typography>
+                    </Box>
+                    <EVCalculator />
+                  </Paper>
+                </Grid>
+                <Grid item xs={12} md={8} lg={9}>
+                  <BuckeyeScraper />
+                </Grid>
               </Grid>
             </Grid>
           </Container>
