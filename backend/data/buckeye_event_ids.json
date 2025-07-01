@@ -1,0 +1,2157 @@
+{
+  "date": "2025-06-30",
+  "event_ids": [
+    {
+      "event_id": 1611253049,
+      "home_team": "Yokohama Bay Stars",
+      "away_team": "Chunichi Dragons"
+    },
+    {
+      "event_id": 1611128209,
+      "home_team": "Philadelphia Phillies",
+      "away_team": "San Diego Padres"
+    },
+    {
+      "event_id": 1611135648,
+      "home_team": "Los Angeles Dodgers",
+      "away_team": "Chicago White Sox"
+    },
+    {
+      "event_id": 1611136478,
+      "home_team": "Tampa Bay Rays",
+      "away_team": "Athletics"
+    },
+    {
+      "event_id": 1611128214,
+      "home_team": "Washington Nationals",
+      "away_team": "Detroit Tigers"
+    },
+    {
+      "event_id": 1611135624,
+      "home_team": "Chicago Cubs",
+      "away_team": "Cleveland Guardians"
+    },
+    {
+      "event_id": 1611308949,
+      "home_team": "Arizona Diamondbacks  (Hits+Runs+Errors)",
+      "away_team": "San Francisco Giants  (Hits+Runs+Errors)"
+    },
+    {
+      "event_id": 1611136494,
+      "home_team": "Arizona Diamondbacks",
+      "away_team": "San Francisco Giants"
+    },
+    {
+      "event_id": 1611310065,
+      "home_team": "Seattle Mariners  (Hits+Runs+Errors)",
+      "away_team": "Kansas City Royals  (Hits+Runs+Errors)"
+    },
+    {
+      "event_id": 1611229481,
+      "home_team": "Saitama Seibu Lions",
+      "away_team": "Orix Buffaloes"
+    },
+    {
+      "event_id": 1611308684,
+      "home_team": "New York Mets  (Hits+Runs+Errors)",
+      "away_team": "Milwaukee Brewers  (Hits+Runs+Errors)"
+    },
+    {
+      "event_id": 1611253048,
+      "home_team": "Hanshin Tigers",
+      "away_team": "Yomiuri Giants"
+    },
+    {
+      "event_id": 1611230899,
+      "home_team": "Hiroshima Toyo Carp",
+      "away_team": "Tokyo Yakult Swallows"
+    },
+    {
+      "event_id": 1611135635,
+      "home_team": "Seattle Mariners",
+      "away_team": "Kansas City Royals"
+    },
+    {
+      "event_id": 1611128213,
+      "home_team": "Miami Marlins",
+      "away_team": "Minnesota Twins"
+    },
+    {
+      "event_id": 1611229479,
+      "home_team": "Hanwha Eagles",
+      "away_team": "NC Dinos"
+    },
+    {
+      "event_id": 1611128202,
+      "home_team": "Toronto Blue Jays",
+      "away_team": "New York Yankees"
+    },
+    {
+      "event_id": 1611311099,
+      "home_team": "Atlanta Braves  (Hits+Runs+Errors)",
+      "away_team": "Los Angeles Angels  (Hits+Runs+Errors)"
+    },
+    {
+      "event_id": 1611230903,
+      "home_team": "Doosan Bears",
+      "away_team": "Samsung Lions"
+    },
+    {
+      "event_id": 1611311615,
+      "home_team": "Colorado Rockies  (Hits+Runs+Errors)",
+      "away_team": "Houston Astros  (Hits+Runs+Errors)"
+    },
+    {
+      "event_id": 1611229480,
+      "home_team": "KT Wiz",
+      "away_team": "Kiwoom Heroes"
+    },
+    {
+      "event_id": 1611136491,
+      "home_team": "Colorado Rockies",
+      "away_team": "Houston Astros"
+    },
+    {
+      "event_id": 1611310845,
+      "home_team": "Boston Red Sox  (Hits+Runs+Errors)",
+      "away_team": "Cincinnati Reds  (Hits+Runs+Errors)"
+    },
+    {
+      "event_id": 1611309457,
+      "home_team": "Tampa Bay Rays  (Hits+Runs+Errors)",
+      "away_team": "Athletics  (Hits+Runs+Errors)"
+    },
+    {
+      "event_id": 1611253056,
+      "home_team": "Kia Tigers",
+      "away_team": "SSG Landers"
+    },
+    {
+      "event_id": 1611253055,
+      "home_team": "Lotte Giants",
+      "away_team": "LG Twins"
+    },
+    {
+      "event_id": 1611310319,
+      "home_team": "Miami Marlins  (Hits+Runs+Errors)",
+      "away_team": "Minnesota Twins  (Hits+Runs+Errors)"
+    },
+    {
+      "event_id": 1611253047,
+      "home_team": "Tohoku Rakuten Golden Eagles",
+      "away_team": "Chiba Lotte Marines"
+    },
+    {
+      "event_id": 1611311871,
+      "home_team": "Los Angeles Dodgers  (Hits+Runs+Errors)",
+      "away_team": "Chicago White Sox  (Hits+Runs+Errors)"
+    },
+    {
+      "event_id": 1611135620,
+      "home_team": "Atlanta Braves",
+      "away_team": "Los Angeles Angels"
+    },
+    {
+      "event_id": 1611128216,
+      "home_team": "Boston Red Sox",
+      "away_team": "Cincinnati Reds"
+    },
+    {
+      "event_id": 1611229473,
+      "home_team": "Fukuoka Softbank Hawks",
+      "away_team": "Hokkaido Nippon-Ham Fighters"
+    },
+    {
+      "event_id": 1611308326,
+      "home_team": "Pittsburgh Pirates  (Hits+Runs+Errors)",
+      "away_team": "St. Louis Cardinals  (Hits+Runs+Errors)"
+    },
+    {
+      "event_id": 1611136476,
+      "home_team": "Pittsburgh Pirates",
+      "away_team": "St. Louis Cardinals"
+    },
+    {
+      "event_id": 1611310573,
+      "home_team": "Washington Nationals  (Hits+Runs+Errors)",
+      "away_team": "Detroit Tigers  (Hits+Runs+Errors)"
+    },
+    {
+      "event_id": 1611135618,
+      "home_team": "New York Mets",
+      "away_team": "Milwaukee Brewers"
+    },
+    {
+      "event_id": 1611311353,
+      "home_team": "Chicago Cubs  (Hits+Runs+Errors)",
+      "away_team": "Cleveland Guardians  (Hits+Runs+Errors)"
+    },
+    {
+      "event_id": 1611136485,
+      "home_team": "Texas Rangers",
+      "away_team": "Baltimore Orioles"
+    },
+    {
+      "event_id": 1611308067,
+      "home_team": "Philadelphia Phillies  (Hits+Runs+Errors)",
+      "away_team": "San Diego Padres  (Hits+Runs+Errors)"
+    },
+    {
+      "event_id": 1611309203,
+      "home_team": "Toronto Blue Jays  (Hits+Runs+Errors)",
+      "away_team": "New York Yankees  (Hits+Runs+Errors)"
+    },
+    {
+      "event_id": 1611206074,
+      "home_team": "Jordan",
+      "away_team": "Switzerland"
+    },
+    {
+      "event_id": 1611289161,
+      "home_team": "Beirut SC",
+      "away_team": "Sagesse"
+    },
+    {
+      "event_id": 1611206072,
+      "home_team": "Serbia",
+      "away_team": "New Zealand"
+    },
+    {
+      "event_id": 1611274074,
+      "home_team": "Paisas",
+      "away_team": "Caribbean Storm Islands"
+    },
+    {
+      "event_id": 1611230884,
+      "home_team": "Wellington Saints",
+      "away_team": "Canterbury Rams"
+    },
+    {
+      "event_id": 1611304122,
+      "home_team": "Astros de Jalisco",
+      "away_team": "Zonkeys de Tijuana"
+    },
+    {
+      "event_id": 1611221659,
+      "home_team": "Argentina",
+      "away_team": "Mali"
+    },
+    {
+      "event_id": 1611253109,
+      "home_team": "Calero Potosi",
+      "away_team": "Kinwa La Paz"
+    },
+    {
+      "event_id": 1611274075,
+      "home_team": "Caimanes del Llano",
+      "away_team": "Toros del Valle"
+    },
+    {
+      "event_id": 1611135617,
+      "home_team": "Trotamundos de Carabobo",
+      "away_team": "Gaiteros Del Zulia"
+    },
+    {
+      "event_id": 1611265678,
+      "home_team": "Atletico Boca Juniors",
+      "away_team": "Instituto Atletico Central Cordoba"
+    },
+    {
+      "event_id": 1611221660,
+      "home_team": "Germany",
+      "away_team": "Canada"
+    },
+    {
+      "event_id": 1611223300,
+      "home_team": "Cameroon",
+      "away_team": "USA"
+    },
+    {
+      "event_id": 1611223299,
+      "home_team": "China",
+      "away_team": "Slovenia"
+    },
+    {
+      "event_id": 1611290655,
+      "home_team": "Minnesota Lynx",
+      "away_team": "Indiana Fever"
+    },
+    {
+      "event_id": 1611223301,
+      "home_team": "Australia",
+      "away_team": "France"
+    },
+    {
+      "event_id": 1611136477,
+      "home_team": "Pioneros Del Avila",
+      "away_team": "Marinos de Anzoategui"
+    },
+    {
+      "event_id": 1611135622,
+      "home_team": "Titanes del Licey",
+      "away_team": "Caneros del Este"
+    },
+    {
+      "event_id": 1611206073,
+      "home_team": "Israel",
+      "away_team": "Dominican Republic"
+    },
+    {
+      "event_id": 1609657514,
+      "home_team": "Yamileth Mercado",
+      "away_team": "Ellie Scotney"
+    },
+    {
+      "event_id": 1609656555,
+      "home_team": "Jennifer Miranda",
+      "away_team": "Alycia Baumgardner"
+    },
+    {
+      "event_id": 1610554131,
+      "home_team": "Harlem Eubank",
+      "away_team": "Jack Catterall"
+    },
+    {
+      "event_id": 1609656556,
+      "home_team": "Shuretta Metcalf",
+      "away_team": "Dina Thorslund"
+    },
+    {
+      "event_id": 1611097691,
+      "home_team": "Edgar Berlanga",
+      "away_team": "Hamzah Sheeraz"
+    },
+    {
+      "event_id": 1610115649,
+      "home_team": "Manny Pacquiao",
+      "away_team": "Mario Barrios"
+    },
+    {
+      "event_id": 1610558865,
+      "home_team": "Shadasia Green",
+      "away_team": "Savannah Marshall"
+    },
+    {
+      "event_id": 1609657381,
+      "home_team": "William Zepeda Segura",
+      "away_team": "Shakur Stevenson"
+    },
+    {
+      "event_id": 1610503418,
+      "home_team": "Tim Tszyu",
+      "away_team": "Sebastian Fundora"
+    },
+    {
+      "event_id": 1609657513,
+      "home_team": "Katie Taylor",
+      "away_team": "Amanda Serrano"
+    },
+    {
+      "event_id": 1610553288,
+      "home_team": "Jessica Camara",
+      "away_team": "Chantelle Cameron"
+    },
+    {
+      "event_id": 1609656557,
+      "home_team": "Terence Crawford",
+      "away_team": "Canelo Alvarez"
+    },
+    {
+      "event_id": 1609657515,
+      "home_team": "Daniel Dubois",
+      "away_team": "Oleksandr Usyk"
+    },
+    {
+      "event_id": 1611283061,
+      "home_team": "San Francisco Unicorns",
+      "away_team": "Seattle Orcas"
+    },
+    {
+      "event_id": 1611047534,
+      "home_team": "Zimbabwe",
+      "away_team": "South Africa"
+    },
+    {
+      "event_id": 1611290659,
+      "home_team": "Texas Super Kings",
+      "away_team": "Washington Freedom"
+    },
+    {
+      "event_id": 1606508718,
+      "home_team": "Unknown",
+      "away_team": "Unknown"
+    },
+    {
+      "event_id": 1610163844,
+      "home_team": "Cleveland Browns",
+      "away_team": "Cincinnati Bengals"
+    },
+    {
+      "event_id": 1609669239,
+      "home_team": "Philadelphia Eagles",
+      "away_team": "Dallas Cowboys"
+    },
+    {
+      "event_id": 1610163846,
+      "home_team": "Jacksonville Jaguars",
+      "away_team": "Carolina Panthers"
+    },
+    {
+      "event_id": 1610166048,
+      "home_team": "Chicago Bears",
+      "away_team": "Minnesota Vikings"
+    },
+    {
+      "event_id": 1611098769,
+      "home_team": "Kansas State",
+      "away_team": "Iowa State"
+    },
+    {
+      "event_id": 1611098363,
+      "home_team": "Western Kentucky",
+      "away_team": "Sam Houston State"
+    },
+    {
+      "event_id": 1610163847,
+      "home_team": "Denver Broncos",
+      "away_team": "Tennessee Titans"
+    },
+    {
+      "event_id": 1610163843,
+      "home_team": "Atlanta Falcons",
+      "away_team": "Tampa Bay Buccaneers"
+    },
+    {
+      "event_id": 1610163848,
+      "home_team": "Green Bay Packers",
+      "away_team": "Detroit Lions"
+    },
+    {
+      "event_id": 1610167408,
+      "home_team": "Seattle Seahawks",
+      "away_team": "San Francisco 49ers"
+    },
+    {
+      "event_id": 1610167404,
+      "home_team": "New Orleans Saints",
+      "away_team": "Arizona Cardinals"
+    },
+    {
+      "event_id": 1610166043,
+      "home_team": "New England Patriots",
+      "away_team": "Las Vegas Raiders"
+    },
+    {
+      "event_id": 1610163845,
+      "home_team": "New York Jets",
+      "away_team": "Pittsburgh Steelers"
+    },
+    {
+      "event_id": 1610163850,
+      "home_team": "Buffalo Bills",
+      "away_team": "Baltimore Ravens"
+    },
+    {
+      "event_id": 1611098364,
+      "home_team": "Hawaii",
+      "away_team": "Stanford"
+    },
+    {
+      "event_id": 1610166045,
+      "home_team": "Washington Commanders",
+      "away_team": "New York Giants"
+    },
+    {
+      "event_id": 1610167401,
+      "home_team": "Indianapolis Colts",
+      "away_team": "Miami Dolphins"
+    },
+    {
+      "event_id": 1610163842,
+      "home_team": "Los Angeles Chargers",
+      "away_team": "Kansas City Chiefs"
+    },
+    {
+      "event_id": 1611098770,
+      "home_team": "Kansas",
+      "away_team": "Fresno State"
+    },
+    {
+      "event_id": 1610163849,
+      "home_team": "Los Angeles Rams",
+      "away_team": "Houston Texans"
+    },
+    {
+      "event_id": 1611188899,
+      "home_team": "Austen Lane",
+      "away_team": "Vitor Petrino"
+    },
+    {
+      "event_id": 1610679472,
+      "home_team": "Derrick Lewis",
+      "away_team": "Tallison Teixeira"
+    },
+    {
+      "event_id": 1611188900,
+      "home_team": "Tuco Tokkos",
+      "away_team": "Junior Tafa"
+    },
+    {
+      "event_id": 1611191715,
+      "home_team": "Stephen Thompson",
+      "away_team": "Gabriel Bonfim"
+    },
+    {
+      "event_id": 1611191716,
+      "home_team": "Morgan Charriere",
+      "away_team": "Nate Landwehr"
+    },
+    {
+      "event_id": 1611182769,
+      "home_team": "Calvin Kattar",
+      "away_team": "Steve Garcia"
+    },
+    {
+      "event_id": 1610679471,
+      "home_team": "Max Holloway",
+      "away_team": "Dustin Poirier"
+    },
+    {
+      "event_id": 1611188901,
+      "home_team": "Max Griffin",
+      "away_team": "Chris Curtis"
+    },
+    {
+      "event_id": 1611182770,
+      "home_team": "Lauren Murphy",
+      "away_team": "Eduarda Moura"
+    },
+    {
+      "event_id": 1611188902,
+      "home_team": "Melissa Martinez",
+      "away_team": "Fatima Kline"
+    },
+    {
+      "event_id": 1611191720,
+      "home_team": "Mitch Ramirez",
+      "away_team": "Mike Davis"
+    },
+    {
+      "event_id": 1611191718,
+      "home_team": "Jake Matthews",
+      "away_team": "Chidi Njokuani"
+    },
+    {
+      "event_id": 1610699591,
+      "home_team": "Kayla Harrison",
+      "away_team": "Amanda Nunes"
+    },
+    {
+      "event_id": 1611191719,
+      "home_team": "Valter Walker",
+      "away_team": "Kennedy Nzechukwu"
+    },
+    {
+      "event_id": 1611135591,
+      "home_team": "OsPa",
+      "away_team": "JBK"
+    },
+    {
+      "event_id": 1611188941,
+      "home_team": "San Antonio Bulo Bulo",
+      "away_team": "Once Caldas"
+    },
+    {
+      "event_id": 1611253111,
+      "home_team": "IA Akranes",
+      "away_team": "Fram Reykjavik"
+    },
+    {
+      "event_id": 1611256230,
+      "home_team": "Union Berlin",
+      "away_team": "Stuttgart"
+    },
+    {
+      "event_id": 1611182741,
+      "home_team": "Admira Wacker",
+      "away_team": "Traiskirchen"
+    },
+    {
+      "event_id": 1611223302,
+      "home_team": "Jeonnam Dragons",
+      "away_team": "Incheon United"
+    },
+    {
+      "event_id": 1611230863,
+      "home_team": "Consadole Sapporo",
+      "away_team": "Renofa Yamaguchi"
+    },
+    {
+      "event_id": 1611191622,
+      "home_team": "Los Angeles Galaxy",
+      "away_team": "Vancouver Whitecaps"
+    },
+    {
+      "event_id": 1611116408,
+      "home_team": "Vissel Kobe",
+      "away_team": "Sanfrecce Hiroshima"
+    },
+    {
+      "event_id": 1611265577,
+      "home_team": "Deportivo Garcilaso",
+      "away_team": "Universitario de Deportes"
+    },
+    {
+      "event_id": 1611270458,
+      "home_team": "Ilves (Corners)",
+      "away_team": "KTP (Corners)"
+    },
+    {
+      "event_id": 1610522309,
+      "home_team": "Spain",
+      "away_team": "Portugal"
+    },
+    {
+      "event_id": 1611226209,
+      "home_team": "Deportivo Recoleta",
+      "away_team": "Sportivo Trinidense"
+    },
+    {
+      "event_id": 1611070412,
+      "home_team": "Crystal Palace",
+      "away_team": "Liverpool"
+    },
+    {
+      "event_id": 1611191752,
+      "home_team": "Motherwell",
+      "away_team": "Rangers"
+    },
+    {
+      "event_id": 1611253097,
+      "home_team": "Mainz 05",
+      "away_team": "FC Koln"
+    },
+    {
+      "event_id": 1611191550,
+      "home_team": "FC Lahti",
+      "away_team": "JIPPO"
+    },
+    {
+      "event_id": 1611221732,
+      "home_team": "Kristiansund",
+      "away_team": "Bodo Glimt"
+    },
+    {
+      "event_id": 1611256001,
+      "home_team": "Djurgardens",
+      "away_team": "Degerfors"
+    },
+    {
+      "event_id": 1611239041,
+      "home_team": "KuPS (Corners)",
+      "away_team": "Gnistan (Corners)"
+    },
+    {
+      "event_id": 1610948518,
+      "home_team": "FC Seoul",
+      "away_team": "Jeonbuk Motors"
+    },
+    {
+      "event_id": 1611289113,
+      "home_team": "Norrkoping",
+      "away_team": "Brommapojkarna"
+    },
+    {
+      "event_id": 1610796372,
+      "home_team": "Fortaleza",
+      "away_team": "Ceara"
+    },
+    {
+      "event_id": 1611191570,
+      "home_team": "Libertad Asuncion",
+      "away_team": "River Plate"
+    },
+    {
+      "event_id": 1610764580,
+      "home_team": "Udinese",
+      "away_team": "Hellas Verona"
+    },
+    {
+      "event_id": 1611188931,
+      "home_team": "Velez Sarsfield",
+      "away_team": "CA Tigre"
+    },
+    {
+      "event_id": 1611191772,
+      "home_team": "Flamengo",
+      "away_team": "Internacional"
+    },
+    {
+      "event_id": 1611229419,
+      "home_team": "San Jose Earthquakes",
+      "away_team": "New York Red Bulls"
+    },
+    {
+      "event_id": 1611263014,
+      "home_team": "Gwangju FC (Corners)",
+      "away_team": "Ulsan HD (Corners)"
+    },
+    {
+      "event_id": 1611296345,
+      "home_team": "Iberia 1999",
+      "away_team": "Torpedo Kutaisi"
+    },
+    {
+      "event_id": 1611191560,
+      "home_team": "Birmingham City",
+      "away_team": "Ipswich Town"
+    },
+    {
+      "event_id": 1611118688,
+      "home_team": "Guangxi Lanhang",
+      "away_team": "Guangxi Hengchen"
+    },
+    {
+      "event_id": 1611188935,
+      "home_team": "Club Tijuana",
+      "away_team": "Queretaro"
+    },
+    {
+      "event_id": 1611229409,
+      "home_team": "Real Salt Lake",
+      "away_team": "St Louis City SC"
+    },
+    {
+      "event_id": 1611290633,
+      "home_team": "Delfin",
+      "away_team": "LDU Quito"
+    },
+    {
+      "event_id": 1611221665,
+      "home_team": "Yokohama FC",
+      "away_team": "Yokohama F. Marinos"
+    },
+    {
+      "event_id": 1611191759,
+      "home_team": "Deportivo Toluca",
+      "away_team": "Necaxa"
+    },
+    {
+      "event_id": 1611116386,
+      "home_team": "Guangdong Mingtu",
+      "away_team": "Wuhan Three Towns II"
+    },
+    {
+      "event_id": 1611302223,
+      "home_team": "USA (Corners)",
+      "away_team": "Guatemala (Corners)"
+    },
+    {
+      "event_id": 1611206078,
+      "home_team": "Cerezo Osaka",
+      "away_team": "Gamba Osaka"
+    },
+    {
+      "event_id": 1610522310,
+      "home_team": "Belgium",
+      "away_team": "Italy"
+    },
+    {
+      "event_id": 1611191771,
+      "home_team": "Cerro Porteno",
+      "away_team": "Estudiantes de La Plata"
+    },
+    {
+      "event_id": 1611273928,
+      "home_team": "VPS (Corners)",
+      "away_team": "FC Haka (Corners)"
+    },
+    {
+      "event_id": 1610928064,
+      "home_team": "Brighton and Hove Albion",
+      "away_team": "Fulham"
+    },
+    {
+      "event_id": 1611135587,
+      "home_team": "VPS",
+      "away_team": "FC Haka"
+    },
+    {
+      "event_id": 1611313412,
+      "home_team": "Palmeiras (Corners)",
+      "away_team": "Chelsea (Corners)"
+    },
+    {
+      "event_id": 1611241081,
+      "home_team": "Real Madrid (Corners)",
+      "away_team": "Juventus (Corners)"
+    },
+    {
+      "event_id": 1611171136,
+      "home_team": "Athletico Paranaense",
+      "away_team": "Fortaleza"
+    },
+    {
+      "event_id": 1611253098,
+      "home_team": "Borussia Monchengladbach",
+      "away_team": "Hamburger SV"
+    },
+    {
+      "event_id": 1611123807,
+      "home_team": "Ilves",
+      "away_team": "KTP"
+    },
+    {
+      "event_id": 1611226224,
+      "home_team": "Nashville SC",
+      "away_team": "Philadelphia Union"
+    },
+    {
+      "event_id": 1611256269,
+      "home_team": "HJK Klubi 04",
+      "away_team": "EIF"
+    },
+    {
+      "event_id": 1610802570,
+      "home_team": "Internacional",
+      "away_team": "Vitoria"
+    },
+    {
+      "event_id": 1611136468,
+      "home_team": "Juan Pablo II College",
+      "away_team": "FBC Melgar"
+    },
+    {
+      "event_id": 1611188961,
+      "home_team": "Finn Harps",
+      "away_team": "Longford Town"
+    },
+    {
+      "event_id": 1611274078,
+      "home_team": "San Lorenzo",
+      "away_team": "Quilmes"
+    },
+    {
+      "event_id": 1611253090,
+      "home_team": "Vikingur Reykjavik",
+      "away_team": "Breidablik"
+    },
+    {
+      "event_id": 1611226225,
+      "home_team": "Austin FC",
+      "away_team": "Los Angeles FC"
+    },
+    {
+      "event_id": 1611162903,
+      "home_team": "Bahia",
+      "away_team": "Cruzeiro"
+    },
+    {
+      "event_id": 1611253087,
+      "home_team": "IFK Goteborg",
+      "away_team": "Sirius"
+    },
+    {
+      "event_id": 1611163686,
+      "home_team": "RB Bragantino",
+      "away_team": "Flamengo"
+    },
+    {
+      "event_id": 1611188928,
+      "home_team": "River Plate",
+      "away_team": "Platense"
+    },
+    {
+      "event_id": 1611221664,
+      "home_team": "Kashiwa Reysol",
+      "away_team": "FC Tokyo"
+    },
+    {
+      "event_id": 1611253059,
+      "home_team": "Vegalta Sendai",
+      "away_team": "Kataller Toyama"
+    },
+    {
+      "event_id": 1610948519,
+      "home_team": "Gimpo",
+      "away_team": "Bucheon FC 1995"
+    },
+    {
+      "event_id": 1611191593,
+      "home_team": "Los Chankas",
+      "away_team": "Asociacion Deportiva Tarma"
+    },
+    {
+      "event_id": 1611182970,
+      "home_team": "Platense",
+      "away_team": "Independiente Rivadavia"
+    },
+    {
+      "event_id": 1611255975,
+      "home_team": "Brest",
+      "away_team": "Lille"
+    },
+    {
+      "event_id": 1611294055,
+      "home_team": "Belgium (Corners)",
+      "away_team": "Italy (Corners)"
+    },
+    {
+      "event_id": 1611253094,
+      "home_team": "Nice",
+      "away_team": "Toulouse"
+    },
+    {
+      "event_id": 1610924789,
+      "home_team": "Wolves",
+      "away_team": "Manchester City"
+    },
+    {
+      "event_id": 1610764685,
+      "home_team": "Genoa",
+      "away_team": "Lecce"
+    },
+    {
+      "event_id": 1611203668,
+      "home_team": "Estudiantes de La Plata",
+      "away_team": "Velez Sarsfield"
+    },
+    {
+      "event_id": 1611135585,
+      "home_team": "Super Nova",
+      "away_team": "FK Auda"
+    },
+    {
+      "event_id": 1611267953,
+      "home_team": "Iceland (Corners)",
+      "away_team": "Finland (Corners)"
+    },
+    {
+      "event_id": 1611221662,
+      "home_team": "Chungbuk Cheongju",
+      "away_team": "Seoul E-Land"
+    },
+    {
+      "event_id": 1611296368,
+      "home_team": "Sportivo Ameliano",
+      "away_team": "Atletico Tembetary"
+    },
+    {
+      "event_id": 1611253096,
+      "home_team": "Bayer Leverkusen",
+      "away_team": "Hoffenheim"
+    },
+    {
+      "event_id": 1611182944,
+      "home_team": "Racing Club",
+      "away_team": "San Martin de San Juan"
+    },
+    {
+      "event_id": 1611253031,
+      "home_team": "Borussia Dortmund (Bookings)",
+      "away_team": "Monterrey (Bookings)"
+    },
+    {
+      "event_id": 1611221704,
+      "home_team": "Viking",
+      "away_team": "Stromsgodset"
+    },
+    {
+      "event_id": 1611128193,
+      "home_team": "America MG",
+      "away_team": "Santos"
+    },
+    {
+      "event_id": 1611191563,
+      "home_team": "Aldosivi",
+      "away_team": "Central Cordoba"
+    },
+    {
+      "event_id": 1611191583,
+      "home_team": "Cobh Ramblers",
+      "away_team": "Athlone Town"
+    },
+    {
+      "event_id": 1611182674,
+      "home_team": "Hantharwady United",
+      "away_team": "Yarmanya United"
+    },
+    {
+      "event_id": 1610522306,
+      "home_team": "Switzerland",
+      "away_team": "Norway"
+    },
+    {
+      "event_id": 1611256226,
+      "home_team": "Nantes",
+      "away_team": "Paris Saint-Germain"
+    },
+    {
+      "event_id": 1611153636,
+      "home_team": "Daegu FC",
+      "away_team": "Gangwon FC"
+    },
+    {
+      "event_id": 1611221661,
+      "home_team": "Kawasaki Frontale",
+      "away_team": "Kashima Antlers"
+    },
+    {
+      "event_id": 1611263235,
+      "home_team": "Vissel Kobe (Corners)",
+      "away_team": "Sanfrecce Hiroshima (Corners)"
+    },
+    {
+      "event_id": 1611256037,
+      "home_team": "Universidad Catolica",
+      "away_team": "Colo Colo"
+    },
+    {
+      "event_id": 1611229484,
+      "home_team": "Imabari",
+      "away_team": "Ventforet Kofu"
+    },
+    {
+      "event_id": 1611206000,
+      "home_team": "Estonia",
+      "away_team": "Kosovo"
+    },
+    {
+      "event_id": 1611203794,
+      "home_team": "Slovan Bratislava",
+      "away_team": "Dukla Banska Bystrica"
+    },
+    {
+      "event_id": 1611256228,
+      "home_team": "Metz",
+      "away_team": "Strasbourg"
+    },
+    {
+      "event_id": 1611221694,
+      "home_team": "GAIS",
+      "away_team": "Malmo"
+    },
+    {
+      "event_id": 1611191744,
+      "home_team": "Queens Park Rangers",
+      "away_team": "Preston North End"
+    },
+    {
+      "event_id": 1611265536,
+      "home_team": "Seattle Sounders",
+      "away_team": "Columbus Crew"
+    },
+    {
+      "event_id": 1611294345,
+      "home_team": "Belgium (Bookings)",
+      "away_team": "Italy (Bookings)"
+    },
+    {
+      "event_id": 1611296380,
+      "home_team": "Tecnico Universitario",
+      "away_team": "Orense"
+    },
+    {
+      "event_id": 1611304372,
+      "home_team": "Jazz (Corners)",
+      "away_team": "EPS (Corners)"
+    },
+    {
+      "event_id": 1611123817,
+      "home_team": "Riga FC",
+      "away_team": "FS Jelgava"
+    },
+    {
+      "event_id": 1610924787,
+      "home_team": "Aston Villa",
+      "away_team": "Newcastle United"
+    },
+    {
+      "event_id": 1611191562,
+      "home_team": "Argentinos Juniors",
+      "away_team": "Boca Juniors"
+    },
+    {
+      "event_id": 1611253062,
+      "home_team": "Gimpo",
+      "away_team": "Busan IPark"
+    },
+    {
+      "event_id": 1611191582,
+      "home_team": "Derry City",
+      "away_team": "Waterford"
+    },
+    {
+      "event_id": 1611263734,
+      "home_team": "Palmeiras",
+      "away_team": "Chelsea"
+    },
+    {
+      "event_id": 1611191794,
+      "home_team": "Afturelding",
+      "away_team": "Breidablik"
+    },
+    {
+      "event_id": 1611291573,
+      "home_team": "Calcutta Police Club",
+      "away_team": "Peerless"
+    },
+    {
+      "event_id": 1611153701,
+      "home_team": "Deportes Limache",
+      "away_team": "Cobreloa"
+    },
+    {
+      "event_id": 1611136467,
+      "home_team": "HFX Wanderers",
+      "away_team": "Valour"
+    },
+    {
+      "event_id": 1610928065,
+      "home_team": "Manchester United",
+      "away_team": "Arsenal"
+    },
+    {
+      "event_id": 1611229418,
+      "home_team": "San Diego FC",
+      "away_team": "Houston Dynamo"
+    },
+    {
+      "event_id": 1611191748,
+      "home_team": "Oxford United",
+      "away_team": "Portsmouth"
+    },
+    {
+      "event_id": 1611290608,
+      "home_team": "Aucas",
+      "away_team": "Macara"
+    },
+    {
+      "event_id": 1611230895,
+      "home_team": "V-Varen Nagasaki",
+      "away_team": "Oita Trinita"
+    },
+    {
+      "event_id": 1611162901,
+      "home_team": "Valur Reykjavik",
+      "away_team": "Stjarnan"
+    },
+    {
+      "event_id": 1611191581,
+      "home_team": "Kerry",
+      "away_team": "Dundalk"
+    },
+    {
+      "event_id": 1610764581,
+      "home_team": "Internazionale",
+      "away_team": "Torino"
+    },
+    {
+      "event_id": 1611098791,
+      "home_team": "KuPS",
+      "away_team": "Gnistan"
+    },
+    {
+      "event_id": 1611136458,
+      "home_team": "Atletico Mineiro",
+      "away_team": "Cuiaba"
+    },
+    {
+      "event_id": 1611290662,
+      "home_team": "Khovd Club",
+      "away_team": "SP Falcons"
+    },
+    {
+      "event_id": 1611182698,
+      "home_team": "New York City",
+      "away_team": "Toronto FC"
+    },
+    {
+      "event_id": 1611256055,
+      "home_team": "Libertad Asuncion",
+      "away_team": "Sportivo Luqueno"
+    },
+    {
+      "event_id": 1611291576,
+      "home_team": "Brera Ilch",
+      "away_team": "Hunters FC"
+    },
+    {
+      "event_id": 1611162910,
+      "home_team": "Union La Calera",
+      "away_team": "Coquimbo Unido"
+    },
+    {
+      "event_id": 1611191755,
+      "home_team": "Rosario Central",
+      "away_team": "Godoy Cruz"
+    },
+    {
+      "event_id": 1611277506,
+      "home_team": "KR Reykjavik",
+      "away_team": "KA Akureyri"
+    },
+    {
+      "event_id": 1611290622,
+      "home_team": "El Nacional",
+      "away_team": "Manta"
+    },
+    {
+      "event_id": 1611191783,
+      "home_team": "Drogheda United",
+      "away_team": "Galway United"
+    },
+    {
+      "event_id": 1611206076,
+      "home_team": "Gyeongnam",
+      "away_team": "Ansan Greeners"
+    },
+    {
+      "event_id": 1611171137,
+      "home_team": "Botafogo FR RJ",
+      "away_team": "Gremio"
+    },
+    {
+      "event_id": 1611191732,
+      "home_team": "KaPa",
+      "away_team": "TPS"
+    },
+    {
+      "event_id": 1611283062,
+      "home_team": "Ehime",
+      "away_team": "Montedio Yamagata"
+    },
+    {
+      "event_id": 1611225585,
+      "home_team": "Cienciano",
+      "away_team": "Sporting Cristal"
+    },
+    {
+      "event_id": 1611182673,
+      "home_team": "Gold Coast Knights",
+      "away_team": "Sunshine Coast Wanderers"
+    },
+    {
+      "event_id": 1611225546,
+      "home_team": "JaPS",
+      "away_team": "SalPa"
+    },
+    {
+      "event_id": 1611229485,
+      "home_team": "JEF United Chiba",
+      "away_team": "Sagan Tosu"
+    },
+    {
+      "event_id": 1611191773,
+      "home_team": "Penarol",
+      "away_team": "Racing Club"
+    },
+    {
+      "event_id": 1611270462,
+      "home_team": "HJK Helsinki (Corners)",
+      "away_team": "Jaro (Corners)"
+    },
+    {
+      "event_id": 1611230843,
+      "home_team": "Portland Timbers",
+      "away_team": "New England Revolution"
+    },
+    {
+      "event_id": 1611256229,
+      "home_team": "Freiburg",
+      "away_team": "Augsburg"
+    },
+    {
+      "event_id": 1611191769,
+      "home_team": "Universitario de Deportes",
+      "away_team": "Palmeiras"
+    },
+    {
+      "event_id": 1611265586,
+      "home_team": "Independiente del Valle",
+      "away_team": "Barcelona SC"
+    },
+    {
+      "event_id": 1611256297,
+      "home_team": "Remo",
+      "away_team": "Cuiaba"
+    },
+    {
+      "event_id": 1610523084,
+      "home_team": "France",
+      "away_team": "England"
+    },
+    {
+      "event_id": 1610522372,
+      "home_team": "Paris Saint-Germain",
+      "away_team": "Tottenham Hotspur"
+    },
+    {
+      "event_id": 1610924788,
+      "home_team": "Sunderland",
+      "away_team": "West Ham United"
+    },
+    {
+      "event_id": 1611191753,
+      "home_team": "Talleres de Cordoba",
+      "away_team": "San Lorenzo"
+    },
+    {
+      "event_id": 1611223380,
+      "home_team": "Alianza Universidad",
+      "away_team": "Alianza Atletico"
+    },
+    {
+      "event_id": 1611290686,
+      "home_team": "Shelbourne",
+      "away_team": "St Patrick's Athletic"
+    },
+    {
+      "event_id": 1611182651,
+      "home_team": "Weiz",
+      "away_team": "Kapfenberger SV"
+    },
+    {
+      "event_id": 1611283055,
+      "home_team": "Roasso Kumamoto",
+      "away_team": "Jubilo Iwata"
+    },
+    {
+      "event_id": 1611266304,
+      "home_team": "Inter Turku (Corners)",
+      "away_team": "IFK Mariehamn (Corners)"
+    },
+    {
+      "event_id": 1611191762,
+      "home_team": "Puebla",
+      "away_team": "Atlas"
+    },
+    {
+      "event_id": 1611203634,
+      "home_team": "Real Madrid",
+      "away_team": "Juventus"
+    },
+    {
+      "event_id": 1611291588,
+      "home_team": "Keflavik",
+      "away_team": "Haukar Hafnarfjordur"
+    },
+    {
+      "event_id": 1611223303,
+      "home_team": "Nagoya Grampus",
+      "away_team": "Tokyo Verdy"
+    },
+    {
+      "event_id": 1611268466,
+      "home_team": "Iceland (Bookings)",
+      "away_team": "Finland (Bookings)"
+    },
+    {
+      "event_id": 1611225599,
+      "home_team": "CF Montreal",
+      "away_team": "Inter Miami"
+    },
+    {
+      "event_id": 1611191743,
+      "home_team": "Charlton Athletic",
+      "away_team": "Watford"
+    },
+    {
+      "event_id": 1611146747,
+      "home_team": "Virginia United",
+      "away_team": "Capalaba"
+    },
+    {
+      "event_id": 1611223366,
+      "home_team": "Union Espanola",
+      "away_team": "Universidad de Chile"
+    },
+    {
+      "event_id": 1611163661,
+      "home_team": "Quanzhou Yaxin",
+      "away_team": "Shenzhen 2028"
+    },
+    {
+      "event_id": 1611256231,
+      "home_team": "Bayern Munich",
+      "away_team": "RB Leipzig"
+    },
+    {
+      "event_id": 1610928063,
+      "home_team": "Nottingham Forest",
+      "away_team": "Brentford"
+    },
+    {
+      "event_id": 1611283122,
+      "home_team": "Botafogo SP",
+      "away_team": "Gremio Novorizontino"
+    },
+    {
+      "event_id": 1611256054,
+      "home_team": "Emelec",
+      "away_team": "Vinotinto Ecuador"
+    },
+    {
+      "event_id": 1611188987,
+      "home_team": "Instituto",
+      "away_team": "Huracan"
+    },
+    {
+      "event_id": 1611136489,
+      "home_team": "San Antonio de Cotacachi",
+      "away_team": "Gualaceo"
+    },
+    {
+      "event_id": 1611188929,
+      "home_team": "Atletico Tucuman",
+      "away_team": "San Martin de San Juan"
+    },
+    {
+      "event_id": 1611225524,
+      "home_team": "Osters",
+      "away_team": "Mjallby"
+    },
+    {
+      "event_id": 1611191630,
+      "home_team": "Odense BK",
+      "away_team": "B 93"
+    },
+    {
+      "event_id": 1611191751,
+      "home_team": "Hearts",
+      "away_team": "Aberdeen"
+    },
+    {
+      "event_id": 1610927857,
+      "home_team": "Liverpool",
+      "away_team": "Bournemouth"
+    },
+    {
+      "event_id": 1611255976,
+      "home_team": "Heidenheim",
+      "away_team": "Wolfsburg"
+    },
+    {
+      "event_id": 1611123806,
+      "home_team": "Inter Turku",
+      "away_team": "IFK Mariehamn"
+    },
+    {
+      "event_id": 1611182712,
+      "home_team": "Borussia Dortmund",
+      "away_team": "Monterrey"
+    },
+    {
+      "event_id": 1610802572,
+      "home_team": "Bahia",
+      "away_team": "Atletico Mineiro"
+    },
+    {
+      "event_id": 1611305799,
+      "home_team": "Denmark (Corners)",
+      "away_team": "Sweden (Corners)"
+    },
+    {
+      "event_id": 1611265728,
+      "home_team": "Mexico",
+      "away_team": "Honduras"
+    },
+    {
+      "event_id": 1610764687,
+      "home_team": "Roma",
+      "away_team": "Bologna"
+    },
+    {
+      "event_id": 1611230911,
+      "home_team": "Hwaseong",
+      "away_team": "Bucheon FC 1995"
+    },
+    {
+      "event_id": 1611253099,
+      "home_team": "Eintracht Frankfurt",
+      "away_team": "Werder Bremen"
+    },
+    {
+      "event_id": 1611296304,
+      "home_team": "Spain (Bookings)",
+      "away_team": "Portugal (Bookings)"
+    },
+    {
+      "event_id": 1611263712,
+      "home_team": "Avai",
+      "away_team": "Paysandu"
+    },
+    {
+      "event_id": 1611188923,
+      "home_team": "West Bromwich Albion",
+      "away_team": "Blackburn Rovers"
+    },
+    {
+      "event_id": 1610764579,
+      "home_team": "Como",
+      "away_team": "Lazio"
+    },
+    {
+      "event_id": 1611182761,
+      "home_team": "Radomlje",
+      "away_team": "Dinamo Zagreb"
+    },
+    {
+      "event_id": 1611191768,
+      "home_team": "Alianza Lima",
+      "away_team": "Gremio"
+    },
+    {
+      "event_id": 1611273339,
+      "home_team": "Switzerland (Bookings)",
+      "away_team": "Norway (Bookings)"
+    },
+    {
+      "event_id": 1611191761,
+      "home_team": "Club Leon",
+      "away_team": "Atletico San Luis"
+    },
+    {
+      "event_id": 1611191564,
+      "home_team": "Union Santa Fe",
+      "away_team": "Estudiantes de La Plata"
+    },
+    {
+      "event_id": 1611203621,
+      "home_team": "FC Dallas",
+      "away_team": "Minnesota United"
+    },
+    {
+      "event_id": 1610802569,
+      "home_team": "Corinthians",
+      "away_team": "Bragantino"
+    },
+    {
+      "event_id": 1611188927,
+      "home_team": "Kilmarnock",
+      "away_team": "Livingston"
+    },
+    {
+      "event_id": 1610523082,
+      "home_team": "Wales",
+      "away_team": "Netherlands"
+    },
+    {
+      "event_id": 1611188962,
+      "home_team": "St Patrick\u00b4s Athletic",
+      "away_team": "Bohemians"
+    },
+    {
+      "event_id": 1611289158,
+      "home_team": "USA",
+      "away_team": "Guatemala"
+    },
+    {
+      "event_id": 1611191750,
+      "home_team": "Celtic",
+      "away_team": "St Mirren"
+    },
+    {
+      "event_id": 1611225598,
+      "home_team": "D.C. United",
+      "away_team": "Atlanta United"
+    },
+    {
+      "event_id": 1611225602,
+      "home_team": "Libertad Loja",
+      "away_team": "Deportivo Cuenca"
+    },
+    {
+      "event_id": 1611256296,
+      "home_team": "Cerro Porteno",
+      "away_team": "General Caballero JLM"
+    },
+    {
+      "event_id": 1611203620,
+      "home_team": "Atletico Goianiense",
+      "away_team": "CRB"
+    },
+    {
+      "event_id": 1611274105,
+      "home_team": "Belarus",
+      "away_team": "Azerbaijan"
+    },
+    {
+      "event_id": 1611191568,
+      "home_team": "Central Cordoba",
+      "away_team": "Cerro Largo"
+    },
+    {
+      "event_id": 1611191770,
+      "home_team": "Fortaleza",
+      "away_team": "Velez Sarsfield"
+    },
+    {
+      "event_id": 1611191551,
+      "home_team": "Algeria",
+      "away_team": "Senegal"
+    },
+    {
+      "event_id": 1611290627,
+      "home_team": "Club Guarani",
+      "away_team": "2 de Mayo"
+    },
+    {
+      "event_id": 1611223387,
+      "home_team": "Charlotte FC",
+      "away_team": "Orlando City"
+    },
+    {
+      "event_id": 1611188960,
+      "home_team": "Shelbourne",
+      "away_team": "Cork City"
+    },
+    {
+      "event_id": 1611188930,
+      "home_team": "Huracan",
+      "away_team": "Belgrano"
+    },
+    {
+      "event_id": 1610767262,
+      "home_team": "Atalanta",
+      "away_team": "Pisa"
+    },
+    {
+      "event_id": 1611255973,
+      "home_team": "Auxerre",
+      "away_team": "Lorient"
+    },
+    {
+      "event_id": 1611191784,
+      "home_team": "University College Dublin",
+      "away_team": "Treaty United"
+    },
+    {
+      "event_id": 1611116469,
+      "home_team": "Kunming City Star",
+      "away_team": "Chengdu Rongcheng II"
+    },
+    {
+      "event_id": 1611191721,
+      "home_team": "Internacional",
+      "away_team": "Corinthians"
+    },
+    {
+      "event_id": 1611188934,
+      "home_team": "Sarmiento de Junin",
+      "away_team": "Independiente"
+    },
+    {
+      "event_id": 1611128171,
+      "home_team": "HJK Helsinki",
+      "away_team": "Jaro"
+    },
+    {
+      "event_id": 1611206077,
+      "home_team": "Chungnam Asan",
+      "away_team": "Suwon Bluewings"
+    },
+    {
+      "event_id": 1611295514,
+      "home_team": "Spain (Corners)",
+      "away_team": "Portugal (Corners)"
+    },
+    {
+      "event_id": 1611191785,
+      "home_team": "Bray Wanderers",
+      "away_team": "Wexford"
+    },
+    {
+      "event_id": 1610523077,
+      "home_team": "Iceland",
+      "away_team": "Finland"
+    },
+    {
+      "event_id": 1611256025,
+      "home_team": "Sport Boys",
+      "away_team": "Cusco"
+    },
+    {
+      "event_id": 1611191760,
+      "home_team": "Santos Laguna",
+      "away_team": "Pumas UNAM"
+    },
+    {
+      "event_id": 1610767265,
+      "home_team": "Juventus",
+      "away_team": "Parma"
+    },
+    {
+      "event_id": 1611123810,
+      "home_team": "Jazz",
+      "away_team": "EPS"
+    },
+    {
+      "event_id": 1611223358,
+      "home_team": "Comerciantes Unidos",
+      "away_team": "Ayacucho"
+    },
+    {
+      "event_id": 1610764686,
+      "home_team": "Cagliari",
+      "away_team": "Fiorentina"
+    },
+    {
+      "event_id": 1611299595,
+      "home_team": "FH Hafnarfjordur",
+      "away_team": "Stjarnan"
+    },
+    {
+      "event_id": 1611226220,
+      "home_team": "FC Cincinnati",
+      "away_team": "Chicago Fire"
+    },
+    {
+      "event_id": 1611203772,
+      "home_team": "Colorado Rapids",
+      "away_team": "Sporting Kansas City"
+    },
+    {
+      "event_id": 1611253089,
+      "home_team": "Halmstads",
+      "away_team": "AIK"
+    },
+    {
+      "event_id": 1611304091,
+      "home_team": "Valur Reykjavik (Corners)",
+      "away_team": "Stjarnan (Corners)"
+    },
+    {
+      "event_id": 1611191749,
+      "home_team": "Falkirk",
+      "away_team": "Dundee United"
+    },
+    {
+      "event_id": 1611191745,
+      "home_team": "Southampton",
+      "away_team": "Wrexham"
+    },
+    {
+      "event_id": 1611191766,
+      "home_team": "Universidad de Chile",
+      "away_team": "Club Guarani"
+    },
+    {
+      "event_id": 1611230910,
+      "home_team": "Seongnam FC",
+      "away_team": "Cheonan City"
+    },
+    {
+      "event_id": 1611256227,
+      "home_team": "Monaco",
+      "away_team": "Le Havre"
+    },
+    {
+      "event_id": 1611191767,
+      "home_team": "Independiente del Valle",
+      "away_team": "Vasco da Gama"
+    },
+    {
+      "event_id": 1611296379,
+      "home_team": "America Mineiro",
+      "away_team": "Athletic Club"
+    },
+    {
+      "event_id": 1611188953,
+      "home_team": "Sport Huancayo",
+      "away_team": "UTC de Cajamarca"
+    },
+    {
+      "event_id": 1611135608,
+      "home_team": "Cumbaya",
+      "away_team": "9 de Octubre"
+    },
+    {
+      "event_id": 1611252188,
+      "home_team": "Borussia Dortmund (Corners)",
+      "away_team": "Monterrey (Corners)"
+    },
+    {
+      "event_id": 1611272831,
+      "home_team": "Switzerland (Corners)",
+      "away_team": "Norway (Corners)"
+    },
+    {
+      "event_id": 1611253095,
+      "home_team": "Rennes",
+      "away_team": "Marseille"
+    },
+    {
+      "event_id": 1610927858,
+      "home_team": "Chelsea",
+      "away_team": "Crystal Palace"
+    },
+    {
+      "event_id": 1611223377,
+      "home_team": "Coritiba",
+      "away_team": "Volta Redonda"
+    },
+    {
+      "event_id": 1611188925,
+      "home_team": "Middlesbrough",
+      "away_team": "Swansea City"
+    },
+    {
+      "event_id": 1611153706,
+      "home_team": "Metta / Lu",
+      "away_team": "Tukums 2000"
+    },
+    {
+      "event_id": 1611296360,
+      "home_team": "Nacional de Football",
+      "away_team": "Penarol"
+    },
+    {
+      "event_id": 1611255977,
+      "home_team": "St. Pauli",
+      "away_team": "Borussia Dortmund"
+    },
+    {
+      "event_id": 1611256249,
+      "home_team": "Vestri",
+      "away_team": "Valur Reykjavik"
+    },
+    {
+      "event_id": 1611291648,
+      "home_team": "Operario Ferroviario",
+      "away_team": "Chapecoense"
+    },
+    {
+      "event_id": 1610924790,
+      "home_team": "Tottenham Hotspur",
+      "away_team": "Burnley"
+    },
+    {
+      "event_id": 1611230907,
+      "home_team": "Omiya Ardija",
+      "away_team": "Iwaki FC"
+    },
+    {
+      "event_id": 1611191747,
+      "home_team": "Stoke City",
+      "away_team": "Derby County"
+    },
+    {
+      "event_id": 1610523081,
+      "home_team": "Denmark",
+      "away_team": "Sweden"
+    },
+    {
+      "event_id": 1611206010,
+      "home_team": "Machida Zelvia",
+      "away_team": "Shimizu S-Pulse"
+    },
+    {
+      "event_id": 1610796374,
+      "home_team": "Juventude",
+      "away_team": "Sport Recife"
+    },
+    {
+      "event_id": 1611289152,
+      "home_team": "Amazonas",
+      "away_team": "Athletico Paranaense"
+    },
+    {
+      "event_id": 1611191765,
+      "home_team": "Club Bolivar",
+      "away_team": "Palestino"
+    },
+    {
+      "event_id": 1611283111,
+      "home_team": "Ferroviaria SP",
+      "away_team": "Vila Nova"
+    },
+    {
+      "event_id": 1610767263,
+      "home_team": "Sassuolo",
+      "away_team": "Napoli"
+    },
+    {
+      "event_id": 1611256233,
+      "home_team": "Sarpsborg 08",
+      "away_team": "Haugesund"
+    },
+    {
+      "event_id": 1611123821,
+      "home_team": "Vanersborgs FK",
+      "away_team": "Torslanda"
+    },
+    {
+      "event_id": 1611256270,
+      "home_team": "IBV Vestmannaeyjar",
+      "away_team": "Vikingur Reykjavik"
+    },
+    {
+      "event_id": 1611171146,
+      "home_team": "Always Ready",
+      "away_team": "Real Tomayapo"
+    },
+    {
+      "event_id": 1611116485,
+      "home_team": "Hubei Istar",
+      "away_team": "Hangzhou Linping Wuyue"
+    },
+    {
+      "event_id": 1611226204,
+      "home_team": "Tromso",
+      "away_team": "Molde"
+    },
+    {
+      "event_id": 1611289122,
+      "home_team": "Olimpia Asuncion",
+      "away_team": "Nacional Asuncion"
+    },
+    {
+      "event_id": 1610767264,
+      "home_team": "AC Milan",
+      "away_team": "Cremonese"
+    },
+    {
+      "event_id": 1611263664,
+      "home_team": "Mushuc Runa",
+      "away_team": "Universidad Catolica del Ecuador"
+    },
+    {
+      "event_id": 1610523079,
+      "home_team": "Germany",
+      "away_team": "Poland"
+    },
+    {
+      "event_id": 1611191758,
+      "home_team": "Cruz Azul",
+      "away_team": "Mazatlan"
+    },
+    {
+      "event_id": 1611188932,
+      "home_team": "Racing Club",
+      "away_team": "Barracas Central"
+    },
+    {
+      "event_id": 1611183027,
+      "home_team": "Ludogorets Razgrad",
+      "away_team": "Hradec Kralove"
+    },
+    {
+      "event_id": 1611188942,
+      "home_team": "Atletico Nacional",
+      "away_team": "Sao Paulo"
+    },
+    {
+      "event_id": 1611188943,
+      "home_team": "Botafogo FR RJ",
+      "away_team": "LDU Quito"
+    },
+    {
+      "event_id": 1611253100,
+      "home_team": "Sandefjord",
+      "away_team": "Rosenborg"
+    },
+    {
+      "event_id": 1611226295,
+      "home_team": "Blaublitz Akita",
+      "away_team": "Mito HollyHock"
+    },
+    {
+      "event_id": 1611223315,
+      "home_team": "Ham-Kam",
+      "away_team": "Brann"
+    },
+    {
+      "event_id": 1611191569,
+      "home_team": "Atletico Bucaramanga",
+      "away_team": "Atletico Mineiro"
+    },
+    {
+      "event_id": 1611221663,
+      "home_team": "Kyoto Sanga",
+      "away_team": "Albirex Niigata"
+    },
+    {
+      "event_id": 1611128177,
+      "home_team": "TP-47",
+      "away_team": "SJK Akatemia II"
+    },
+    {
+      "event_id": 1611191763,
+      "home_team": "Pachuca",
+      "away_team": "Monterrey"
+    },
+    {
+      "event_id": 1611230835,
+      "home_team": "Alianza Lima",
+      "away_team": "Deportivo Binacional"
+    },
+    {
+      "event_id": 1611223347,
+      "home_team": "Valerenga",
+      "away_team": "Fredrikstad"
+    },
+    {
+      "event_id": 1610928066,
+      "home_team": "Leeds United",
+      "away_team": "Everton"
+    },
+    {
+      "event_id": 1610796373,
+      "home_team": "Cruzeiro",
+      "away_team": "Gremio"
+    },
+    {
+      "event_id": 1611188936,
+      "home_team": "FC Juarez",
+      "away_team": "Club America"
+    },
+    {
+      "event_id": 1611289149,
+      "home_team": "Paris Saint-Germain",
+      "away_team": "Bayern Munich"
+    },
+    {
+      "event_id": 1611188933,
+      "home_team": "Banfield",
+      "away_team": "Defensa y Justicia"
+    },
+    {
+      "event_id": 1611191757,
+      "home_team": "Deportivo Riestra",
+      "away_team": "Lanus"
+    },
+    {
+      "event_id": 1611290245,
+      "home_team": "Mexico (Corners)",
+      "away_team": "Honduras (Corners)"
+    },
+    {
+      "event_id": 1611225548,
+      "home_team": "Hammarby",
+      "away_team": "Varnamo"
+    },
+    {
+      "event_id": 1611188926,
+      "home_team": "Dundee",
+      "away_team": "Hibernian"
+    },
+    {
+      "event_id": 1611118737,
+      "home_team": "Brann II",
+      "away_team": "Pors Grenland"
+    },
+    {
+      "event_id": 1611191571,
+      "home_team": "Bahia",
+      "away_team": "America de Cali"
+    },
+    {
+      "event_id": 1611191754,
+      "home_team": "Independiente Rivadavia",
+      "away_team": "Newells Old Boys"
+    },
+    {
+      "event_id": 1611191756,
+      "home_team": "Gimnasia La Plata",
+      "away_team": "Instituto"
+    },
+    {
+      "event_id": 1611191561,
+      "home_team": "Coventry City",
+      "away_team": "Hull City"
+    },
+    {
+      "event_id": 1611253120,
+      "home_team": "Elfsborg",
+      "away_team": "Hacken"
+    },
+    {
+      "event_id": 1611182586,
+      "home_team": "Aurora FC",
+      "away_team": "San Antonio Bulo Bulo"
+    },
+    {
+      "event_id": 1611188924,
+      "home_team": "Norwich City",
+      "away_team": "Millwall"
+    },
+    {
+      "event_id": 1611241465,
+      "home_team": "Real Madrid (Bookings)",
+      "away_team": "Juventus (Bookings)"
+    },
+    {
+      "event_id": 1611123729,
+      "home_team": "Nantong Haimen Codion",
+      "away_team": "Shanghai Port II"
+    },
+    {
+      "event_id": 1611191746,
+      "home_team": "Leicester City",
+      "away_team": "Sheffield Wednesday"
+    },
+    {
+      "event_id": 1611153637,
+      "home_team": "Gwangju FC",
+      "away_team": "Ulsan HD"
+    },
+    {
+      "event_id": 1611230905,
+      "home_team": "Tokushima Vortis",
+      "away_team": "Fujieda MYFC"
+    },
+    {
+      "event_id": 1611255974,
+      "home_team": "Angers",
+      "away_team": "Paris FC"
+    },
+    {
+      "event_id": 1611182602,
+      "home_team": "Oriente Petrolero",
+      "away_team": "Universitario de Vinto"
+    },
+    {
+      "event_id": 1611256234,
+      "home_team": "KFUM Oslo",
+      "away_team": "Bryne"
+    },
+    {
+      "event_id": 1611223364,
+      "home_team": "Sligo Rovers",
+      "away_team": "Shamrock Rovers"
+    },
+    {
+      "event_id": 1611191742,
+      "home_team": "Sheffield United",
+      "away_team": "Bristol City"
+    },
+    {
+      "event_id": 1611306725,
+      "home_team": "Germany (Corners)",
+      "away_team": "Poland (Corners)"
+    },
+    {
+      "event_id": 1611302565,
+      "home_team": "Cignal HD Spikers (Points)",
+      "away_team": "Cool Smashers (Points)"
+    },
+    {
+      "event_id": 1611290652,
+      "home_team": "Cignal HD Spikers",
+      "away_team": "Cool Smashers"
+    },
+    {
+      "event_id": 1611253058,
+      "home_team": "PLDT High Speed Hitters",
+      "away_team": "Farm Fresh Foxies"
+    },
+    {
+      "event_id": 1611262891,
+      "home_team": "PLDT High Speed Hitters (Points)",
+      "away_team": "Farm Fresh Foxies (Points)"
+    }
+  ],
+  "count": 430,
+  "timestamp": "2025-06-30T23:34:07.034153"
+}

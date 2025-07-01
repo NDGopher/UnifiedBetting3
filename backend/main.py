@@ -21,6 +21,9 @@ from thread_safe_manager import event_manager
 import gc
 import psutil
 from websocket_manager import manager
+import subprocess
+import os
+from betbck_async_scraper import get_all_betbck_games
 
 # Configure logging
 logging.basicConfig(
@@ -348,6 +351,316 @@ async def get_pto_scraper_status():
     except Exception as e:
         logger.error(f"[ERROR] Error getting PTO scraper status: {e}")
         return JSONResponse({"status": "error", "message": str(e)}, status_code=500)
+
+# BuckeyeScraper endpoints
+@app.get("/buckeye/events")
+async def get_buckeye_events():
+    """Get all BuckeyeScraper events with EV analysis"""
+    try:
+        # Get active events from pod_event_manager and format them for BuckeyeScraper
+        active_events = pod_event_manager.get_active_events()
+        buckeye_events = []
+        
+        for event_id, event_data in active_events.items():
+            # Skip events without proper data
+            if not event_data.get("betbck_data") or not event_data.get("pinnacle_data_processed"):
+                continue
+                
+            # Build event object using existing logic
+            event_obj = build_event_object(event_id, event_data)
+            
+            # Calculate best EV for sorting
+            markets = event_obj.get("markets", [])
+            best_ev = 0
+            total_ev = 0
+            ev_count = 0
+            
+            for market in markets:
+                try:
+                    ev_str = market.get("ev", "0%")
+                    ev_value = float(ev_str.replace('%', ''))
+                    if ev_value > best_ev:
+                        best_ev = ev_value
+                    if ev_value > 0:
+                        total_ev += ev_value
+                        ev_count += 1
+                except:
+                    continue
+            
+            # Add BuckeyeScraper specific fields
+            buckeye_event = {
+                "event_id": event_id,
+                "home_team": event_obj.get("title", "").split(" vs ")[0] if " vs " in event_obj.get("title", "") else "",
+                "away_team": event_obj.get("title", "").split(" vs ")[1] if " vs " in event_obj.get("title", "") else "",
+                "league": event_obj.get("meta_info", "").split(" | ")[0] if " | " in event_obj.get("meta_info", "") else "",
+                "start_time": event_obj.get("meta_info", "").split("Starts: ")[1] if "Starts: " in event_obj.get("meta_info", "") else "",
+                "markets": markets,
+                "total_ev": total_ev,
+                "best_ev": best_ev,
+                "last_updated": event_obj.get("last_update", "")
+            }
+            
+            buckeye_events.append(buckeye_event)
+        
+        # Sort by best EV (descending)
+        buckeye_events.sort(key=lambda x: x["best_ev"], reverse=True)
+        
+        return JSONResponse({
+            "status": "success",
+            "data": {
+                "events": buckeye_events,
+                "total_count": len(buckeye_events),
+                "last_update": datetime.now().isoformat()
+            }
+        })
+    except Exception as e:
+        logger.error(f"Error getting BuckeyeScraper events: {e}")
+        return JSONResponse({
+            "status": "error",
+            "message": str(e)
+        }, status_code=500)
+
+@app.get("/buckeye/events/ev/{min_ev}")
+async def get_buckeye_events_by_ev(min_ev: float = 0.0):
+    """Get BuckeyeScraper events filtered by minimum EV"""
+    try:
+        # Get all events first
+        all_events_response = await get_buckeye_events()
+        if all_events_response.status_code != 200:
+            return all_events_response
+            
+        all_events_data = all_events_response.body
+        all_events = json.loads(all_events_data.decode())["data"]["events"]
+        
+        # Filter by minimum EV
+        filtered_events = []
+        for event in all_events:
+            if event["best_ev"] >= min_ev:
+                # Also filter markets within the event
+                filtered_markets = []
+                for market in event["markets"]:
+                    try:
+                        ev_str = market.get("ev", "0%")
+                        ev_value = float(ev_str.replace('%', ''))
+                        if ev_value >= min_ev:
+                            filtered_markets.append(market)
+                    except:
+                        continue
+                
+                if filtered_markets:
+                    event_copy = event.copy()
+                    event_copy["markets"] = filtered_markets
+                    filtered_events.append(event_copy)
+        
+        return JSONResponse({
+            "status": "success",
+            "data": {
+                "events": filtered_events,
+                "total_count": len(filtered_events),
+                "last_update": datetime.now().isoformat()
+            }
+        })
+    except Exception as e:
+        logger.error(f"Error getting BuckeyeScraper events by EV: {e}")
+        return JSONResponse({
+            "status": "error",
+            "message": str(e)
+        }, status_code=500)
+
+@app.post("/buckeye/scraper/start")
+async def start_buckeye_scraper():
+    """Start the BuckeyeScraper (uses existing POD event manager)"""
+    try:
+        # The BuckeyeScraper uses the existing POD event manager
+        # Just return success since it's always running
+        return JSONResponse({
+            "status": "success",
+            "message": "BuckeyeScraper is always active via POD event manager"
+        })
+    except Exception as e:
+        logger.error(f"Error starting BuckeyeScraper: {e}")
+        return JSONResponse({
+            "status": "error",
+            "message": str(e)
+        }, status_code=500)
+
+@app.post("/buckeye/scraper/stop")
+async def stop_buckeye_scraper():
+    """Stop the BuckeyeScraper (not applicable since it uses POD manager)"""
+    try:
+        # The BuckeyeScraper uses the existing POD event manager
+        # Just return success since it's always running
+        return JSONResponse({
+            "status": "success",
+            "message": "BuckeyeScraper uses POD event manager - cannot be stopped independently"
+        })
+    except Exception as e:
+        logger.error(f"Error stopping BuckeyeScraper: {e}")
+        return JSONResponse({
+            "status": "error",
+            "message": str(e)
+        }, status_code=500)
+
+@app.get("/buckeye/scraper/status")
+async def get_buckeye_scraper_status():
+    """Get BuckeyeScraper status"""
+    try:
+        active_events = pod_event_manager.get_active_events()
+        status = {
+            "is_running": True,  # Always running via POD manager
+            "total_events": len(active_events),
+            "last_refresh": time.time(),
+            "refresh_interval": 30  # POD manager refresh interval
+        }
+        return JSONResponse({
+            "status": "success",
+            "data": status
+        })
+    except Exception as e:
+        logger.error(f"Error getting BuckeyeScraper status: {e}")
+        return JSONResponse({
+            "status": "error",
+            "message": str(e)
+        }, status_code=500)
+
+@app.post('/buckeye/get-event-ids')
+def get_event_ids():
+    try:
+        result = subprocess.run(['python', 'eventID.py'], capture_output=True, text=True, timeout=300)
+        if result.returncode != 0:
+            return JSONResponse(status_code=500, content={
+                'status': 'error',
+                'message': f'eventID.py failed: {result.stderr}',
+                'data': {}
+            })
+        # Read data/buckeye_event_ids.json for event count
+        if os.path.exists('data/buckeye_event_ids.json'):
+            with open('data/buckeye_event_ids.json', 'r', encoding='utf-8') as f:
+                events_data = f.read()
+            import json
+            events_json = json.loads(events_data)
+            event_count = len(events_json.get('event_ids', []))
+            return {
+                'status': 'success',
+                'message': f'Successfully retrieved {event_count} event IDs',
+                'data': {
+                    'event_count': event_count,
+                    'event_ids': [event['event_id'] for event in events_json.get('event_ids', [])]
+                }
+            }
+        else:
+            return {
+                'status': 'error',
+                'message': 'data/buckeye_event_ids.json not found after running eventID.py',
+                'data': {}
+            }
+    except Exception as e:
+        return JSONResponse(status_code=500, content={
+            'status': 'error',
+            'message': f'Exception running eventID.py: {e}',
+            'data': {}
+        })
+
+@app.post('/buckeye/run-calculation')
+def run_calculation():
+    try:
+        # Step 1: Scrape all BetBCK games
+        logger.info("Step 1: Scraping all BetBCK games...")
+        betbck_games = get_all_betbck_games()
+        
+        if not betbck_games:
+            return JSONResponse(status_code=500, content={
+                'status': 'error',
+                'message': 'Failed to scrape BetBCK games',
+                'data': {}
+            })
+        
+        # Save BetBCK games
+        betbck_data = {
+            "games": betbck_games,
+            "total_games": len(betbck_games),
+            "timestamp": datetime.now().isoformat()
+        }
+        
+        with open('data/betbck_games.json', 'w') as f:
+            json.dump(betbck_data, f, indent=2)
+        
+        logger.info(f"Saved {len(betbck_games)} BetBCK games")
+        
+        # Step 2: Load event IDs and match games
+        logger.info("Step 2: Loading event IDs and matching games...")
+        with open('data/buckeye_event_ids.json', 'r') as f:
+            events_data = json.load(f)
+        
+        pinnacle_events = events_data.get('event_ids', [])
+        
+        from match_games import match_pinnacle_to_betbck, save_matched_games
+        matched_games = match_pinnacle_to_betbck(pinnacle_events, betbck_data)
+        logger.info(f"Matched {len(matched_games)} games. Example: {matched_games[:2] if matched_games else '[]'}")
+        if not matched_games:
+            logger.info("No games matched between Pinnacle and BetBCK, returning empty table.")
+            return {
+                'status': 'success',
+                'message': 'No games matched between Pinnacle and BetBCK, but returning empty table.',
+                'data': {
+                    'ev_table': [],
+                    'total_events': 0,
+                    'total_opportunities': 0
+                }
+            }
+        save_matched_games(matched_games)
+        logger.info(f"Matched {len(matched_games)} games saved.")
+        
+        # Step 3: Fetch Swordfish odds
+        logger.info("Step 3: Fetching Swordfish odds...")
+        from swordfish_odds_fetcher import fetch_odds_for_matched_games
+        games_with_odds = fetch_odds_for_matched_games()
+        
+        if not games_with_odds:
+            return JSONResponse(status_code=500, content={
+                'status': 'error',
+                'message': 'Failed to fetch Swordfish odds for matched games',
+                'data': {}
+            })
+        
+        logger.info(f"Fetched odds for {len(games_with_odds)} games")
+        
+        # Step 4: Calculate EV table
+        logger.info("Step 4: Calculating EV table...")
+        from calculate_ev_table import calculate_ev_table, save_ev_table
+        ev_table = calculate_ev_table(games_with_odds)
+        if not ev_table:
+            logger.info("No EV opportunities found, returning empty table.")
+            return {
+                'status': 'success',
+                'message': 'No EV opportunities found, but returning empty table.',
+                'data': {
+                    'ev_table': [],
+                    'total_events': 0,
+                    'total_opportunities': 0
+                }
+            }
+        save_ev_table(ev_table)
+        logger.info(f"Calculated EV for {len(ev_table)} events")
+        
+        # Return results
+        return {
+            'status': 'success',
+            'message': f'Pipeline completed: {len(ev_table)} events with EV opportunities',
+            'data': {
+                'ev_table': ev_table,
+                'total_events': len(ev_table),
+                'total_opportunities': sum(event.get('total_ev_opportunities', 0) for event in ev_table)
+            }
+        }
+        
+    except Exception as e:
+        logger.error(f"Error in calculation pipeline: {e}")
+        return JSONResponse(status_code=500, content={
+            'status': 'error',
+            'message': f'Pipeline failed: {str(e)}',
+            'data': {}
+        })
 
 @app.post("/api/betbck/open_bet")
 async def open_bet(request: Request):

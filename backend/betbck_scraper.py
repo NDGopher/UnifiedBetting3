@@ -515,3 +515,59 @@ def extract_last_name(full_name):
     if len(parts) > 1 and len(parts[-1]) == 1:
         return parts[-2].lower()
     return parts[-1].lower() 
+
+def scrape_all_betbck_games():
+    """Scrape all games and lines from the BetBCK main board after login."""
+    session = requests.Session()
+    if not login_to_betbck(session):
+        print("[BetbckScraper] Login failed.")
+        return []
+    try:
+        response = session.get(MAIN_PAGE_URL_AFTER_LOGIN, headers=BASE_HEADERS, timeout=20)
+        response.raise_for_status()
+    except Exception as e:
+        print(f"[BetbckScraper] Failed to load main board: {e}")
+        return []
+    soup = BeautifulSoup(response.text, 'html.parser')
+    games = []
+    for gw_class in GAME_WRAPPER_PRIMARY_CLASSES:
+        for table in soup.find_all('table', class_=gw_class):
+            # Try to parse teams and odds from each table
+            try:
+                team_name_td = table.find('td', class_=lambda x: x and x.startswith('tbl_betAmount_team1_main_name'))
+                if not team_name_td:
+                    continue
+                div_t1 = team_name_td.find('div', class_='team1_name_up')
+                div_t2 = team_name_td.find('div', class_='team2_name_down')
+                if not (div_t1 and div_t2):
+                    continue
+                home_team = get_cleaned_team_name_from_div(div_t1)
+                away_team = get_cleaned_team_name_from_div(div_t2)
+                if not home_team or not away_team:
+                    continue
+                odds_table = table.find('table', class_='new_tb_cont')
+                if not odds_table:
+                    continue
+                # Parse odds/lines (reuse logic from scrape_betbck_for_game)
+                data_rows_source = odds_table.find('tbody') or odds_table
+                all_tr_in_odds_section = data_rows_source.find_all('tr', recursive=False)
+                data_rows = [r for r in all_tr_in_odds_section if r.find('td', class_=lambda x: x and 'tbl_betAmount_td' in x) and not r.find('td', colspan=True)]
+                if len(data_rows) < 2:
+                    continue
+                tds_home_row = data_rows[0].find_all('td', class_=lambda x: x and 'tbl_betAmount_td' in x)
+                tds_away_row = data_rows[1].find_all('td', class_=lambda x: x and 'tbl_betAmount_td' in x)
+                game_data = {
+                    "home_team": home_team,
+                    "away_team": away_team,
+                    "home_spreads": extract_all_spread_options_from_text(tds_home_row[0]) if len(tds_home_row)>0 else [],
+                    "away_spreads": extract_all_spread_options_from_text(tds_away_row[0]) if len(tds_away_row)>0 else [],
+                    "home_moneyline_american": extract_american_odds_from_text(tds_home_row[1]) if len(tds_home_row)>1 else None,
+                    "away_moneyline_american": extract_american_odds_from_text(tds_away_row[1]) if len(tds_away_row)>1 else None,
+                    # Add more fields as needed (totals, team totals, etc.)
+                }
+                games.append(game_data)
+            except Exception as e:
+                print(f"[BetbckScraper] Error parsing game table: {e}")
+                continue
+    print(f"[BetbckScraper] Scraped {len(games)} games from main board.")
+    return games 
