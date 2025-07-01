@@ -379,6 +379,7 @@ def run_command(command, cwd=None, silent=False):
         if process.returncode != 0:
             print_status(f"Silent command failed with return code {process.returncode}", "ERROR", Colors.RED)
     else:
+        # For non-silent commands, show output in real-time
         process.wait()
         if process.returncode != 0:
             print_status(f"Command failed with return code {process.returncode}", "ERROR", Colors.RED)
@@ -531,10 +532,10 @@ def setup_backend():
     
     # Check if dependencies are already installed
     if (backend_dir / "requirements.txt").exists():
-        # Check if uvicorn is already installed (indicator that dependencies are installed)
+        # Check if key packages are already installed
         try:
             result = subprocess.run(
-                f'"{python_cmd}" -c "import uvicorn; print(\'deps_installed\')"',
+                f'"{python_cmd}" -c "import uvicorn, fastapi, selenium; print(\'deps_installed\')"',
                 shell=True,
                 cwd=backend_dir,
                 capture_output=True,
@@ -547,12 +548,41 @@ def setup_backend():
         
         if not deps_installed:
             print_status("Installing backend dependencies...", "INFO", Colors.BLUE)
-            # First upgrade pip to avoid warnings (silent)
-            if run_command(f"{python_cmd} -m pip install --upgrade pip", cwd=backend_dir, silent=True).wait() != 0:
+            print_status("💡 This may take a few minutes on first run...", "INFO", Colors.YELLOW)
+            
+            # First upgrade pip to avoid warnings (with output)
+            print_status("Upgrading pip...", "INFO", Colors.BLUE)
+            if run_command(f"{python_cmd} -m pip install --upgrade pip", cwd=backend_dir, silent=False).wait() != 0:
                 raise Exception("Failed to upgrade pip")
-            # Then install requirements (silent)
-            if run_command(f"{python_cmd} -m pip install -r requirements.txt", cwd=backend_dir, silent=True).wait() != 0:
+            
+            # Then install requirements (with output and timeout)
+            print_status("Installing Python packages...", "INFO", Colors.BLUE)
+            install_process = run_command(f"{python_cmd} -m pip install -r requirements.txt", cwd=backend_dir, silent=False)
+            
+            # Wait with timeout and progress indication
+            start_time = time.time()
+            timeout = 300  # 5 minutes timeout
+            while install_process.poll() is None:
+                elapsed = time.time() - start_time
+                if elapsed > timeout:
+                    install_process.kill()
+                    raise Exception(f"Pip install timed out after {timeout} seconds")
+                
+                # Show progress every 10 seconds
+                if int(elapsed) % 10 == 0 and elapsed > 0:
+                    print_status(f"Still installing... ({int(elapsed)}s elapsed)", "PROGRESS", Colors.CYAN)
+                
+                time.sleep(1)
+            
+            if install_process.returncode != 0:
+                print_status("❌ Failed to install backend requirements", "ERROR", Colors.RED)
+                print_status("💡 Common solutions:", "INFO", Colors.YELLOW)
+                print_status("   1. Check your internet connection", "INFO", Colors.GRAY)
+                print_status("   2. Try running: pip install --upgrade pip", "INFO", Colors.GRAY)
+                print_status("   3. Try running: pip install -r requirements.txt --no-cache-dir", "INFO", Colors.GRAY)
+                print_status("   4. Check if your Python version is compatible (3.8+)", "INFO", Colors.GRAY)
                 raise Exception("Failed to install backend requirements")
+            
             print_status("✅ Backend dependencies installed successfully", "SUCCESS", Colors.GREEN)
         else:
             print_status("✅ Backend dependencies already installed", "SUCCESS", Colors.GREEN)

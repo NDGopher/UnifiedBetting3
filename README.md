@@ -192,6 +192,29 @@ Simply **close the PowerShell window** that runs `launch.bat`. The system will a
 
 ### **Common Issues**
 
+#### **Dependency Installation Hangs**
+If the launch script gets stuck at "Installing backend dependencies...":
+
+1. **Cancel the script** (Ctrl+C or close the window)
+2. **Run the manual setup script**:
+   ```bash
+   python setup_dependencies.py
+   ```
+3. **Then try launching again**:
+   ```bash
+   launch.bat
+   ```
+
+**Alternative manual installation**:
+```bash
+cd backend
+python -m venv venv
+venv\Scripts\activate
+pip install -r requirements.txt
+cd ../frontend
+npm install
+```
+
 #### **Port Already in Use**
 ```bash
 shutdown.bat
