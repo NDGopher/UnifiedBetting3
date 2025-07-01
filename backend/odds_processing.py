@@ -82,12 +82,11 @@ def fetch_live_pinnacle_event_odds(event_id):
     try:
         response = requests.get(url, headers=REQUEST_HEADERS, timeout=10)
         response.raise_for_status()
-        
         print(f"[Pinnacle Fetcher] Status Code: {response.status_code} for {event_id}")
         odds_data = response.json()
+        print(f"[Pinnacle Fetcher] Odds keys for {event_id}: {list(odds_data.keys())}")
         cleaned_odds_data = remove_history(odds_data)  # Remove 'history'
         return {"success": True, "data": cleaned_odds_data, "event_id": event_id}
-
     except requests.exceptions.HTTPError as http_err:
         error_message = f"HTTP error occurred: {http_err} - Response: {response.text[:200]}"
         print(f"[Pinnacle Fetcher] {error_message}")

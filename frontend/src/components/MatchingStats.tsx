@@ -1,49 +1,20 @@
-import React, { useState, useEffect } from 'react';
+import React from 'react';
 import { Box, Typography, Tooltip } from '@mui/material';
-import { useWebSocket } from '../hooks/useWebSocket';
 
-interface MatchingStats {
+interface MatchingStatsProps {
   pinnacleEvents: number;
   betbckMatches: number;
   matchRate: number;
 }
 
-const MatchingStats: React.FC = () => {
-  const [stats, setStats] = useState<MatchingStats>({
-    pinnacleEvents: 0,
-    betbckMatches: 0,
-    matchRate: 0
-  });
-
-  const { lastMessage } = useWebSocket('ws://localhost:8000/ws');
-
-  useEffect(() => {
-    if (lastMessage) {
-      try {
-        const data = JSON.parse(lastMessage.data);
-        
-        // Update stats based on WebSocket messages
-        if (data.type === 'buckeye_results') {
-          setStats({
-            pinnacleEvents: data.total_processed || 0,
-            betbckMatches: data.total_matched || 0,
-            matchRate: data.match_rate || 0
-          });
-        }
-      } catch (error) {
-        // Ignore parsing errors for other message types
-      }
-    }
-  }, [lastMessage]);
-
-  // Don't show if no data
-  if (stats.pinnacleEvents === 0) {
+const MatchingStats: React.FC<MatchingStatsProps> = ({ pinnacleEvents, betbckMatches, matchRate }) => {
+  if (pinnacleEvents === 0) {
     return null;
   }
 
   return (
     <Tooltip 
-      title={`Match Rate: ${stats.matchRate.toFixed(1)}%`}
+      title={`Match Rate: ${matchRate.toFixed(1)}%`}
       placement="bottom"
       arrow
     >
@@ -87,7 +58,7 @@ const MatchingStats: React.FC = () => {
               lineHeight: 1
             }}
           >
-            {stats.pinnacleEvents}
+            {pinnacleEvents}
           </Typography>
         </Box>
         
@@ -115,13 +86,13 @@ const MatchingStats: React.FC = () => {
           <Typography
             variant="body2"
             sx={{
-              color: stats.matchRate >= 80 ? '#4caf50' : stats.matchRate >= 60 ? '#ff9800' : '#f44336',
+              color: matchRate >= 80 ? '#4caf50' : matchRate >= 60 ? '#ff9800' : '#f44336',
               fontSize: '0.75rem',
               fontWeight: 700,
               lineHeight: 1
             }}
           >
-            {stats.betbckMatches}
+            {betbckMatches}
           </Typography>
         </Box>
       </Box>

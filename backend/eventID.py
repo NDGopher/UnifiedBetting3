@@ -23,6 +23,43 @@ def get_date():
     today = datetime.now()
     return today.strftime("%Y-%m-%d")
 
+def is_prop_market(home_team: str, away_team: str) -> bool:
+    """Check if an event is a prop market (not a regular game)"""
+    prop_indicators = [
+        "(hits+runs+errors)", "(corners)", "(bookings)", "(cards)", "(fouls)",
+        "home runs", "away runs", "total runs", "total hits", "total errors",
+        "mvp", "futures", "outright", "coach of the year", "player of the year",
+        "series correct score", "when will series finish", "most points in series",
+        "most assists in series", "most rebounds in series", "most threes made in series",
+        "margin of victory", "exact outcome", "winner", "to win the tournament",
+        "to win group", "series price", "1st half", "2nd half", "1st quarter",
+        "2nd quarter", "3rd quarter", "4th quarter", "overtime", "extra time",
+        "penalties", "total", "over", "under", "spread", "ml", "pk", "draw",
+        "to win", "to advance", "handicap", "double chance", "clean sheet",
+        "both teams to score", "anytime scorer", "first scorer", "last scorer",
+        "win either half", "win both halves", "scorecast", "assist", "shots on target",
+        "saves", "goalscorer", "player props", "team props", "props"
+    ]
+    
+    home_lower = home_team.lower()
+    away_lower = away_team.lower()
+    
+    for indicator in prop_indicators:
+        if indicator in home_lower or indicator in away_lower:
+            return True
+    
+    # Check for specific patterns
+    if "(" in home_team or "(" in away_team:
+        return True
+    
+    if home_team.lower() == "yes" and away_team.lower() == "no":
+        return True
+    
+    if "field" in away_team.lower() and "the" in away_team.lower():
+        return True
+    
+    return False
+
 def fetch_sports() -> List[Dict[str, Any]]:
     """Fetch sports list dynamically from /sports"""
     logger.info("Fetching sports list from Arcadia API...")
@@ -111,6 +148,11 @@ def fetch_arcadia_events() -> List[Dict[str, Any]]:
                         event_id = matchup["id"]
                         home_team = next((p["name"] for p in matchup["participants"] if p["alignment"] == "home"), "Unknown")
                         away_team = next((p["name"] for p in matchup["participants"] if p["alignment"] == "away"), "Unknown")
+                        
+                        # Skip prop markets
+                        if is_prop_market(home_team, away_team):
+                            continue
+                            
                         events.append({
                             "event_id": event_id,
                             "home_team": home_team,
@@ -130,6 +172,11 @@ def fetch_arcadia_events() -> List[Dict[str, Any]]:
                     event_id = matchup["id"]
                     home_team = next((p["name"] for p in matchup["participants"] if p["alignment"] == "home"), "Unknown")
                     away_team = next((p["name"] for p in matchup["participants"] if p["alignment"] == "away"), "Unknown")
+                    
+                    # Skip prop markets
+                    if is_prop_market(home_team, away_team):
+                        continue
+                    
                     # Avoid duplicates if already fetched from league endpoints
                     if not any(e["event_id"] == event_id for e in events):
                         events.append({
@@ -152,6 +199,11 @@ def fetch_arcadia_events() -> List[Dict[str, Any]]:
                     event_id = matchup["id"]
                     home_team = next((p["name"] for p in matchup["participants"] if p["alignment"] == "home"), "Unknown")
                     away_team = next((p["name"] for p in matchup["participants"] if p["alignment"] == "away"), "Unknown")
+                    
+                    # Skip prop markets
+                    if is_prop_market(home_team, away_team):
+                        continue
+                        
                     events.append({
                         "event_id": event_id,
                         "home_team": home_team,
@@ -170,6 +222,11 @@ def fetch_arcadia_events() -> List[Dict[str, Any]]:
                             event_id = matchup["id"]
                             home_team = next((p["name"] for p in matchup["participants"] if p["alignment"] == "home"), "Unknown")
                             away_team = next((p["name"] for p in matchup["participants"] if p["alignment"] == "away"), "Unknown")
+                            
+                            # Skip prop markets
+                            if is_prop_market(home_team, away_team):
+                                continue
+                                
                             events.append({
                                 "event_id": event_id,
                                 "home_team": home_team,
@@ -218,30 +275,30 @@ def get_todays_event_ids() -> List[dict]:
     logger.info(f"Total event IDs collected: {len(event_dicts)}")
     return event_dicts
 
-def save_event_ids(event_ids: List[str], filename: str = "data/buckeye_event_ids.json") -> bool:
-    """Save event IDs to file"""
+def save_event_ids(event_dicts: List[dict], filename: str = "data/buckeye_event_ids.json") -> bool:
+    """Save event dictionaries to file"""
     try:
         # Ensure directory exists
         os.makedirs(os.path.dirname(filename), exist_ok=True)
         
         data = {
             "date": get_date(),
-            "event_ids": event_ids,
-            "count": len(event_ids),
+            "event_ids": event_dicts,  # Save full event dictionaries
+            "count": len(event_dicts),
             "timestamp": datetime.now().isoformat()
         }
         
         with open(filename, 'w') as f:
             json.dump(data, f, indent=2)
         
-        logger.info(f"Saved {len(event_ids)} event IDs to {filename}")
+        logger.info(f"Saved {len(event_dicts)} event dictionaries to {filename}")
         return True
     except Exception as e:
         logger.error(f"Error saving event IDs: {e}")
         return False
 
-def load_event_ids(filename: str = "data/buckeye_event_ids.json") -> Optional[List[str]]:
-    """Load event IDs from file"""
+def load_event_ids(filename: str = "data/buckeye_event_ids.json") -> Optional[List[dict]]:
+    """Load event dictionaries from file"""
     try:
         if not os.path.exists(filename):
             logger.warning(f"Event IDs file not found: {filename}")
@@ -258,9 +315,9 @@ def load_event_ids(filename: str = "data/buckeye_event_ids.json") -> Optional[Li
             logger.warning(f"Event IDs are from {saved_date}, not today ({today})")
             return None
         
-        event_ids = data.get("event_ids", [])
-        logger.info(f"Loaded {len(event_ids)} event IDs from {filename}")
-        return event_ids
+        event_dicts = data.get("event_ids", [])
+        logger.info(f"Loaded {len(event_dicts)} event dictionaries from {filename}")
+        return event_dicts
     except Exception as e:
         logger.error(f"Error loading event IDs: {e}")
         return None

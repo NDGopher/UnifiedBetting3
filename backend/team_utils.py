@@ -37,7 +37,8 @@ PROP_INDICATORS_IN_TEAM_NAMES = [
     "when will series finish", "most points in series", "most assists in series",
     "most rebounds in series", "most threes made in series", "margin of victory",
     "exact outcome", "winner", "to win the tournament", "to win group", "series price",
-    "(corners)", "to win", "wins", "(match)", "series price", "to win series"
+    "(corners)", "to win", "wins", "(match)", "series price", "to win series",
+    "hits+runs+errors", "h+r+e", "hre"
 ]
 
 def is_prop_market_by_name(home_team_name: str, away_team_name: str) -> bool:

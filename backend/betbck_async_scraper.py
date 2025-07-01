@@ -8,6 +8,10 @@ import os
 from datetime import datetime
 from bs4 import BeautifulSoup
 import dateutil.parser
+import logging
+from utils.pod_utils import normalize_team_name_for_matching, is_prop_market_by_name
+
+logger = logging.getLogger(__name__)
 
 class BetBCKAsyncScraper:
     def __init__(self, config_path='config.json'):
@@ -74,7 +78,8 @@ class BetBCKAsyncScraper:
             home = div_t1.get_text(strip=True)
             away = div_t2.get_text(strip=True)
             if not home or not away: continue
-            if any(ind in home.lower() for ind in self.skip_indicators) or any(ind in away.lower() for ind in self.skip_indicators):
+            # Robust prop/corner/future filtering
+            if is_prop_market_by_name(home, away):
                 continue
             odds_table = gw.find('table', class_='new_tb_cont')
             odds = {
@@ -113,9 +118,9 @@ class BetBCKAsyncScraper:
                         if total_line is not None:
                             odds["game_total_line"] = total_line
                             odds["game_total_under_odds"] = under_odds
-            # Normalize team names for ID
-            norm_home = self.normalize_team_name(home)
-            norm_away = self.normalize_team_name(away)
+            # Normalize team names for ID and saving
+            norm_home = normalize_team_name_for_matching(home)
+            norm_away = normalize_team_name_for_matching(away)
             # Extract date/time from .dateLinebetting
             date_div = gw.find_previous('div', class_='dateLinebetting')
             date_str = ''
@@ -239,7 +244,28 @@ class BetBCKAsyncScraper:
         return re.sub(r'[^a-zA-Z ]+', '', name).strip().lower()
 
 def get_all_betbck_games():
-    return asyncio.run(_get_all_betbck_games_async())
+    """Synchronous wrapper for async BetBCK scraping - use only in scripts, not in FastAPI endpoints"""
+    import asyncio
+    try:
+        # Check if we're already in an event loop
+        loop = asyncio.get_running_loop()
+        logger.warning("get_all_betbck_games called from within an event loop. Use _get_all_betbck_games_async() instead.")
+        # Create a new event loop for this thread
+        import threading
+        if threading.current_thread() is threading.main_thread():
+            # We're in the main thread, create a new loop
+            loop = asyncio.new_event_loop()
+            asyncio.set_event_loop(loop)
+            try:
+                return loop.run_until_complete(_get_all_betbck_games_async())
+            finally:
+                loop.close()
+        else:
+            # We're in a different thread, this should be safe
+            return asyncio.run(_get_all_betbck_games_async())
+    except RuntimeError:
+        # No event loop running, safe to use asyncio.run
+        return asyncio.run(_get_all_betbck_games_async())
 
 async def _get_all_betbck_games_async():
     scraper = BetBCKAsyncScraper()

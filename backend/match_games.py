@@ -2,15 +2,16 @@ import json
 import logging
 import re
 from typing import List, Dict, Any, Optional
-from datetime import datetime
+from datetime import datetime, timedelta, timezone
 
 # Use the specialized matching logger
 logger = logging.getLogger("matching")
 
 try:
-    from rapidfuzz.fuzz import token_sort_ratio
+    from rapidfuzz.fuzz import token_sort_ratio, token_set_ratio
 except ImportError:
     token_sort_ratio = None
+    token_set_ratio = None
     logger.warning("rapidfuzz not installed, falling back to basic similarity.")
 
 # Manual event overrides for known edge cases (event_id: betbck_game_id)
@@ -39,6 +40,68 @@ TEAM_NAME_MAP = {
     # Add more as needed
 }
 
+# --- Aggressive normalization and prop filtering ---
+PROP_INDICATORS = [
+    "to lift the trophy", "lift the trophy", "mvp", "futures", "outright",
+    "coach of the year", "player of the year", "series correct score",
+    "when will series finish", "most points in series", "most assists in series",
+    "most rebounds in series", "most threes made in series", "margin of victory",
+    "exact outcome", "winner", "to win the tournament", "to win group", "series price",
+    "(corners)", "bookings", "cards", "fouls", "hits+runs+errors", "corners", "bookings", "games", "sets",
+    "1st half", "2nd half", "1st quarter", "2nd quarter", "3rd quarter", "4th quarter",
+    "overtime", "extra time", "penalties", "total", "over", "under", "spread", "ml", "pk", "draw",
+    "to win", "to advance", "handicap", "double chance", "clean sheet", "both teams to score",
+    "anytime scorer", "first scorer", "last scorer", "win either half", "win both halves",
+    "scorecast", "assist", "shots on target", "saves", "goalscorer", "player props", "team props", "props"
+]
+
+FUZZY_MATCH_THRESHOLD = 82
+MIN_COMPONENT_MATCH_SCORE = 78
+ORIENTATION_CONFIDENCE_MARGIN = 15
+
+# --- Normalization ---
+def normalize_team_name_for_matching(name: str) -> str:
+    if not name:
+        return ""
+    
+    original_name = name
+    logger.debug(f"[NORMALIZE] Original: '{original_name}'")
+    
+    # Remove anything in parentheses (props, markets)
+    name = re.sub(r"\([^)]*\)", "", name)
+    logger.debug(f"[NORMALIZE] After parentheses removal: '{name}'")
+    
+    # Remove pitcher info (e.g., "F Peralta - R", "must start")
+    name = re.sub(r"[A-Z] [A-Z][a-z]+ - [LR]( must start)?", "", name)
+    name = re.sub(r"[A-Z][a-z]+ [A-Z] - [LR]( must start)?", "", name)
+    name = re.sub(r"[A-Z][a-z]+ [A-Z] - [LR] must start", "", name)
+    name = name.replace("must start", "")
+    logger.debug(f"[NORMALIZE] After pitcher removal: '{name}'")
+    
+    # Remove prop/market indicators
+    for indicator in PROP_INDICATORS:
+        if indicator.lower() in name.lower():
+            name = name.replace(indicator, "")
+            logger.debug(f"[NORMALIZE] Removed indicator '{indicator}': '{name}'")
+    
+    # Remove extra spaces and punctuation
+    name = re.sub(r"[^a-zA-Z ]+", "", name)
+    name = re.sub(r"\s+", " ", name)
+    result = name.strip().lower()
+    
+    logger.debug(f"[NORMALIZE] Final result: '{result}' (from '{original_name}')")
+    return result
+
+def is_prop_market_by_name(home_team_name, away_team_name):
+    if not home_team_name or not away_team_name: return False
+    for name in [home_team_name, away_team_name]:
+        name_lower = name.lower()
+        for indicator in PROP_INDICATORS:
+            if indicator in name_lower: return True
+    if "field" in away_team_name.lower() and "the" in away_team_name.lower(): return True
+    if home_team_name.lower() == "yes" and away_team_name.lower() == "no": return True
+    return False
+
 # Helper to strip all prop/market info, pitcher names, and extra text from team names
 def strip_extra_info(name: str) -> str:
     # Remove pitcher info (e.g., 'M Fried - L', 'must start')
@@ -61,14 +124,8 @@ def strip_extra_info(name: str) -> str:
     return name.strip()
 
 def clean_betbck_team_name(name: str) -> str:
-    # Remove leading numbers
-    name = re.sub(r'^\d+', '', name)
-    # Remove pitcher info and 'must start'
-    name = re.sub(r'[A-Z][a-z]+ [A-Z] - [LR] must start', '', name)
-    # Remove 'must start' if still present
-    name = name.replace('must start', '')
-    # Remove extra spaces
-    return name.strip()
+    # Use the same aggressive normalization as Pinnacle
+    return normalize_team_name_for_matching(name)
 
 def normalize_team_name(name: str) -> str:
     if not name:
@@ -125,64 +182,147 @@ def find_best_match(pinnacle_team: str, betbck_games: List[Dict[str, Any]], thre
     return best_match
 
 def match_pinnacle_to_betbck(pinnacle_events: List[Dict[str, Any]], betbck_data: Dict[str, Any]) -> List[Dict[str, Any]]:
-    logger.info(f"Matching {len(pinnacle_events)} Pinnacle events to {len(betbck_data.get('games', []) )} BetBCK games")
-    matched_events = []
     betbck_games = betbck_data.get("games", [])
-    # Build a reverse lookup for BetBCK games by normalized team names
-    betbck_lookup = {}
-    for game in betbck_games:
-        home = normalize_team_name(clean_betbck_team_name(game.get("betbck_site_home_team", "")))
-        away = normalize_team_name(clean_betbck_team_name(game.get("betbck_site_away_team", "")))
-        betbck_lookup[(home, away)] = game
-    for pinnacle_event in pinnacle_events:
-        event_id = pinnacle_event.get("event_id")
-        home_team = pinnacle_event.get("home_team", "")
-        away_team = pinnacle_event.get("away_team", "")
-        # Manual override
-        if event_id in MANUAL_EVENT_OVERRIDES:
-            game_id = MANUAL_EVENT_OVERRIDES[event_id]
-            manual_game = next((g for g in betbck_games if g.get('betbck_game_id') == game_id), None)
-            if manual_game:
-                matched_events.append({
-                    "pinnacle_event_id": event_id,
-                    "pinnacle_home_team": home_team,
-                    "pinnacle_away_team": away_team,
-                    "betbck_game": manual_game,
-                    "match_confidence": 1.0,
-                    "matched_team": "manual_override",
-                    "betbck_home_team": manual_game.get("betbck_site_home_team", ""),
-                    "betbck_away_team": manual_game.get("betbck_site_away_team", "")
-                })
-                logger.info(f"[MATCH-DEBUG] Manual override match for {home_team} vs {away_team} (ID: {event_id})")
+    matched_events = []
+    processed_pinnacle_event_ids = set()
+    unmatched_betbck = []
+    unmatched_pinnacle = []
+    
+    logger.info(f"[MATCH] Starting matching: {len(betbck_games)} BetBCK games, {len(pinnacle_events)} Pinnacle events.")
+    
+    # Log all Pinnacle events for debugging
+    logger.info(f"[MATCH] Pinnacle events to match:")
+    for i, event in enumerate(pinnacle_events):
+        logger.info(f"[MATCH]   {i+1}. {event.get('home_team', '?')} vs {event.get('away_team', '?')} (ID: {event.get('event_id', '?')})")
+    
+    for betbck_game in betbck_games:
+        betbck_home_raw = betbck_game.get("betbck_site_home_team", "")
+        betbck_away_raw = betbck_game.get("betbck_site_away_team", "")
+        
+        logger.info(f"[MATCH] Processing BetBCK game: '{betbck_home_raw}' vs '{betbck_away_raw}'")
+        
+        if is_prop_market_by_name(betbck_home_raw, betbck_away_raw):
+            logger.info(f"[SKIP] Prop market detected: {betbck_home_raw} vs {betbck_away_raw}")
+            continue
+            
+        norm_bck_home = normalize_team_name_for_matching(betbck_home_raw)
+        norm_bck_away = normalize_team_name_for_matching(betbck_away_raw)
+        
+        if not norm_bck_home or not norm_bck_away:
+            logger.warning(f"[SKIP] Could not normalize: '{betbck_home_raw}' vs '{betbck_away_raw}' -> '{norm_bck_home}' vs '{norm_bck_away}'")
+            unmatched_betbck.append({
+                "betbck_home": betbck_home_raw,
+                "betbck_away": betbck_away_raw,
+                "norm_home": norm_bck_home,
+                "norm_away": norm_bck_away,
+                "reason": "normalization_failed"
+            })
+            continue
+            
+        logger.info(f"[MATCH] Normalized BetBCK: '{norm_bck_home}' vs '{norm_bck_away}'")
+        
+        best_match = None
+        best_score = 0
+        best_orientation = None
+        best_pinnacle_event = None
+        
+        for pinnacle_event in pinnacle_events:
+            if pinnacle_event.get("event_id") in processed_pinnacle_event_ids:
                 continue
-        # Try direct and reverse matching
-        best_match = find_best_match(home_team, betbck_games)
-        if not best_match:
-            best_match = find_best_match(away_team, betbck_games)
-        # Try reverse: BetBCK->Pinnacle
-        if not best_match:
-            norm_home = normalize_team_name(home_team)
-            norm_away = normalize_team_name(away_team)
-            reverse_game = betbck_lookup.get((norm_away, norm_home))
-            if reverse_game:
-                best_match = reverse_game
-                logger.info(f"[MATCH-DEBUG] Reverse match for {home_team} vs {away_team} (ID: {event_id})")
-        if best_match and best_match.get('similarity', 0) >= 0.8:
-            matched_event = {
-                "pinnacle_event_id": event_id,
-                "pinnacle_home_team": home_team,
-                "pinnacle_away_team": away_team,
-                "betbck_game": best_match,
-                "match_confidence": best_match.get("similarity", 0.0),
-                "matched_team": best_match.get("matched_team", ""),
-                "betbck_home_team": best_match.get("betbck_home", ""),
-                "betbck_away_team": best_match.get("betbck_away", "")
-            }
-            matched_events.append(matched_event)
-            logger.info(f"Matched {home_team} vs {away_team} (ID: {event_id}) to BetBCK game with confidence {best_match.get('similarity', 0.0):.2f}")
+                
+            pin_home_raw = pinnacle_event.get("home_team", "")
+            pin_away_raw = pinnacle_event.get("away_team", "")
+            
+            if is_prop_market_by_name(pin_home_raw, pin_away_raw):
+                continue
+                
+            norm_pin_home = normalize_team_name_for_matching(pin_home_raw)
+            norm_pin_away = normalize_team_name_for_matching(pin_away_raw)
+            
+            if not norm_pin_home or not norm_pin_away:
+                continue
+                
+            # Try both orientations
+            score_direct = token_set_ratio(f"{norm_bck_home} {norm_bck_away}", f"{norm_pin_home} {norm_pin_away}")
+            score_flipped = token_set_ratio(f"{norm_bck_home} {norm_bck_away}", f"{norm_pin_away} {norm_pin_home}")
+            
+            logger.debug(f"[MATCH] Comparing: '{norm_bck_home} {norm_bck_away}' vs '{norm_pin_home} {norm_pin_away}' (direct: {score_direct}, flipped: {score_flipped})")
+            
+            if score_direct > best_score:
+                best_score = score_direct
+                best_match = pinnacle_event
+                best_orientation = True
+            if score_flipped > best_score:
+                best_score = score_flipped
+                best_match = pinnacle_event
+                best_orientation = False
+                
+        if best_match and best_score >= FUZZY_MATCH_THRESHOLD:
+            processed_pinnacle_event_ids.add(best_match["event_id"])
+            logger.info(f"[MATCHED] SUCCESS: '{betbck_home_raw}' vs '{betbck_away_raw}' <-> '{best_match['home_team']}' vs '{best_match['away_team']}' | Score: {best_score} | Orientation: {'direct' if best_orientation else 'flipped'}")
+            
+            matched_events.append({
+                "pinnacle_event_id": best_match["event_id"],
+                "pinnacle_home_team": best_match["home_team"],
+                "pinnacle_away_team": best_match["away_team"],
+                "betbck_game": betbck_game,
+                "match_confidence": best_score / 100.0,
+                "betbck_home_team": betbck_home_raw,
+                "betbck_away_team": betbck_away_raw,
+                "normalized_betbck_home": norm_bck_home,
+                "normalized_betbck_away": norm_bck_away,
+                "normalized_pinnacle_home": normalize_team_name_for_matching(best_match["home_team"]),
+                "normalized_pinnacle_away": normalize_team_name_for_matching(best_match["away_team"]),
+                "match_score": best_score,
+                "orientation": "direct" if best_orientation else "flipped"
+            })
         else:
-            logger.warning(f"No match found for {home_team} vs {away_team} (ID: {event_id})")
-    logger.info(f"Successfully matched {len(matched_events)} out of {len(pinnacle_events)} events")
+            best_score_str = f" (best score: {best_score})" if best_match else " (no candidates)"
+            logger.warning(f"[NO MATCH] FAILED: '{betbck_home_raw}' vs '{betbck_away_raw}' (normalized: '{norm_bck_home}' vs '{norm_bck_away}'){best_score_str}")
+            
+            unmatched_betbck.append({
+                "betbck_home": betbck_home_raw,
+                "betbck_away": betbck_away_raw,
+                "norm_home": norm_bck_home,
+                "norm_away": norm_bck_away,
+                "best_score": best_score if best_match else 0,
+                "best_pinnacle": f"{best_match['home_team']} vs {best_match['away_team']}" if best_match else None,
+                "reason": "below_threshold" if best_match else "no_candidates"
+            })
+    
+    # Log unmatched Pinnacle events
+    for pinnacle_event in pinnacle_events:
+        if pinnacle_event.get("event_id") not in processed_pinnacle_event_ids:
+            unmatched_pinnacle.append({
+                "pinnacle_home": pinnacle_event.get("home_team", ""),
+                "pinnacle_away": pinnacle_event.get("away_team", ""),
+                "event_id": pinnacle_event.get("event_id", ""),
+                "norm_home": normalize_team_name_for_matching(pinnacle_event.get("home_team", "")),
+                "norm_away": normalize_team_name_for_matching(pinnacle_event.get("away_team", ""))
+            })
+    
+    # Summary logging
+    logger.info(f"[MATCH] SUMMARY:")
+    logger.info(f"[MATCH]   ✓ Matched: {len(matched_events)} games")
+    logger.info(f"[MATCH]   ✗ Unmatched BetBCK: {len(unmatched_betbck)} games")
+    logger.info(f"[MATCH]   ✗ Unmatched Pinnacle: {len(unmatched_pinnacle)} events")
+    logger.info(f"[MATCH]   📊 Match rate: {len(matched_events)}/{len(betbck_games)} = {len(matched_events)/len(betbck_games)*100:.1f}%")
+    
+    # Log unmatched details for debugging
+    if unmatched_betbck:
+        logger.info(f"[MATCH] UNMATCHED BETBCK GAMES:")
+        for i, unmatched in enumerate(unmatched_betbck[:10]):  # Limit to first 10
+            logger.info(f"[MATCH]   {i+1}. '{unmatched['betbck_home']}' vs '{unmatched['betbck_away']}' (norm: '{unmatched['norm_home']}' vs '{unmatched['norm_away']}') - {unmatched['reason']}")
+        if len(unmatched_betbck) > 10:
+            logger.info(f"[MATCH]   ... and {len(unmatched_betbck) - 10} more unmatched BetBCK games")
+    
+    if unmatched_pinnacle:
+        logger.info(f"[MATCH] UNMATCHED PINNACLE EVENTS:")
+        for i, unmatched in enumerate(unmatched_pinnacle[:10]):  # Limit to first 10
+            logger.info(f"[MATCH]   {i+1}. '{unmatched['pinnacle_home']}' vs '{unmatched['pinnacle_away']}' (norm: '{unmatched['norm_home']}' vs '{unmatched['norm_away']}')")
+        if len(unmatched_pinnacle) > 10:
+            logger.info(f"[MATCH]   ... and {len(unmatched_pinnacle) - 10} more unmatched Pinnacle events")
+    
     return matched_events
 
 def save_matched_games(matched_games: List[Dict[str, Any]], filename: str = "data/matched_games.json") -> bool:

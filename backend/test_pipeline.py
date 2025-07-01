@@ -6,9 +6,14 @@ Simple test script to verify the Buckeye pipeline works
 import asyncio
 import sys
 import os
+import logging
 
 # Add current directory to path
 sys.path.insert(0, os.path.dirname(os.path.abspath(__file__)))
+
+# Set up logging
+logging.basicConfig(level=logging.INFO, format='%(asctime)s - %(name)s - %(levelname)s - %(message)s')
+logger = logging.getLogger(__name__)
 
 async def test_pipeline():
     """Test the pipeline step by step"""
@@ -33,7 +38,8 @@ async def test_pipeline():
         
         # Test step 2
         print("3. Testing Step 2 (Fetch BetBCK Data)...")
-        step2_result = await pipeline.step2_fetch_betbck_data()
+        event_dicts = step1_result['data']['event_ids']
+        step2_result = pipeline.step2_fetch_betbck_data(event_dicts)
         print(f"   Step 2 result: {step2_result['status']}")
         if step2_result['status'] == 'success':
             print(f"   ✓ Found {step2_result['data']['total_games']} BetBCK games")
@@ -43,9 +49,8 @@ async def test_pipeline():
         
         # Test step 3
         print("4. Testing Step 3 (Match Games)...")
-        event_ids = step1_result['data']['event_ids']
         betbck_data = step2_result['data']
-        step3_result = await pipeline.step3_match_games(event_ids, betbck_data)
+        step3_result = await pipeline.step3_match_games(event_dicts, betbck_data)
         print(f"   Step 3 result: {step3_result['status']}")
         if step3_result['status'] in ['success', 'warning']:
             print(f"   ✓ Matched {step3_result['data']['total_matches']} games")

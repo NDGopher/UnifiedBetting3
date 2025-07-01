@@ -31,6 +31,7 @@ const BuckeyeScraper: React.FC = () => {
   const [error, setError] = useState<string | null>(null);
   const [message, setMessage] = useState<string | null>(null);
   const [topMarkets, setTopMarkets] = useState<any[]>([]);
+  const [stats, setStats] = useState({ pinnacleEvents: 0, betbckMatches: 0, matchRate: 0 });
 
   const fetchEvents = async () => {
     setLoading(true);
@@ -57,6 +58,8 @@ const BuckeyeScraper: React.FC = () => {
         );
         allMarkets.sort((a: any, b: any) => b.ev_num - a.ev_num);
         setTopMarkets(allMarkets.slice(0, 10));
+        // Update stats if available
+        setStats(s => ({ ...s, pinnacleEvents: data.data.total_events || 0, betbckMatches: data.data.total_matched || 0, matchRate: data.data.match_rate || 0 }));
       } else {
         setError(data.message || 'Failed to fetch events');
         setTopMarkets([]);
@@ -81,6 +84,9 @@ const BuckeyeScraper: React.FC = () => {
       console.log('[BuckeyeScraper] Get Event IDs response:', data);
       if (data.status === 'success') {
         setMessage(data.message || 'Event IDs retrieved successfully');
+        if (data.data && typeof data.data.event_count === 'number') {
+          setStats(s => ({ ...s, pinnacleEvents: data.data.event_count }));
+        }
       } else {
         setError(data.message || 'Failed to get event IDs');
       }
@@ -97,12 +103,21 @@ const BuckeyeScraper: React.FC = () => {
     setError(null);
     setMessage(null);
     try {
-      console.log('[BuckeyeScraper] Running calculations...');
-      const res = await fetch(`${API_BASE}/buckeye/run-calculation`, { method: 'POST' });
+      console.log('[BuckeyeScraper] Running calculations (via pipeline)...');
+      const res = await fetch(`${API_BASE}/api/run-pipeline`, { method: 'POST' });
       const data = await res.json();
-      console.log('[BuckeyeScraper] Run Calculations response:', data);
-      if (data.status === 'success') {
-        setMessage(data.message || 'Calculations completed');
+      console.log('[BuckeyeScraper] Run Calculations (pipeline) response:', data);
+      if (data.status === 'success' && data.data && data.data.final_result) {
+        setMessage(data.data.final_result.message || 'Calculations completed');
+        // Update stats if available
+        if (data.data.final_result.data) {
+          setStats(s => ({
+            ...s,
+            pinnacleEvents: data.data.final_result.data.total_events || 0,
+            betbckMatches: data.data.final_result.data.total_matches || 0,
+            matchRate: data.data.final_result.data.match_rate || 0
+          }));
+        }
         fetchEvents(); // Only fetch events after calculations
       } else {
         setError(data.message || 'Failed to run calculations');
@@ -148,7 +163,7 @@ const BuckeyeScraper: React.FC = () => {
           RUN CALCULATIONS
         </Button>
         <Box sx={{ flexGrow: 1 }} />
-        <MatchingStats />
+        <MatchingStats pinnacleEvents={stats.pinnacleEvents} betbckMatches={stats.betbckMatches} matchRate={stats.matchRate} />
       </Box>
       {loading && <CircularProgress sx={{ mb: 2 }} />}
       {error && <Alert severity="error" sx={{ mb: 2 }}>{error}</Alert>}

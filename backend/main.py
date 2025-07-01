@@ -23,7 +23,7 @@ import psutil
 from websocket_manager import manager
 import subprocess
 import os
-from betbck_async_scraper import get_all_betbck_games
+# from betbck_async_scraper import get_all_betbck_games  # Removed - use async version instead
 
 # Configure logging
 logging.basicConfig(
@@ -125,14 +125,14 @@ async def startup_event():
     logger.info("Background event refresher started")
     
     # Start PTO scraper if enabled
-    if config.get("pto", {}).get("enable_auto_scraping", True):
+    if config.get("pto", {}).get("enable_auto_scraping", False):  # Changed to False by default
         logger.info("Starting PTO scraper...")
         # Pass the event loop to the PTO scraper for WebSocket broadcasting
         pto_scraper._ws_loop = asyncio.get_event_loop()
         pto_scraper.start_scraping()
         logger.info("PTO scraper started")
     else:
-        logger.info("PTO scraper disabled in config")
+        logger.info("PTO scraper disabled in config (manual mode)")
     
     logger.info("Server ready to receive alerts on port 5001")
     logger.info("=====================================")
@@ -539,13 +539,14 @@ def get_event_ids():
                 events_data = f.read()
             import json
             events_json = json.loads(events_data)
-            event_count = len(events_json.get('event_ids', []))
+            event_dicts = events_json.get('event_ids', [])
+            event_count = len(event_dicts)
             return {
                 'status': 'success',
                 'message': f'Successfully retrieved {event_count} event IDs',
                 'data': {
                     'event_count': event_count,
-                    'event_ids': [event['event_id'] for event in events_json.get('event_ids', [])]
+                    'event_ids': [event['event_id'] for event in event_dicts if isinstance(event, dict) and 'event_id' in event]
                 }
             }
         else:
@@ -561,126 +562,162 @@ def get_event_ids():
             'data': {}
         })
 
-@app.post('/buckeye/run-calculation')
-async def run_calculation():
+@app.post("/api/run-pipeline")
+async def run_pipeline():
+    """Run the simplified Buckeye pipeline (2 steps: event IDs + calculations)"""
+    logger.info("=== [API] /run-pipeline endpoint called ===")
+    
     try:
-        # Step 1: Scrape all BetBCK games
-        logger.info("Step 1: Scraping all BetBCK games...")
-        betbck_games = get_all_betbck_games()
+        # Step 1: Get event IDs (using existing eventID.py)
+        logger.info("🔄 Step 1: Getting event IDs...")
+        event_ids_result = get_event_ids()
         
-        if not betbck_games:
-            return JSONResponse(status_code=500, content={
-                'status': 'error',
-                'message': 'Failed to scrape BetBCK games',
-                'data': {}
-            })
+        if event_ids_result["status"] != "success":
+            logger.error(f"❌ Event IDs step failed: {event_ids_result['message']}")
+            return {
+                "status": "error",
+                "message": f"Event IDs step failed: {event_ids_result['message']}",
+                "data": {}
+            }
         
-        # Save BetBCK games
-        betbck_data = {
-            "games": betbck_games,
-            "total_games": len(betbck_games),
-            "timestamp": datetime.now().isoformat()
-        }
+        event_count = event_ids_result["data"]["event_count"]
+        logger.info(f"✅ Step 1 completed: {event_count} event IDs")
         
-        with open('data/betbck_games.json', 'w') as f:
-            json.dump(betbck_data, f, indent=2)
+        # Step 2: Run calculations (matching + EV calculation)
+        logger.info("🔄 Step 2: Running calculations...")
         
-        logger.info(f"Saved {len(betbck_games)} BetBCK games")
-        
-        # Step 2: Load event IDs and match games
-        logger.info("Step 2: Loading event IDs and matching games...")
-        with open('data/buckeye_event_ids.json', 'r') as f:
-            events_data = json.load(f)
-        
-        pinnacle_events = events_data.get('event_ids', [])
-        
-        from match_games import match_pinnacle_to_betbck, save_matched_games
-        matched_games = match_pinnacle_to_betbck(pinnacle_events, betbck_data)
-        logger.info(f"Matched {len(matched_games)} games. Example: {matched_games[:2] if matched_games else '[]'}")
-        
-        # Calculate matching statistics
-        total_processed = len(pinnacle_events)
-        total_matched = len(matched_games)
-        match_rate = (total_matched / total_processed * 100) if total_processed > 0 else 0
-        
-        # Broadcast matching statistics via WebSocket
+        # Load event IDs from file
         try:
-            await manager.broadcast({
-                "type": "buckeye_results",
-                "total_processed": total_processed,
-                "total_matched": total_matched,
-                "match_rate": match_rate,
-                "timestamp": datetime.now().isoformat()
-            })
-            logger.info(f"[WebSocket] Broadcasted matching stats: {total_processed} events, {total_matched} matched ({match_rate:.1f}%)")
+            with open('data/buckeye_event_ids.json', 'r') as f:
+                events_data = json.load(f)
+            event_dicts = events_data.get('event_ids', [])
+            logger.info(f"[PIPELINE] Loaded {len(event_dicts)} event IDs from file.")
         except Exception as e:
-            logger.warning(f"[WebSocket] Failed to broadcast matching stats: {e}")
-        
-        if not matched_games:
-            logger.info("No games matched between Pinnacle and BetBCK, returning empty table.")
+            logger.error(f"❌ Failed to load event IDs from file: {e}")
             return {
-                'status': 'success',
-                'message': 'No games matched between Pinnacle and BetBCK, but returning empty table.',
-                'data': {
-                    'ev_table': [],
-                    'total_events': 0,
-                    'total_opportunities': 0
+                "status": "error",
+                "message": f"Failed to load event IDs: {str(e)}",
+                "data": {}
+            }
+        
+        # Get BetBCK data
+        try:
+            from betbck_async_scraper import _get_all_betbck_games_async
+            betbck_games = await _get_all_betbck_games_async()
+            if not betbck_games:
+                logger.error("❌ No BetBCK games scraped")
+                return {
+                    "status": "error",
+                    "message": "Failed to scrape BetBCK data",
+                    "data": {}
+                }
+            logger.info(f"[PIPELINE] Loaded {len(betbck_games)} BetBCK games.")
+        except Exception as e:
+            logger.error(f"❌ Failed to scrape BetBCK data: {e}")
+            return {
+                "status": "error",
+                "message": f"Failed to scrape BetBCK data: {str(e)}",
+                "data": {}
+            }
+        
+        # Match games
+        try:
+            from match_games import match_pinnacle_to_betbck
+            matched_games = match_pinnacle_to_betbck(event_dicts, {"games": betbck_games})
+            if not matched_games:
+                logger.error("❌ No games matched successfully")
+                return {
+                    "status": "error",
+                    "message": "No games matched successfully",
+                    "data": {}
+                }
+            logger.info(f"[PIPELINE] Matched {len(matched_games)} games.")
+        except Exception as e:
+            logger.error(f"❌ Failed to match games: {e}")
+            return {
+                "status": "error",
+                "message": f"Failed to match games: {str(e)}",
+                "data": {}
+            }
+        
+        # Calculate EV
+        try:
+            from calculate_ev_table import calculate_ev_table, format_ev_table_for_display
+            ev_table = calculate_ev_table(matched_games)
+            if not ev_table:
+                logger.error("❌ No EV opportunities found")
+                return {
+                    "status": "error",
+                    "message": "No EV opportunities found",
+                    "data": {}
+                }
+            
+            formatted_events = format_ev_table_for_display(ev_table)
+            total_opportunities = sum(event.get("total_ev_opportunities", 0) for event in ev_table)
+            
+            logger.info(f"[PIPELINE] Calculated EV for {len(formatted_events)} events.")
+            logger.info(f"✅ Step 2 completed: {len(formatted_events)} events with {total_opportunities} opportunities")
+
+            # After EV calculation, add counts to the response
+            event_id_count = len(event_dicts)
+            betbck_game_count = len(betbck_games)
+            matched_game_count = len(matched_games)
+            ev_count = len(formatted_events)
+
+            return {
+                "status": "success",
+                "message": f"Pipeline completed successfully: {len(formatted_events)} events, {total_opportunities} opportunities",
+                "data": {
+                    "step1": {
+                        "status": "success",
+                        "message": f"Retrieved {event_count} event IDs",
+                        "data": {"event_count": event_count}
+                    },
+                    "step2": {
+                        "status": "success", 
+                        "message": f"Calculated EV for {len(formatted_events)} events",
+                        "data": {
+                            "total_events": len(formatted_events),
+                            "total_opportunities": total_opportunities,
+                            "events": formatted_events
+                        }
+                    },
+                    "final_result": {
+                        "status": "success",
+                        "message": f"Pipeline completed: {len(formatted_events)} events, {total_opportunities} opportunities",
+                        "data": {
+                            "total_events": len(formatted_events),
+                            "total_opportunities": total_opportunities,
+                            "events": formatted_events
+                        }
+                    },
+                    "pipeline_stats": {
+                        "event_id_count": event_id_count,
+                        "betbck_game_count": betbck_game_count,
+                        "matched_game_count": matched_game_count,
+                        "ev_count": ev_count
+                    },
+                    "top_10_evs": formatted_events
                 }
             }
-        
-        save_matched_games(matched_games)
-        logger.info(f"Matched {len(matched_games)} games saved.")
-        
-        # Step 3: Fetch Swordfish odds
-        logger.info("Step 3: Fetching Swordfish odds...")
-        from swordfish_odds_fetcher import fetch_odds_for_matched_games
-        games_with_odds = fetch_odds_for_matched_games()
-        
-        if not games_with_odds:
-            return JSONResponse(status_code=500, content={
-                'status': 'error',
-                'message': 'Failed to fetch Swordfish odds for matched games',
-                'data': {}
-            })
-        
-        logger.info(f"Fetched odds for {len(games_with_odds)} games")
-        
-        # Step 4: Calculate EV table
-        logger.info("Step 4: Calculating EV table...")
-        from calculate_ev_table import calculate_ev_table, save_ev_table
-        ev_table = calculate_ev_table(games_with_odds)
-        if not ev_table:
-            logger.info("No EV opportunities found, returning empty table.")
+        except Exception as e:
+            logger.error(f"❌ Failed to calculate EV: {e}")
             return {
-                'status': 'success',
-                'message': 'No EV opportunities found, but returning empty table.',
-                'data': {
-                    'ev_table': [],
-                    'total_events': 0,
-                    'total_opportunities': 0
-                }
+                "status": "error",
+                "message": f"Failed to calculate EV: {str(e)}",
+                "data": {}
             }
-        save_ev_table(ev_table)
-        logger.info(f"Calculated EV for {len(ev_table)} events")
-        
-        # Return results
-        return {
-            'status': 'success',
-            'message': f'Pipeline completed: {len(ev_table)} events with EV opportunities',
-            'data': {
-                'ev_table': ev_table,
-                'total_events': len(ev_table),
-                'total_opportunities': sum(event.get('total_ev_opportunities', 0) for event in ev_table)
-            }
-        }
         
     except Exception as e:
-        logger.error(f"Error in calculation pipeline: {e}")
-        return JSONResponse(status_code=500, content={
-            'status': 'error',
-            'message': f'Pipeline failed: {str(e)}',
-            'data': {}
-        })
+        logger.error(f"❌ [API] Pipeline endpoint error: {e}")
+        import traceback
+        logger.error(f"[API] Pipeline traceback: {traceback.format_exc()}")
+        
+        return {
+            "status": "error",
+            "message": f"Pipeline execution failed: {str(e)}",
+            "data": {}
+        }
 
 @app.post("/api/betbck/open_bet")
 async def open_bet(request: Request):
@@ -791,6 +828,81 @@ def broadcast_new_alert(event_id, event_data):
         "eventId": event_id,
         "event": event_obj
     }))
+
+@app.get("/api/debug/matching")
+async def debug_matching():
+    """Debug endpoint to analyze matching issues and provide detailed information"""
+    logger.info("=== [API] /debug/matching endpoint called ===")
+    
+    try:
+        # Load current data
+        betbck_data = None
+        pinnacle_events = None
+        
+        try:
+            with open('data/betbck_games.json', 'r') as f:
+                betbck_data = json.load(f)
+            logger.info(f"Loaded {len(betbck_data.get('games', []))} BetBCK games")
+        except FileNotFoundError:
+            logger.warning("BetBCK games file not found")
+        
+        try:
+            with open('data/buckeye_event_ids.json', 'r') as f:
+                events_data = json.load(f)
+                pinnacle_events = events_data.get('event_ids', [])
+            logger.info(f"Loaded {len(pinnacle_events)} Pinnacle events")
+        except FileNotFoundError:
+            logger.warning("Pinnacle events file not found")
+        
+        # Run matching analysis
+        if betbck_data and pinnacle_events:
+            from match_games import match_pinnacle_to_betbck
+            
+            logger.info("Running matching analysis...")
+            matched_games = match_pinnacle_to_betbck(pinnacle_events, betbck_data)
+            
+            # Calculate statistics
+            total_betbck = len(betbck_data.get('games', []))
+            total_pinnacle = len(pinnacle_events)
+            total_matched = len(matched_games)
+            match_rate = (total_matched / total_betbck * 100) if total_betbck > 0 else 0
+            
+            return {
+                "status": "success",
+                "message": "Matching analysis completed",
+                "data": {
+                    "statistics": {
+                        "total_betbck_games": total_betbck,
+                        "total_pinnacle_events": total_pinnacle,
+                        "total_matched": total_matched,
+                        "match_rate_percent": round(match_rate, 2),
+                        "unmatched_betbck": total_betbck - total_matched,
+                        "unmatched_pinnacle": total_pinnacle - total_matched
+                    },
+                    "matched_games": matched_games[:10],  # First 10 for debugging
+                    "timestamp": datetime.now().isoformat()
+                }
+            }
+        else:
+            return {
+                "status": "error",
+                "message": "Missing data files for analysis",
+                "data": {
+                    "betbck_available": betbck_data is not None,
+                    "pinnacle_available": pinnacle_events is not None
+                }
+            }
+            
+    except Exception as e:
+        logger.error(f"❌ [API] Debug matching error: {e}")
+        import traceback
+        logger.error(f"[API] Debug matching traceback: {traceback.format_exc()}")
+        
+        return {
+            "status": "error",
+            "message": f"Debug analysis failed: {str(e)}",
+            "data": {}
+        }
 
 if __name__ == "__main__":
     import uvicorn

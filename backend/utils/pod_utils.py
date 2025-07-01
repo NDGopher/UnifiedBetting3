@@ -5,7 +5,7 @@ from typing import Dict, Any, Optional, List, Union
 import logging
 try:
     from fuzzywuzzy import fuzz
-    FUZZY_MATCH_THRESHOLD = 70
+    FUZZY_MATCH_THRESHOLD = 82
 except ImportError:
     fuzz = None
     FUZZY_MATCH_THRESHOLD = 101
@@ -223,79 +223,47 @@ def alias_normalize(name):
     return name
 
 def normalize_team_name_for_matching(name):
-    """Normalize team name for matching with improved dash handling"""
     original_name_for_debug = name
-    if not name:
-        print(f"[Utils] WARNING: normalize_team_name_for_matching received None or empty input: '{original_name_for_debug}'")
-        return ""
-    
-    # Remove common phrases indicating a prop/future
+    if not name: return ""
+    # Strip leading numbers and spaces
+    name = re.sub(r'^\d+\s*', '', name).strip()
+    # Handle common phrases indicating a prop/future first
     trophy_match = re.match(r'(.+?)\s*(?:to lift the trophy|lift the trophy|to win.*|wins.*|\(match\)|series price|to win series|\(corners\))', name, re.IGNORECASE)
     if trophy_match:
         name = trophy_match.group(1).strip()
-
     norm_name = name.lower()
     norm_name = re.sub(r'\s*\((?:games|sets|match|hits\+runs\+errors|h\+r\+e|hre|corners)\)$', '', norm_name).strip()
     norm_name = re.sub(r'\s*\([^)]*\)', '', norm_name).strip()
-
-    # IMPROVED DASH HANDLING - Convert dashes to spaces for better matching
-    # This handles "Tiger-Cats" vs "Tiger Cats"
-    norm_name = re.sub(r'-', ' ', norm_name)
-    
-    # Remove country/competition suffixes if not the whole name
-    suffix_patterns = [
-        r'\s*usa$', r'\s*u21$', r'\s*u19$', r'\s*uefa.*$', r'\s*fifa.*$', r'\s*euro.*$', r'\s*afc.*$', r'\s*concacaf.*$', r'\s*conmebol.*$', r'\s*olympics.*$', r'\s*championship.*$', r'\s*cup.*$', r'\s*league.*$', r'\s*mls$', r'\s*england$', r'\s*scotland$', r'\s*france$', r'\s*spain$', r'\s*italy$', r'\s*germany$', r'\s*netherlands$', r'\s*portugal$', r'\s*denmark$', r'\s*sweden$', r'\s*norway$', r'\s*switzerland$', r'\s*belgium$', r'\s*austria$', r'\s*poland$', r'\s*croatia$', r'\s*serbia$', r'\s*romania$', r'\s*bulgaria$', r'\s*slovakia$', r'\s*slovenia$', r'\s*hungary$', r'\s*czech republic$', r'\s*russia$', r'\s*ukraine$', r'\s*turkey$', r'\s*greece$', r'\s*ireland$', r'\s*wales$', r'\s*northern ireland$'
-    ]
-    for pattern in suffix_patterns:
-        if norm_name != pattern.strip('\\s*$'):
-            norm_name = re.sub(pattern, '', norm_name, flags=re.IGNORECASE).strip()
-
     league_country_suffixes = [
         'mlb', 'nba', 'nfl', 'nhl', 'ncaaf', 'ncaab', 'wnba',
-        'poland', 'bulgaria', 'uruguay', 'colombia', 'peru', 'argentina',
+        'poland', 'bulgaria', 'uruguay', 'colombia', 'peru', 'argentina', 
         'sweden', 'romania', 'finland', 'england', 'japan', 'austria',
         'liga 1', 'serie a', 'bundesliga', 'la liga', 'ligue 1', 'premier league',
-        'epl', 'mls', 'tipico bundesliga', 'belarus'
+        'epl', 'mls', 'tipico bundesliga'
     ]
     for suffix in league_country_suffixes:
         pattern = r'(\s+' + re.escape(suffix) + r'|' + re.escape(suffix) + r')$'
         if re.search(pattern, norm_name, flags=re.IGNORECASE):
             temp_name = re.sub(pattern, '', norm_name, flags=re.IGNORECASE, count=1).strip()
-            if temp_name or len(norm_name) == len(suffix):
+            if temp_name or len(norm_name) == len(suffix): 
                 norm_name = temp_name
-
     common_prefixes = ['if ', 'fc ', 'sc ', 'bk ', 'sk ', 'ac ', 'as ', 'fk ', 'cd ', 'ca ', 'afc ', 'cfr ', 'kc ', 'scr ']
-    for prefix in common_prefixes:
+    for prefix in common_prefixes: 
         if norm_name.startswith(prefix): norm_name = norm_name[len(prefix):].strip()
-    for prefix in common_prefixes:
+    for prefix in common_prefixes: 
         if norm_name.startswith(prefix): norm_name = norm_name[len(prefix):].strip()
-
-    # Handle specific team name variations
-    if "tottenham hotspur" in name.lower(): norm_name = "tottenham"
+    if "tottenham hotspur" in name.lower(): norm_name = "tottenham" 
     elif "paris saint germain" in name.lower() or "paris sg" in name.lower(): norm_name = "psg"
     elif "new york" in name.lower(): norm_name = norm_name.replace("new york", "ny")
     elif "los angeles" in name.lower(): norm_name = norm_name.replace("los angeles", "la")
-    elif "st louis" in name.lower(): norm_name = norm_name.replace("st louis", "st. louis")
+    elif "st louis" in name.lower(): norm_name = norm_name.replace("st louis", "st. louis") 
     elif "inter milan" in name.lower() or name.lower() == "internazionale": norm_name = "inter"
-    elif "rheindorf altach" in name.lower(): norm_name = "altach"
+    elif "rheindorf altach" in name.lower(): norm_name = "altach" 
     elif "scr altach" in name.lower(): norm_name = "altach"
-
-    # Convert to lowercase and strip whitespace
-    normalized = norm_name.lower().strip()
-    # Remove common suffixes like 'Chile', 'USA', 'UEFA - U21 European Championship', 'CONCACAF', 'Nippon Professional Baseball', etc.
-    suffixes = ["chile", "usa", "uefa - u21 european championship", "concacaf", "nippon professional baseball"]
-    for suffix in suffixes:
-        if normalized.endswith(suffix):
-            normalized = normalized[:-len(suffix)]
-
-    norm_name = re.sub(r'^[^\w]+|[^\w]+$', '', normalized)
-    norm_name = re.sub(r'[^\w\s\.\-\+]', '', norm_name)
-    final_normalized_name = " ".join(norm_name.split()).strip()
-    
-    # Use alias normalization
-    final_normalized_name = alias_normalize(final_normalized_name)
-    
-    return final_normalized_name if final_normalized_name else (name.lower().strip() if name else "")
+    norm_name = re.sub(r'^[^\w]+|[^\w]+$', '', norm_name) 
+    norm_name = re.sub(r'[^\w\s\.\-\+]', '', norm_name) 
+    final_normalized_name = " ".join(norm_name.split()).strip() 
+    return final_normalized_name if final_normalized_name else (original_name_for_debug.lower().strip() if original_name_for_debug else "")
 
 def clean_pod_team_name_for_search(name: str) -> str:
     """Clean team name for search by removing common suffixes and normalizing."""
@@ -339,7 +307,11 @@ def analyze_markets_for_ev(bet_data: Dict, pinnacle_data: Dict) -> List[Dict]:
         
         pin_data = pinnacle_data_copy['data']
         periods = pin_data.get('periods', {})
-        full_game = periods.get('num_0', {})
+        # Try both 'num_0' and '0' for period data
+        full_game = periods.get('num_0') or periods.get('0')
+        if not full_game:
+            logger.error(f"[AnalyzeMarkets] No 'num_0' or '0' period found in periods: {periods}")
+            return []
         
         logger.info(f"[AnalyzeMarkets] Pinnacle periods keys: {list(periods.keys())}")
         logger.info(f"[AnalyzeMarkets] Full game keys: {list(full_game.keys())}")
@@ -403,7 +375,10 @@ def analyze_markets_for_ev(bet_data: Dict, pinnacle_data: Dict) -> List[Dict]:
             logger.info(f"[AnalyzeMarkets] Draw ML - Missing BetBCK: {bet_data_copy.get('draw_moneyline_american')}, Missing Pinnacle: {ml.get('nvp_american_draw')}")
 
         # --- Spreads ---
-        pin_spreads = full_game.get('spreads', {})
+        pin_spreads = full_game.get('spreads')
+        if not isinstance(pin_spreads, dict):
+            logger.info(f"[AnalyzeMarkets] No spreads dict for event. Skipping spreads for this event.")
+            pin_spreads = {}
         logger.info(f"[AnalyzeMarkets] Pinnacle spreads: {pin_spreads}")
         logger.info(f"[AnalyzeMarkets] BetBCK home spreads: {bet_data_copy.get('home_spreads')}")
         logger.info(f"[AnalyzeMarkets] BetBCK away spreads: {bet_data_copy.get('away_spreads')}")
@@ -461,7 +436,10 @@ def analyze_markets_for_ev(bet_data: Dict, pinnacle_data: Dict) -> List[Dict]:
                     logger.info(f"[AnalyzeMarkets] Away spread exception: {e}")
 
         # --- Totals ---
-        pin_totals = full_game.get('totals', {})
+        pin_totals = full_game.get('totals')
+        if not isinstance(pin_totals, dict):
+            logger.info(f"[AnalyzeMarkets] No totals dict for event. Skipping totals for this event.")
+            pin_totals = {}
         logger.info(f"[AnalyzeMarkets] Pinnacle totals: {pin_totals}")
         # Gather all BetBCK total lines/odds
         betbck_totals = []
@@ -591,3 +569,21 @@ def determine_betbck_search_term(pod_home_team_raw, pod_away_team_raw):
         else:
             return pod_home_clean
     return pod_home_clean if pod_home_clean else "" 
+
+PROP_INDICATORS_IN_TEAM_NAMES = [
+    "to lift the trophy", "lift the trophy", "mvp", "futures", "outright",
+    "coach of the year", "player of the year", "series correct score",
+    "when will series finish", "most points in series", "most assists in series",
+    "most rebounds in series", "most threes made in series", "margin of victory",
+    "exact outcome", "winner", "to win the tournament", "to win group", "series price",
+    "(corners)"
+]
+def is_prop_market_by_name(home_team_name, away_team_name):
+    if not home_team_name or not away_team_name: return False
+    for name in [home_team_name, away_team_name]:
+        name_lower = name.lower()
+        for indicator in PROP_INDICATORS_IN_TEAM_NAMES:
+            if indicator in name_lower: return True
+    if "field" in away_team_name.lower() and "the" in away_team_name.lower(): return True
+    if home_team_name.lower() == "yes" and away_team_name.lower() == "no": return True
+    return False 

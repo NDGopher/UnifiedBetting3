@@ -249,18 +249,33 @@ const PropBuilder: React.FC = () => {
     fetchPTOData(true);
   };
 
-  // Book logo mapping for icons
-  const bookLogoMap: Record<string, string> = {
-    'pinnacle': '/book_icons/pinnacle.png',
-    'fanduel': '/book_icons/fanduel.png',
-    'draftkings': '/book_icons/draftkings.png',
-    'betrivers': '/book_icons/betrivers.png',
-    'bovada': '/book_icons/bovada.png',
-    'caesars': '/book_icons/caesars.png',
-    'circa': '/book_icons/circa.png',
-    'hardrock': '/book_icons/hardrock.png',
-    'mgm': '/book_icons/mgm.png',
-    // Add more as needed
+  // Robust mapping for book names to icon filenames
+  const bookIconMap: Record<string, string> = {
+    '365': 'bet365.png',
+    'bet365': 'bet365.png',
+    'MGM': 'mgm.png',
+    'mgm': 'mgm.png',
+    'BV': 'bovada.png',
+    'bovada': 'bovada.png',
+    'ESPN': 'espnbet.png',
+    'espn': 'espnbet.png',
+    'HR': 'hardrock.png',
+    'PIN': 'pinnacle.png',
+    'DK': 'draftkings.png',
+    'CS': 'caesars.png',
+    'hardrock': 'hardrock.png',
+    'BetRivers': 'betrivers.png',
+    'betrivers': 'betrivers.png',
+    'Caesars': 'caesars.png',
+    'caesars': 'caesars.png',
+    'Circa': 'circa.png',
+    'circa': 'circa.png',
+    'DraftKings': 'draftkings.png',
+    'draftkings': 'draftkings.png',
+    'FanDuel': 'fanduel.png',
+    'fanduel': 'fanduel.png',
+    'Pinnacle': 'pinnacle.png',
+    'pinnacle': 'pinnacle.png',
   };
 
   const normalizeBook = (book: string) => {
@@ -453,6 +468,9 @@ const PropBuilder: React.FC = () => {
                     </Box>
                     <Box sx={{ mb: 1 }}>
                       <Typography variant="body2" sx={{ fontWeight: 500 }}>{prop.propDesc}</Typography>
+                      {prop.betType && (
+                        <Typography variant="body2" sx={{ color: 'gray', fontStyle: 'italic', fontWeight: 400, mb: 0.5 }}>{prop.betType}</Typography>
+                      )}
                       <Typography variant="body2" sx={{ color: 'lightgreen', fontWeight: 700 }}>{prop.odds}</Typography>
                       <Box sx={{ display: 'flex', alignItems: 'center', gap: 1 }}>
                         <Typography variant="body2" sx={{ color: 'cyan', fontWeight: 700 }}>EV: {prop.ev}</Typography>
@@ -467,19 +485,24 @@ const PropBuilder: React.FC = () => {
                         <Typography variant="body2" sx={{ fontWeight: 700 }}>{prop.width}</Typography>
                       </Box>
                       <Box sx={{ display: 'flex', alignItems: 'center', mt: 0.5 }}>
-                        {Array.isArray(prop.books) && prop.books.map(book => (
-                          <Tooltip key={book} title={book}>
-                            {bookLogoMap[normalizeBook(book)] ? (
+                        {prop.books && prop.books.length > 0 ? (
+                          prop.books.map((book: string, idx: number) => {
+                            const iconFile = bookIconMap[book] || bookIconMap[book.toLowerCase()];
+                            if (!iconFile) {
+                              console.warn('Unknown book name:', book);
+                            }
+                            return iconFile ? (
                               <img
-                                src={bookLogoMap[normalizeBook(book)]}
+                                key={idx}
+                                src={`/book_icons/${iconFile}`}
                                 alt={book}
-                                style={{ width: 28, height: 28, marginRight: 4, borderRadius: 6, background: '#222' }}
+                                style={{ width: 24, height: 24, marginRight: 4, verticalAlign: 'middle' }}
                               />
                             ) : (
-                              <Cancel sx={{ color: 'red', width: 28, height: 28, marginRight: 4 }} />
-                            )}
-                          </Tooltip>
-                        ))}
+                              <span key={idx} style={{ color: 'red', fontSize: 24, marginRight: 4 }}>✗</span>
+                            );
+                          })
+                        ) : null}
                       </Box>
                     </Box>
                   </Paper>

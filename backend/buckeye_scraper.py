@@ -112,10 +112,27 @@ class BuckeyeScraper:
                         total_requests += 1
                         response.raise_for_status()
                         matchups = response.json()
+                        logger.info(f"[ARCADIA] League {league_id}: Got {len(matchups)} matchups")
+                        
+                        # Log raw response for first few events to debug structure
+                        if len(matchups) > 0:
+                            logger.info(f"[ARCADIA] Raw response sample for League {league_id}:")
+                            for i, matchup in enumerate(matchups[:3]):  # First 3 events
+                                logger.info(f"[ARCADIA]   Event {i+1}: {matchup}")
+                        
                         for matchup in matchups:
                             event_id = matchup["id"]
-                            home_team = next((p["name"] for p in matchup["participants"] if p["alignment"] == "home"), "Unknown")
-                            away_team = next((p["name"] for p in matchup["participants"] if p["alignment"] == "away"), "Unknown")
+                            participants = matchup.get("participants", [])
+                            home_team = next((p["name"] for p in participants if p["alignment"] == "home"), "Unknown")
+                            away_team = next((p["name"] for p in participants if p["alignment"] == "away"), "Unknown")
+                            # Filter out HRE/prop events
+                            def is_hre_or_prop_team(name: str) -> bool:
+                                name = name.lower()
+                                return any(x in name for x in ["hits+runs+errors", "h+r+e", "hre"])
+                            if is_hre_or_prop_team(home_team) or is_hre_or_prop_team(away_team):
+                                logger.info(f"[SKIP] HRE/prop event: {home_team} vs {away_team}")
+                                continue
+                            logger.info(f"[ARCADIA] Event {event_id}: '{home_team}' vs '{away_team}'")
                             events.append({
                                 "event_id": event_id,
                                 "home_team": home_team,
@@ -131,12 +148,29 @@ class BuckeyeScraper:
                     total_requests += 1
                     response.raise_for_status()
                     matchups = response.json()
+                    logger.info(f"[ARCADIA] Sport {sport_id} /matchups: Got {len(matchups)} matchups")
+                    
+                    # Log raw response for first few events to debug structure
+                    if len(matchups) > 0:
+                        logger.info(f"[ARCADIA] Raw response sample for Sport {sport_id} /matchups:")
+                        for i, matchup in enumerate(matchups[:3]):  # First 3 events
+                            logger.info(f"[ARCADIA]   Event {i+1}: {matchup}")
+                    
                     for matchup in matchups:
                         event_id = matchup["id"]
-                        home_team = next((p["name"] for p in matchup["participants"] if p["alignment"] == "home"), "Unknown")
-                        away_team = next((p["name"] for p in matchup["participants"] if p["alignment"] == "away"), "Unknown")
+                        participants = matchup.get("participants", [])
+                        home_team = next((p["name"] for p in participants if p["alignment"] == "home"), "Unknown")
+                        away_team = next((p["name"] for p in participants if p["alignment"] == "away"), "Unknown")
+                        # Filter out HRE/prop events
+                        def is_hre_or_prop_team(name: str) -> bool:
+                            name = name.lower()
+                            return any(x in name for x in ["hits+runs+errors", "h+r+e", "hre"])
+                        if is_hre_or_prop_team(home_team) or is_hre_or_prop_team(away_team):
+                            logger.info(f"[SKIP] HRE/prop event: {home_team} vs {away_team}")
+                            continue
                         # Avoid duplicates if already fetched from league endpoints
                         if not any(e["event_id"] == event_id for e in events):
+                            logger.info(f"[ARCADIA] Event {event_id}: '{home_team}' vs '{away_team}'")
                             events.append({
                                 "event_id": event_id,
                                 "home_team": home_team,
@@ -153,10 +187,27 @@ class BuckeyeScraper:
                     total_requests += 1
                     response.raise_for_status()
                     matchups = response.json()
+                    logger.info(f"[ARCADIA] Sport {sport_id}: Got {len(matchups)} matchups")
+                    
+                    # Log raw response for first few events to debug structure
+                    if len(matchups) > 0:
+                        logger.info(f"[ARCADIA] Raw response sample for Sport {sport_id}:")
+                        for i, matchup in enumerate(matchups[:3]):  # First 3 events
+                            logger.info(f"[ARCADIA]   Event {i+1}: {matchup}")
+                    
                     for matchup in matchups:
                         event_id = matchup["id"]
-                        home_team = next((p["name"] for p in matchup["participants"] if p["alignment"] == "home"), "Unknown")
-                        away_team = next((p["name"] for p in matchup["participants"] if p["alignment"] == "away"), "Unknown")
+                        participants = matchup.get("participants", [])
+                        home_team = next((p["name"] for p in participants if p["alignment"] == "home"), "Unknown")
+                        away_team = next((p["name"] for p in participants if p["alignment"] == "away"), "Unknown")
+                        # Filter out HRE/prop events
+                        def is_hre_or_prop_team(name: str) -> bool:
+                            name = name.lower()
+                            return any(x in name for x in ["hits+runs+errors", "h+r+e", "hre"])
+                        if is_hre_or_prop_team(home_team) or is_hre_or_prop_team(away_team):
+                            logger.info(f"[SKIP] HRE/prop event: {home_team} vs {away_team}")
+                            continue
+                        logger.info(f"[ARCADIA] Event {event_id}: '{home_team}' vs '{away_team}'")
                         events.append({
                             "event_id": event_id,
                             "home_team": home_team,
@@ -171,10 +222,27 @@ class BuckeyeScraper:
                             total_requests += 1
                             response.raise_for_status()
                             matchups = response.json()
+                            logger.info(f"[ARCADIA] Fallback for {sport_name}: Got {len(matchups)} matchups")
+                            
+                            # Log raw response for first few events to debug structure
+                            if len(matchups) > 0:
+                                logger.info(f"[ARCADIA] Raw response sample for Fallback {sport_name}:")
+                                for i, matchup in enumerate(matchups[:3]):  # First 3 events
+                                    logger.info(f"[ARCADIA]   Event {i+1}: {matchup}")
+                            
                             for matchup in matchups:
                                 event_id = matchup["id"]
-                                home_team = next((p["name"] for p in matchup["participants"] if p["alignment"] == "home"), "Unknown")
-                                away_team = next((p["name"] for p in matchup["participants"] if p["alignment"] == "away"), "Unknown")
+                                participants = matchup.get("participants", [])
+                                home_team = next((p["name"] for p in participants if p["alignment"] == "home"), "Unknown")
+                                away_team = next((p["name"] for p in participants if p["alignment"] == "away"), "Unknown")
+                                # Filter out HRE/prop events
+                                def is_hre_or_prop_team(name: str) -> bool:
+                                    name = name.lower()
+                                    return any(x in name for x in ["hits+runs+errors", "h+r+e", "hre"])
+                                if is_hre_or_prop_team(home_team) or is_hre_or_prop_team(away_team):
+                                    logger.info(f"[SKIP] HRE/prop event: {home_team} vs {away_team}")
+                                    continue
+                                logger.info(f"[ARCADIA] Event {event_id}: '{home_team}' vs '{away_team}'")
                                 events.append({
                                     "event_id": event_id,
                                     "home_team": home_team,
@@ -206,25 +274,59 @@ class BuckeyeScraper:
             logger.warning(f"Restricted sports (401 Unauthorized): {restricted_sports}")
         return all_events
     
-    def get_todays_event_ids(self) -> List[str]:
-        """Get all event IDs for today's games from Arcadia API"""
+    def get_todays_event_ids(self) -> List[Dict[str, Any]]:
+        """Get all event IDs for today's games from Arcadia API with team names"""
         try:
             logger.info("Fetching today's event IDs from Arcadia...")
             
             # Fetch events using the Arcadia logic
             all_events = self.fetch_arcadia_events()
             
-            # Extract just the event IDs
-            event_ids = []
-            for sport_data in all_events:
-                for event in sport_data.get("events", []):
-                    event_ids.append(str(event.get("event_id")))
+            # Extract event IDs with team names (like the old repo's eventID.py)
+            event_dicts = []
+            total_events = 0
+            events_with_team_names = 0
+            events_with_unknown_teams = 0
             
-            logger.info(f"Retrieved {len(event_ids)} event IDs from Arcadia")
-            return event_ids
+            for sport_data in all_events:
+                sport_name = sport_data.get("sport_name", "Unknown")
+                sport_events = sport_data.get("events", [])
+                logger.info(f"[EVENT-EXTRACT] Sport '{sport_name}': {len(sport_events)} events")
+                
+                for event in sport_events:
+                    total_events += 1
+                    event_id = event.get("event_id", "unknown")
+                    home_team = event.get("home_team", "")
+                    away_team = event.get("away_team", "")
+                    
+                    # Check if we have proper team names
+                    if home_team and home_team != "Unknown" and away_team and away_team != "Unknown":
+                        events_with_team_names += 1
+                        logger.debug(f"[EVENT-EXTRACT] ✓ Event {event_id}: '{home_team}' vs '{away_team}'")
+                    else:
+                        events_with_unknown_teams += 1
+                        logger.warning(f"[EVENT-EXTRACT] ✗ Event {event_id}: Missing team names - home='{home_team}', away='{away_team}'")
+                    
+                    event_dicts.append({
+                        "event_id": event_id,
+                        "home_team": home_team if home_team and home_team != "Unknown" else f"Team_{event_id}_Home",
+                        "away_team": away_team if away_team and away_team != "Unknown" else f"Team_{event_id}_Away"
+                    })
+            
+            logger.info(f"[EVENT-EXTRACT] SUMMARY:")
+            logger.info(f"[EVENT-EXTRACT]   Total events: {total_events}")
+            logger.info(f"[EVENT-EXTRACT]   Events with team names: {events_with_team_names}")
+            logger.info(f"[EVENT-EXTRACT]   Events with unknown teams: {events_with_unknown_teams}")
+            logger.info(f"[EVENT-EXTRACT]   Success rate: {events_with_team_names/total_events*100:.1f}%" if total_events > 0 else "0%")
+            
+            logger.info(f"Retrieved {len(event_dicts)} event IDs with team names from Arcadia")
+            logger.debug(f"First 3 events: {event_dicts[:3]}")
+            return event_dicts
             
         except Exception as e:
             logger.error(f"Error fetching event IDs from Arcadia: {e}")
+            import traceback
+            logger.error(f"Traceback: {traceback.format_exc()}")
             return []
     
     def save_event_ids(self, event_ids: List[str]) -> bool:

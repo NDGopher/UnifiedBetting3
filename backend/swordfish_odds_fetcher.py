@@ -1,72 +1,67 @@
+import asyncio
+import aiohttp
 import json
-import logging
-import requests
-from typing import List, Dict, Any, Optional
+import os
 from datetime import datetime
+import logging
 
 logger = logging.getLogger(__name__)
 
-# Swordfish API configuration
-SWORDFISH_BASE_URL = "https://swordfish-production.up.railway.app/events/"
+SWORDFISH_BASE_URL = "https://swordfish-production.up.railway.app"
+CONCURRENT_REQUESTS = 10
+MATCHED_GAMES_FILE = "data/matched_games.json"
 
-def get_swordfish_odds(event_id: str) -> Optional[Dict[str, Any]]:
-    """Fetch odds for an event from Swordfish API"""
+async def fetch_url(session, url, event_data, sem):
     try:
-        url = f"{SWORDFISH_BASE_URL}{event_id}"
-        response = requests.get(url, timeout=10)
-        if response.status_code == 200:
-            return response.json()
-        else:
-            logger.warning(f"Failed to get Swordfish odds for event {event_id}: {response.status_code}")
-            return None
+        async with session.get(url, timeout=aiohttp.ClientTimeout(total=20)) as response:
+            response.raise_for_status()
+            swordfish_payload = await response.json()
+            current_event = event_data.copy()
+            current_event["swordfish_odds"] = swordfish_payload
+            return current_event
     except Exception as e:
-        logger.warning(f"Error getting Swordfish odds for event {event_id}: {e}")
+        event_id = event_data.get("pinnacle_event_id", "N/A")
+        logger.warning(f"Error fetching odds for event {event_id}: {e}")
         return None
+    finally:
+        sem.release()
 
-def fetch_odds_for_matched_games(matched_games_file: str = "data/matched_games.json") -> List[Dict[str, Any]]:
-    """Fetch Swordfish odds for all matched games"""
+async def fetch_all_swordfish_odds_async():
     try:
-        # Load matched games
-        with open(matched_games_file, 'r') as f:
+        with open(MATCHED_GAMES_FILE, "r", encoding="utf-8") as f:
             data = json.load(f)
-        
         matched_games = data.get("matched_games", [])
-        logger.info(f"Fetching Swordfish odds for {len(matched_games)} matched games")
-        
-        games_with_odds = []
-        
-        for game in matched_games:
-            event_id = game.get("pinnacle_event_id")
+    except Exception as e:
+        logger.error(f"ERROR loading {MATCHED_GAMES_FILE}: {e}")
+        return
+
+    sem = asyncio.Semaphore(CONCURRENT_REQUESTS)
+    conn = aiohttp.TCPConnector(limit_per_host=CONCURRENT_REQUESTS)
+    async with aiohttp.ClientSession(connector=conn) as session:
+        tasks = []
+        for event_data in matched_games:
+            event_id = event_data.get("pinnacle_event_id")
             if not event_id:
                 continue
-            
-            swordfish_odds = get_swordfish_odds(event_id)
-            if swordfish_odds:
-                game["swordfish_odds"] = swordfish_odds
-                games_with_odds.append(game)
-                logger.info(f"Fetched odds for event {event_id}")
-            else:
-                logger.warning(f"No Swordfish odds found for event {event_id}")
-        
-        # Save updated matched games with odds
-        data["matched_games"] = games_with_odds
-        data["total_with_odds"] = len(games_with_odds)
-        data["odds_fetch_timestamp"] = datetime.now().isoformat()
-        
-        with open(matched_games_file, 'w') as f:
-            json.dump(data, f, indent=2)
-        
-        logger.info(f"Updated {len(games_with_odds)} games with Swordfish odds")
-        return games_with_odds
-        
-    except Exception as e:
-        logger.error(f"Error fetching odds for matched games: {e}")
-        return []
+            url = f"{SWORDFISH_BASE_URL}/events/{event_id}"
+            await sem.acquire()
+            task = asyncio.ensure_future(fetch_url(session, url, event_data, sem))
+            tasks.append(task)
+        all_results = await asyncio.gather(*tasks)
+
+    # Only keep events with valid odds
+    games_with_odds = [r for r in all_results if r and r.get("swordfish_odds") and r["swordfish_odds"].get("data")]
+    logger.info(f"Fetched Swordfish odds for {len(games_with_odds)} out of {len(matched_games)} matched games.")
+
+    # Save updated matched games with odds
+    data["matched_games"] = games_with_odds
+    data["total_with_odds"] = len(games_with_odds)
+    data["odds_fetch_timestamp"] = datetime.now().isoformat()
+    with open(MATCHED_GAMES_FILE, "w", encoding="utf-8") as f:
+        json.dump(data, f, indent=2)
+    logger.info(f"Updated {len(games_with_odds)} games with Swordfish odds.")
+    return games_with_odds
 
 if __name__ == "__main__":
-    # Configure logging
     logging.basicConfig(level=logging.INFO)
-    
-    # Fetch odds for matched games
-    games_with_odds = fetch_odds_for_matched_games()
-    print(f"Successfully fetched odds for {len(games_with_odds)} games") 
+    asyncio.run(fetch_all_swordfish_odds_async()) 
