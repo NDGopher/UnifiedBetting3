@@ -307,7 +307,6 @@ const PODAlerts: React.FC = () => {
     <Box>
       <Box sx={{ mb: 2, display: 'flex', alignItems: 'center', justifyContent: 'space-between' }}>
         <Box sx={{ display: 'flex', alignItems: 'center', gap: 1 }}>
-          <Typography variant="subtitle1"> POD Alerts </Typography>
           <Typography variant="caption" color="text.secondary">
             Last update: {lastUpdate.toLocaleTimeString()}
           </Typography>
@@ -333,13 +332,27 @@ const PODAlerts: React.FC = () => {
         <Box display="flex" justifyContent="center" alignItems="center" minHeight={200}>
           <CircularProgress />
         </Box>
-      ) : activeEvents.length === 0 ? (
-        <Paper sx={{ p: 3, textAlign: 'center', background: '#232b3b' }}>
-          <Typography variant="body1" color="text.secondary">
-            No active alerts at the moment
-          </Typography>
-        </Paper>
-      ) : (
+      ) : Object.keys(events).length === 0 && !loading && !error && (
+        <Box
+          sx={{
+            width: '100%',
+            minHeight: 56,
+            display: 'flex',
+            alignItems: 'center',
+            justifyContent: 'center',
+            bgcolor: '#23272f',
+            color: '#bdbdbd',
+            borderRadius: 2,
+            fontStyle: 'italic',
+            fontWeight: 500,
+            fontSize: '1rem',
+            mt: 1,
+          }}
+        >
+          No active alerts at the moment
+        </Box>
+      )}
+      {activeEvents.length === 0 && Object.keys(events).length !== 0 ? null : (
         <Grid container spacing={2} wrap="wrap">
           {activeEvents
             .filter(([, event]) => !showOnlyEV || getBestEV(event.markets) > 0)

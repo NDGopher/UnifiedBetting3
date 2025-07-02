@@ -308,9 +308,6 @@ const PropBuilder: React.FC = () => {
           mb: 1,
         }}
       >
-        <Typography variant="h6" gutterBottom>
-          Prop Builder EV
-        </Typography>
         <Box
           sx={{ display: "flex", gap: 1, alignItems: "center" }}
         >
@@ -338,85 +335,16 @@ const PropBuilder: React.FC = () => {
           >
             <FilterList />
           </Badge>
+          <FormControlLabel
+            control={<Switch checked={showHidden} onChange={e => setShowHidden(e.target.checked)} size="small" />}
+            label="Show Hidden"
+            sx={{ ml: 2 }}
+          />
         </Box>
       </Box>
 
-      {/* Compact Status and Controls */}
-      <Box sx={{ mb: 1 }}>
-        <Grid container spacing={1} alignItems="center">
-          <Grid item xs={6} sm={3} md={2}>
-            <TextField
-              label="Min EV %"
-              type="number"
-              value={minEvFilter}
-              onChange={(e) => setMinEvFilter(parseFloat(e.target.value) || 0)}
-              size="small"
-              fullWidth
-            />
-          </Grid>
-          <Grid item xs={6} sm={3} md={2}>
-            <FormControl size="small" fullWidth>
-              <InputLabel>Sport</InputLabel>
-              <Select
-                value={sportFilter}
-                onChange={(e) => setSportFilter(e.target.value)}
-                label="Sport"
-              >
-                <MenuItem value="all">All Sports</MenuItem>
-                {sports.map((sport) => (
-                  <MenuItem key={sport} value={sport}>
-                    {sport}
-                  </MenuItem>
-                ))}
-              </Select>
-            </FormControl>
-          </Grid>
-          <Grid item xs={6} sm={3} md={2}>
-            <FormControlLabel
-              control={
-                <Switch
-                  checked={showOnlyPositiveEv}
-                  onChange={(e) => setShowOnlyPositiveEv(e.target.checked)}
-                  size="small"
-                />
-              }
-              label="+EV Only"
-            />
-          </Grid>
-          <Grid item xs={6} sm={3} md={2}>
-            <FormControlLabel
-              control={
-                <Switch
-                  checked={autoRefresh}
-                  onChange={(e) => setAutoRefresh(e.target.checked)}
-                  size="small"
-                />
-              }
-              label="Auto Refresh"
-            />
-          </Grid>
-          <Grid item xs={6} sm={3} md={2}>
-            <Box sx={{ display: 'flex', alignItems: 'center', mb: 1 }}>
-              <FormControlLabel
-                control={<Switch checked={showHidden} onChange={e => setShowHidden(e.target.checked)} size="small" />}
-                label="Show Hidden"
-              />
-            </Box>
-          </Grid>
-        </Grid>
-      </Box>
-
       {/* Compact Status Alert */}
-      {scraperStatus && (
-        <Alert
-          severity={scraperStatus.is_running ? "success" : "warning"}
-          sx={{ mb: 1, py: 0.5 }}
-        >
-          {scraperStatus.is_running ? "🟢 Running" : "🔴 Stopped"} | Props:{" "}
-          {scraperStatus.total_props} | Last:{" "}
-          {new Date(scraperStatus.last_refresh * 1000).toLocaleTimeString()}
-        </Alert>
-      )}
+      {/* Removed Alert status bar to avoid duplicate status bars */}
 
       {/* Error Display */}
       {error && (
@@ -447,9 +375,37 @@ const PropBuilder: React.FC = () => {
           overflow: "hidden",
         }}
       >
-        {scraperStatus?.is_running && filteredProps.length === 0 ? (
-          <CircularProgress />
-        ) : filteredProps.length > 0 ? (
+        {/* Single status bar, dark gray background, green/red dot, no check mark */}
+        <Box
+          sx={{
+            bgcolor: '#23272f',
+            color: scraperStatus?.is_running ? '#43a047' : '#e53935',
+            borderRadius: 2,
+            px: 2,
+            py: 1,
+            mb: 2,
+            fontWeight: 500,
+            fontSize: '0.95rem',
+            display: 'flex',
+            alignItems: 'center',
+            gap: 1,
+          }}
+        >
+          <span
+            style={{
+              display: 'inline-block',
+              width: 12,
+              height: 12,
+              borderRadius: '50%',
+              backgroundColor: scraperStatus?.is_running ? '#43a047' : '#e53935',
+              marginRight: 8,
+            }}
+          />
+          {scraperStatus?.is_running ? 'Running' : 'Stopped'} |
+          Props: {scraperStatus?.total_props ?? 0} |
+          Last: {scraperStatus ? new Date(scraperStatus.last_refresh * 1000).toLocaleTimeString() : '--:--:--'}
+        </Box>
+        {filteredProps.length > 0 ? (
           <Grid container spacing={2}>
             {filteredProps.map((propObj, idx) => {
               const prop = propObj.prop;
@@ -460,49 +416,72 @@ const PropBuilder: React.FC = () => {
               return (
                 <Grid item xs={12} md={6} lg={4} key={propId}>
                   <Paper sx={{ p: 2, borderRadius: 3, boxShadow: 4, mb: 2, background: '#181c24', position: 'relative' }}>
-                    <Box sx={{ display: 'flex', alignItems: 'center', mb: 1 }}>
-                      {getSportEmoji(prop.sport)}
-                      <Typography variant="subtitle1" sx={{ ml: 1, fontWeight: 600 }}>{prop.teams?.join(' vs ')}</Typography>
-                      <Typography variant="body2" sx={{ ml: 2, color: 'gray' }}>{prop.gameTime}</Typography>
-                      <IconButton size="small" sx={{ ml: 'auto' }} onClick={() => handleHideProp(propId)}><Delete fontSize="small" /></IconButton>
-                    </Box>
-                    <Box sx={{ mb: 1 }}>
-                      <Typography variant="body2" sx={{ fontWeight: 500 }}>{prop.propDesc}</Typography>
-                      {prop.betType && (
-                        <Typography variant="body2" sx={{ color: 'gray', fontStyle: 'italic', fontWeight: 400, mb: 0.5 }}>{prop.betType}</Typography>
-                      )}
-                      <Typography variant="body2" sx={{ color: 'lightgreen', fontWeight: 700 }}>{prop.odds}</Typography>
-                      <Box sx={{ display: 'flex', alignItems: 'center', gap: 1 }}>
-                        <Typography variant="body2" sx={{ color: 'cyan', fontWeight: 700 }}>EV: {prop.ev}</Typography>
-                        {prop.fairValue && (
-                          <Typography variant="body2" sx={{ color: 'gray', fontSize: '0.9em' }}>({prop.fairValue})</Typography>
-                        )}
+                    <Box sx={{ display: 'flex', alignItems: 'flex-start', justifyContent: 'space-between' }}>
+                      {/* Left: Main Info */}
+                      <Box sx={{ flex: 1, minWidth: 0 }}>
+                        <Box sx={{ display: 'flex', alignItems: 'center', mb: 1 }}>
+                          {getSportEmoji(prop.sport)}
+                          <Typography variant="subtitle1" sx={{ ml: 1, fontWeight: 600 }}>{prop.teams?.join(' vs ')}</Typography>
+                          <Typography variant="body2" sx={{ ml: 2, color: 'gray' }}>{prop.gameTime}</Typography>
+                          <IconButton size="small" sx={{ ml: 'auto' }} onClick={() => handleHideProp(propId)}><Delete fontSize="small" /></IconButton>
+                        </Box>
+                        <Box sx={{ mb: 1 }}>
+                          <Typography variant="body2" sx={{ fontWeight: 500 }}>{prop.propDesc}</Typography>
+                          {prop.betType && (
+                            <Typography variant="body2" sx={{ color: 'gray', fontStyle: 'italic', fontWeight: 400, mb: 0.5 }}>{prop.betType}</Typography>
+                          )}
+                          <Typography variant="body2" sx={{ color: 'lightgreen', fontWeight: 700 }}>{prop.odds}</Typography>
+                          <Box sx={{ display: 'flex', alignItems: 'center', gap: 1 }}>
+                            {prop.fairValue && (
+                              <Typography variant="body2" sx={{ color: 'gray', fontSize: '0.9em' }}>({prop.fairValue})</Typography>
+                            )}
+                          </Box>
+                        </Box>
+                        <Box sx={{ mt: 1 }}>
+                          <Box sx={{ display: 'flex', alignItems: 'center' }}>
+                            <Typography variant="body2" sx={{ mr: 1 }}>Width:</Typography>
+                            <Typography variant="body2" sx={{ fontWeight: 700 }}>{prop.width}</Typography>
+                          </Box>
+                          <Box sx={{ display: 'flex', alignItems: 'center', mt: 0.5 }}>
+                            {prop.books && prop.books.length > 0 ? (
+                              prop.books.map((book: string, idx: number) => {
+                                const iconFile = bookIconMap[book] || bookIconMap[book.toLowerCase()];
+                                if (!iconFile) {
+                                  console.warn('Unknown book name:', book);
+                                }
+                                return iconFile ? (
+                                  <img
+                                    key={idx}
+                                    src={`/book_icons/${iconFile}`}
+                                    alt={book}
+                                    style={{ width: 24, height: 24, marginRight: 4, verticalAlign: 'middle' }}
+                                  />
+                                ) : (
+                                  <span key={idx} style={{ color: 'red', fontSize: 24, marginRight: 4 }}>✗</span>
+                                );
+                              })
+                            ) : null}
+                          </Box>
+                        </Box>
                       </Box>
-                    </Box>
-                    <Box sx={{ mt: 1 }}>
-                      <Box sx={{ display: 'flex', alignItems: 'center' }}>
-                        <Typography variant="body2" sx={{ mr: 1 }}>Width:</Typography>
-                        <Typography variant="body2" sx={{ fontWeight: 700 }}>{prop.width}</Typography>
-                      </Box>
-                      <Box sx={{ display: 'flex', alignItems: 'center', mt: 0.5 }}>
-                        {prop.books && prop.books.length > 0 ? (
-                          prop.books.map((book: string, idx: number) => {
-                            const iconFile = bookIconMap[book] || bookIconMap[book.toLowerCase()];
-                            if (!iconFile) {
-                              console.warn('Unknown book name:', book);
-                            }
-                            return iconFile ? (
-                              <img
-                                key={idx}
-                                src={`/book_icons/${iconFile}`}
-                                alt={book}
-                                style={{ width: 24, height: 24, marginRight: 4, verticalAlign: 'middle' }}
-                              />
-                            ) : (
-                              <span key={idx} style={{ color: 'red', fontSize: 24, marginRight: 4 }}>✗</span>
-                            );
-                          })
-                        ) : null}
+                      {/* Right: EV% */}
+                      <Box sx={{ display: 'flex', flexDirection: 'column', alignItems: 'flex-end', minWidth: 70, ml: 2, flexShrink: 0 }}>
+                        <Typography variant="caption" sx={{ color: 'gray', mb: 0.5, fontWeight: 500 }}>EV</Typography>
+                        <Box sx={{
+                          bgcolor: '#23272f',
+                          border: '2px solid #43a047',
+                          borderRadius: 2,
+                          px: 2,
+                          py: 0.5,
+                          minWidth: 56,
+                          display: 'flex',
+                          justifyContent: 'center',
+                          alignItems: 'center',
+                          mb: 1,
+                        }}>
+                          <Typography variant="h5" sx={{ color: '#43a047', fontWeight: 700, fontSize: '1.7em', lineHeight: 1 }}>{prop.ev}</Typography>
+                        </Box>
+                        {/* Room for future buttons */}
                       </Box>
                     </Box>
                   </Paper>

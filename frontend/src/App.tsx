@@ -18,55 +18,116 @@ const modernTheme = createTheme({
   palette: {
     mode: "dark",
     primary: {
-      main: "#00d4ff",
-      light: "#4de6ff",
-      dark: "#0099cc",
+      main: "#43a047", // Green
+      light: "#66bb6a",
+      dark: "#2e7031",
     },
     secondary: {
-      main: "#ff6b35",
-      light: "#ff9568",
-      dark: "#cc4a1a",
+      main: "#bdbdbd", // Light gray
+      light: "#e0e0e0",
+      dark: "#757575",
     },
     background: {
-      default: "#0a0a0a",
-      paper: "rgba(20, 25, 35, 0.95)",
+      default: "#181c24", // Deep gray
+      paper: "#23272f", // Slightly lighter gray
     },
     text: {
-      primary: "#ffffff",
-      secondary: "rgba(255, 255, 255, 0.7)",
+      primary: "#fff",
+      secondary: "#bdbdbd",
+    },
+    error: {
+      main: "#e53935",
+    },
+    success: {
+      main: "#43a047",
+    },
+    warning: {
+      main: "#ffb300",
+    },
+    info: {
+      main: "#00bcd4",
     },
   },
   typography: {
     fontFamily: '"Inter", "Roboto", "Helvetica", "Arial", sans-serif',
     h4: {
-      fontWeight: 700,
+      fontWeight: 800,
       letterSpacing: "-0.02em",
     },
     h6: {
-      fontWeight: 600,
+      fontWeight: 700,
       letterSpacing: "-0.01em",
+      fontSize: "1.25rem",
+    },
+    subtitle1: {
+      fontWeight: 600,
+      fontSize: "1.1rem",
     },
   },
   components: {
     MuiPaper: {
       styleOverrides: {
         root: {
-          backgroundImage:
-            "linear-gradient(135deg, rgba(20, 25, 35, 0.95) 0%, rgba(15, 20, 30, 0.98) 100%)",
-          border: "1px solid rgba(255, 255, 255, 0.1)",
-          borderRadius: "12px",
-          backdropFilter: "blur(10px)",
+          backgroundColor: "#23272f",
+          border: "1px solid #333",
+          borderRadius: "14px",
+          boxShadow: "0 4px 32px 0 rgba(67, 160, 71, 0.08)",
         },
       },
     },
     MuiAppBar: {
       styleOverrides: {
         root: {
-          background:
-            "linear-gradient(135deg, rgba(0, 212, 255, 0.1) 0%, rgba(255, 107, 53, 0.1) 100%)",
-          backdropFilter: "blur(20px)",
-          borderBottom: "1px solid rgba(255, 255, 255, 0.1)",
-          boxShadow: "0 8px 32px rgba(0, 0, 0, 0.3)",
+          background: "#181c24",
+          borderBottom: "1px solid #333",
+          boxShadow: "0 8px 32px rgba(0,0,0,0.2)",
+        },
+      },
+    },
+    MuiButton: {
+      styleOverrides: {
+        root: {
+          fontWeight: 700,
+          borderRadius: 8,
+          textTransform: "none",
+        },
+        containedPrimary: {
+          backgroundColor: "#43a047",
+          color: "#fff",
+          '&:hover': {
+            backgroundColor: "#388e3c",
+          },
+        },
+        outlinedSecondary: {
+          borderColor: "#bdbdbd",
+          color: "#bdbdbd",
+          '&:hover': {
+            borderColor: "#fff",
+            color: "#fff",
+          },
+        },
+      },
+    },
+    MuiTableRow: {
+      styleOverrides: {
+        root: {
+          '&:hover': {
+            backgroundColor: 'rgba(67, 160, 71, 0.08)',
+          },
+        },
+      },
+    },
+    MuiTableCell: {
+      styleOverrides: {
+        root: {
+          borderBottom: '1px solid #333',
+        },
+      },
+    },
+    MuiDivider: {
+      styleOverrides: {
+        root: {
+          background: 'rgba(255,255,255,0.07)',
         },
       },
     },
@@ -96,50 +157,43 @@ function App() {
         <Box
           sx={{
             minHeight: "100vh",
-            background:
-              "linear-gradient(135deg, #0a0a0a 0%, #1a1a2e 50%, #16213e 100%)",
+            background: "#101214",
           }}
         >
           {/* Modern Header */}
           <AppBar position="static" elevation={0}>
-            <Toolbar sx={{ py: 1 }}>
-              <Box sx={{ display: "flex", alignItems: "center", gap: 2 }}>
-                <Box
+            <Toolbar sx={{ py: 1, justifyContent: 'center', minHeight: 56 }}>
+              <Box
+                sx={{
+                  display: "flex",
+                  alignItems: "center",
+                  gap: 1,
+                  p: 1,
+                  borderRadius: "8px",
+                  background: "rgba(67, 160, 71, 0.12)",
+                  border: "1px solid #43a047",
+                  width: '100%',
+                  justifyContent: 'center',
+                  maxWidth: 700,
+                  mx: 'auto',
+                }}
+              >
+                <Typography
+                  variant="h5"
+                  component="div"
                   sx={{
-                    display: "flex",
-                    alignItems: "center",
-                    gap: 1,
-                    p: 1,
-                    borderRadius: "8px",
-                    background: "rgba(0, 212, 255, 0.1)",
-                    border: "1px solid rgba(0, 212, 255, 0.2)",
+                    fontWeight: 700,
+                    background:
+                      "linear-gradient(135deg, #43a047 0%, #bdbdbd 100%)",
+                    backgroundClip: "text",
+                    WebkitBackgroundClip: "text",
+                    WebkitTextFillColor: "transparent",
+                    textAlign: 'center',
+                    width: '100%',
                   }}
                 >
-                  <TrendingUp sx={{ color: "#00d4ff" }} />
-                  <Typography
-                    variant="h6"
-                    component="div"
-                    sx={{
-                      fontWeight: 700,
-                      background:
-                        "linear-gradient(135deg, #00d4ff 0%, #ffffff 100%)",
-                      backgroundClip: "text",
-                      WebkitBackgroundClip: "text",
-                      WebkitTextFillColor: "transparent",
-                    }}
-                  >
-                    Unified Betting
-                  </Typography>
-                </Box>
-              </Box>
-              <Box sx={{ flexGrow: 1 }} />
-              <Box sx={{ display: "flex", gap: 1 }}>
-                <IconButton sx={{ color: "rgba(255, 255, 255, 0.7)" }}>
-                  <Analytics />
-                </IconButton>
-                <IconButton sx={{ color: "rgba(255, 255, 255, 0.7)" }}>
-                  <Calculate />
-                </IconButton>
+                  Unified Betting
+                </Typography>
               </Box>
             </Toolbar>
           </AppBar>
@@ -154,49 +208,57 @@ function App() {
                     flexDirection: "column",
                     position: "relative",
                     overflow: "hidden",
-                    "&::before": {
+                    transition: 'box-shadow 0.2s, transform 0.2s',
+                    '&:hover': {
+                      boxShadow: '0 8px 32px 0 rgba(67, 160, 71, 0.18)',
+                      transform: 'scale(1.012)',
+                    },
+                    border: '1.5px solid #333',
+                    '::before': {
                       content: '""',
-                      position: "absolute",
+                      position: 'absolute',
                       top: 0,
                       left: 0,
                       right: 0,
-                      height: "3px",
-                      background:
-                        "linear-gradient(90deg, #00d4ff 0%, #ff6b35 100%)",
+                      height: '3px',
+                      background: 'linear-gradient(90deg, #43a047 0%, #23272f 100%)',
+                      zIndex: 1,
                     },
                   }}
                 >
                   <Box
                     sx={{
-                      display: "flex",
-                      alignItems: "center",
+                      display: 'flex',
+                      alignItems: 'center',
                       gap: 2,
                       mb: 2,
                     }}
                   >
-                    <TrendingUp sx={{ color: "#00d4ff" }} />
                     <Typography
                       component="h2"
                       variant="h6"
-                      sx={{ color: "#ffffff", fontWeight: 700 }}
+                      sx={{ color: '#fff', fontWeight: 700 }}
                     >
                       POD Alerts
                     </Typography>
+                    <Box sx={{ flexGrow: 1 }} />
                     <Box
                       sx={{
-                        px: 2,
-                        py: 0.5,
-                        borderRadius: "20px",
-                        background: "rgba(0, 212, 255, 0.1)",
-                        border: "1px solid rgba(0, 212, 255, 0.3)",
+                        px: 1.5,
+                        py: 0.2,
+                        borderRadius: '12px',
+                        background: '#23272f',
+                        border: '1px solid #bdbdbd',
+                        height: 22,
+                        display: 'flex',
+                        alignItems: 'center',
+                        fontSize: '0.85rem',
+                        color: '#bdbdbd',
+                        fontWeight: 600,
+                        letterSpacing: 0,
                       }}
                     >
-                      <Typography
-                        variant="caption"
-                        sx={{ color: "#00d4ff", fontWeight: 600 }}
-                      >
-                        LIVE
-                      </Typography>
+                      LIVE
                     </Box>
                   </Box>
                   <PODAlerts />
@@ -211,100 +273,118 @@ function App() {
                     flexDirection: "column",
                     position: "relative",
                     overflow: "hidden",
-                    "&::before": {
+                    transition: 'box-shadow 0.2s, transform 0.2s',
+                    '&:hover': {
+                      boxShadow: '0 8px 32px 0 rgba(67, 160, 71, 0.18)',
+                      transform: 'scale(1.012)',
+                    },
+                    border: '1.5px solid #333',
+                    '::before': {
                       content: '""',
-                      position: "absolute",
+                      position: 'absolute',
                       top: 0,
                       left: 0,
                       right: 0,
-                      height: "3px",
-                      background:
-                        "linear-gradient(90deg, #ff6b35 0%, #00d4ff 100%)",
+                      height: '3px',
+                      background: 'linear-gradient(90deg, #43a047 0%, #23272f 100%)',
+                      zIndex: 1,
                     },
                   }}
                 >
                   <Box
                     sx={{
-                      display: "flex",
-                      alignItems: "center",
+                      display: 'flex',
+                      alignItems: 'center',
                       gap: 2,
                       mb: 2,
                     }}
                   >
-                    <Analytics sx={{ color: "#ff6b35" }} />
                     <Typography
                       component="h2"
                       variant="h6"
-                      sx={{ color: "#ffffff", fontWeight: 700 }}
+                      sx={{ color: '#fff', fontWeight: 700 }}
                     >
                       PropBuilder EV
                     </Typography>
-                    <Box
-                      sx={{
-                        px: 2,
-                        py: 0.5,
-                        borderRadius: "20px",
-                        background: "rgba(255, 107, 53, 0.1)",
-                        border: "1px solid rgba(255, 107, 53, 0.3)",
-                      }}
-                    >
-                      <Typography
-                        variant="caption"
-                        sx={{ color: "#ff6b35", fontWeight: 600 }}
-                      >
-                        ACTIVE
-                      </Typography>
-                    </Box>
                   </Box>
                   <PropBuilder />
                 </Paper>
               </Grid>
-              {/* EV Calculator + BuckeyeScraper Section side by side */}
-              <Grid item xs={12} container spacing={3}>
-                <Grid item xs={12} md={4} lg={3}>
-                  <Paper
+              {/* BuckeyeScraper Section */}
+              <Grid item xs={12}>
+                <Paper
+                  sx={{
+                    p: 3,
+                    display: "flex",
+                    flexDirection: "column",
+                    position: "relative",
+                    overflow: "hidden",
+                    transition: 'box-shadow 0.2s, transform 0.2s',
+                    '&:hover': {
+                      boxShadow: '0 8px 32px 0 rgba(67, 160, 71, 0.18)',
+                      transform: 'scale(1.012)',
+                    },
+                    border: '1.5px solid #333',
+                    '::before': {
+                      content: '""',
+                      position: 'absolute',
+                      top: 0,
+                      left: 0,
+                      right: 0,
+                      height: '3px',
+                      background: 'linear-gradient(90deg, #43a047 0%, #23272f 100%)',
+                      zIndex: 1,
+                    },
+                  }}
+                >
+                  <Box
                     sx={{
-                      p: 2,
-                      display: "flex",
-                      flexDirection: "column",
-                      maxHeight: "400px",
-                      position: "relative",
-                      overflow: "hidden",
-                      "&::before": {
-                        content: '""',
-                        position: "absolute",
-                        top: 0,
-                        left: 0,
-                        right: 0,
-                        height: "3px",
-                        background:
-                          "linear-gradient(90deg, #00d4ff 0%, #ffffff 100%)",
-                      },
+                      display: 'flex',
+                      alignItems: 'center',
+                      gap: 2,
+                      mb: 2,
                     }}
                   >
-                    <Box
-                      sx={{
-                        display: "flex",
-                        alignItems: "center",
-                        gap: 1,
-                        mb: 2,
-                      }}
+                    <Typography
+                      component="h2"
+                      variant="h6"
+                      sx={{ color: '#fff', fontWeight: 700 }}
                     >
-                      <Calculate sx={{ color: "#00d4ff", fontSize: "1.2rem" }} />
-                      <Typography
-                        component="h3"
-                        variant="subtitle1"
-                        sx={{ color: "#ffffff", fontWeight: 600 }}
-                      >
-                        EV Calculator
-                      </Typography>
-                    </Box>
-                    <EVCalculator />
-                  </Paper>
-                </Grid>
-                <Grid item xs={12} md={8} lg={9}>
+                      BuckeyeScraper EV
+                    </Typography>
+                  </Box>
                   <BuckeyeScraper />
-                </Grid>
+                </Paper>
+              </Grid>
+              {/* EV Calculator at the bottom, centered */}
+              <Grid item xs={12}>
+                <Paper
+                  sx={{
+                    p: 3,
+                    display: "flex",
+                    flexDirection: "column",
+                    position: "relative",
+                    overflow: "hidden",
+                    transition: 'box-shadow 0.2s, transform 0.2s',
+                    '&:hover': {
+                      boxShadow: '0 8px 32px 0 rgba(67, 160, 71, 0.18)',
+                      transform: 'scale(1.012)',
+                    },
+                    border: '1.5px solid #333',
+                    '::before': {
+                      content: '""',
+                      position: 'absolute',
+                      top: 0,
+                      left: 0,
+                      right: 0,
+                      height: '3px',
+                      background: 'linear-gradient(90deg, #43a047 0%, #23272f 100%)',
+                      zIndex: 1,
+                    },
+                  }}
+                >
+                  <EVCalculator />
+                </Paper>
               </Grid>
             </Grid>
           </Container>
