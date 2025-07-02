@@ -6,6 +6,7 @@ import logging
 from datetime import datetime, timedelta
 from typing import List, Dict, Any, Optional
 from pathlib import Path
+from backend.utils.pod_utils import normalize_team_name_for_matching, analyze_markets_for_ev, clean_pod_team_name_for_search, determine_betbck_search_term
 
 # Use the specialized buckeye logger
 logger = logging.getLogger("buckeye")
@@ -388,128 +389,127 @@ class BuckeyeScraper:
             return None
     
     def get_betbck_odds(self, pinnacle_data: Dict[str, Any]) -> Optional[Dict[str, Any]]:
-        """Get BetBCK odds for the teams in the event using improved matching logic"""
+        """Get BetBCK odds for the teams in the event using robust normalization and matching logic, ported from POD Alerts."""
         try:
-            # Extract team names from Pinnacle data
-            home_team = pinnacle_data.get("home", "")
-            away_team = pinnacle_data.get("away", "")
-            
-            logger.info(f"[BETBCK-MATCH] Attempting to match Pinnacle: {home_team} vs {away_team}")
-            
-            if not home_team or not away_team:
-                logger.warning(f"[BETBCK-MATCH] Missing team names: home='{home_team}', away='{away_team}'")
+            # Robust team name cleaning (ported from POD Alerts)
+            raw_home = pinnacle_data.get("home", "")
+            raw_away = pinnacle_data.get("away", "")
+            pod_home_clean = clean_pod_team_name_for_search(raw_home)
+            pod_away_clean = clean_pod_team_name_for_search(raw_away)
+            logger.info(f"[BETBCK-MATCH] (POD LOGIC) Pinnacle cleaned: home='{pod_home_clean}', away='{pod_away_clean}'")
+            if not pod_home_clean or not pod_away_clean:
+                logger.warning(f"[BETBCK-MATCH] Missing cleaned team names: home='{pod_home_clean}', away='{pod_away_clean}'")
                 return None
-            
-            # Use existing BetBCK scraper logic
+            # Use robust search term logic
+            search_term = determine_betbck_search_term(raw_home, raw_away)
+            logger.info(f"[BETBCK-MATCH] (POD LOGIC) Using search term: '{search_term}'")
             try:
                 from betbck_scraper import scrape_betbck_for_game
-                betbck_data = scrape_betbck_for_game(home_team, away_team)
-                
-                if betbck_data and betbck_data.get("status") == "success":
-                    logger.info(f"[BETBCK-MATCH] Successfully scraped BetBCK data for {home_team} vs {away_team}")
-                    return betbck_data
+                # Pass cleaned names and search term to scraper
+                betbck_data = scrape_betbck_for_game(pod_home_clean, pod_away_clean, search_term)
+                if betbck_data and betbck_data.get("status", "success") == "success":
+                    bck_home = clean_pod_team_name_for_search(betbck_data.get("pod_home_team", ""))
+                    bck_away = clean_pod_team_name_for_search(betbck_data.get("pod_away_team", ""))
+                    logger.info(f"[BETBCK-MATCH] (POD LOGIC) BetBCK cleaned: home='{bck_home}', away='{bck_away}'")
+                    # Flip odds and all home/away fields BEFORE any odds assignment or EV calculation
+                    if (bck_home == pod_home_clean and bck_away == pod_away_clean):
+                        logger.info("[BETBCK-MATCH] (POD LOGIC) Home/Away teams match. No flip needed.")
+                        return betbck_data
+                    elif (bck_home == pod_away_clean and bck_away == pod_home_clean):
+                        logger.info("[BETBCK-MATCH] (POD LOGIC) Home/Away teams reversed. Flipping odds and all home/away fields.")
+                        flipped = betbck_data.copy()
+                        flipped["home_moneyline_american"], flipped["away_moneyline_american"] = betbck_data.get("away_moneyline_american"), betbck_data.get("home_moneyline_american")
+                        flipped["home_spreads"], flipped["away_spreads"] = betbck_data.get("away_spreads", []), betbck_data.get("home_spreads", [])
+                        flipped["pod_home_team"], flipped["pod_away_team"] = betbck_data.get("pod_away_team"), betbck_data.get("pod_home_team")
+                        # Flip any other home/away fields as needed
+                        return flipped
+                    else:
+                        logger.warning(f"[BETBCK-MATCH] (POD LOGIC) Team names do not match after cleaning. Skipping event. (Pinnacle: {pod_home_clean} vs {pod_away_clean}, BetBCK: {bck_home} vs {bck_away})")
+                        return None
                 else:
-                    logger.warning(f"[BETBCK-MATCH] BetBCK scraper returned no data for {home_team} vs {away_team}")
-                    
+                    logger.warning(f"[BETBCK-MATCH] (POD LOGIC) BetBCK scraper returned no data for {pod_home_clean} vs {pod_away_clean}")
             except ImportError:
                 logger.error("[BETBCK-MATCH] BetBCK scraper not available")
             except Exception as e:
                 logger.error(f"[BETBCK-MATCH] Error in BetBCK scraper: {e}")
-            
-            logger.warning(f"[BETBCK-MATCH] No BetBCK odds found for {home_team} vs {away_team}")
+            logger.warning(f"[BETBCK-MATCH] No BetBCK odds found for {pod_home_clean} vs {pod_away_clean}")
             return None
-            
         except Exception as e:
             logger.error(f"[BETBCK-MATCH] Error getting BetBCK odds: {e}")
             return None
     
     def calculate_ev(self, pinnacle_data: Dict[str, Any], betbck_data: Dict[str, Any]) -> List[Dict[str, Any]]:
-        """Calculate EV for all markets using existing logic"""
+        """Calculate EV for all markets using robust logic from POD Alerts"""
         try:
-            from utils.pod_utils import analyze_markets_for_ev
-            
             logger.info(f"[EV-CALC] Calculating EV for {pinnacle_data.get('home', '')} vs {pinnacle_data.get('away', '')}")
-            
-            # Use existing EV calculation logic
+            # Use robust EV calculation logic
             ev_results = analyze_markets_for_ev(betbck_data, {"data": pinnacle_data})
-            
             if ev_results:
                 logger.info(f"[EV-CALC] Found {len(ev_results)} EV opportunities")
                 for result in ev_results:
                     logger.debug(f"[EV-CALC] Market: {result.get('market', 'Unknown')}, EV: {result.get('ev', 0):.3f}")
             else:
                 logger.info(f"[EV-CALC] No EV opportunities found")
-            
             return ev_results
-            
         except Exception as e:
             logger.error(f"[EV-CALC] Error calculating EV: {e}")
             return []
     
     def run_main_calculation(self, event_ids: List[str]) -> Dict[str, Any]:
-        """Run the main calculation logic on the event IDs"""
+        """Run the main calculation logic on the event IDs and return top 10 EV results"""
         try:
             logger.info(f"[MAIN-CALC] Starting main calculation for {len(event_ids)} events...")
-            
             results = []
             processed_count = 0
             successful_matches = 0
             successful_ev_calcs = 0
-            
             for event_id in event_ids:
                 try:
                     logger.info(f"[MAIN-CALC] Processing event {event_id} ({processed_count + 1}/{len(event_ids)})")
-                    
                     # Get Pinnacle odds for this event
                     pinnacle_data = self.get_pinnacle_event_odds(event_id)
                     if not pinnacle_data:
                         logger.warning(f"[MAIN-CALC] No Pinnacle data for event {event_id}")
                         continue
-                    
                     logger.info(f"[MAIN-CALC] Got Pinnacle data for {pinnacle_data.get('home', '')} vs {pinnacle_data.get('away', '')}")
-                    
                     # Get BetBCK odds for this event
                     betbck_data = self.get_betbck_odds(pinnacle_data)
                     if not betbck_data:
                         logger.warning(f"[MAIN-CALC] No BetBCK data for event {event_id}")
                         continue
-                    
                     successful_matches += 1
                     logger.info(f"[MAIN-CALC] Successfully matched event {event_id}")
-                    
                     # Calculate EV for all markets
                     ev_results = self.calculate_ev(pinnacle_data, betbck_data)
                     if ev_results:
                         successful_ev_calcs += 1
-                        best_ev = max([r.get("ev", 0) for r in ev_results], default=0)
-                        results.append({
-                            "event_id": event_id,
-                            "pinnacle_data": pinnacle_data,
-                            "betbck_data": betbck_data,
-                            "ev_results": ev_results,
-                            "best_ev": best_ev
-                        })
-                        logger.info(f"[MAIN-CALC] Event {event_id} has EV opportunities (best: {best_ev:.3f})")
+                        for result in ev_results:
+                            # Flatten for frontend: event, league, bet, bet_type, betbck_odds, pin_nvp, ev, sport
+                            results.append({
+                                "event": result.get("event", f"{pinnacle_data.get('home', '')} vs {pinnacle_data.get('away', '')}"),
+                                "league": result.get("league", pinnacle_data.get("league", "")),
+                                "bet": result.get("bet", result.get("market", "")),
+                                "bet_type": result.get("bet_type", ""),
+                                "betbck_odds": result.get("betbck_odds", ""),
+                                "pin_nvp": result.get("pinnacle_nvp", ""),
+                                "ev": result.get("ev", 0),
+                                "sport": result.get("sport", pinnacle_data.get("sport", "Unknown")),
+                                "event_id": event_id
+                            })
+                        logger.info(f"[MAIN-CALC] Event {event_id} has EV opportunities (count: {len(ev_results)})")
                     else:
                         logger.info(f"[MAIN-CALC] Event {event_id} has no EV opportunities")
-                    
                     processed_count += 1
                     if processed_count % 10 == 0:
                         logger.info(f"[MAIN-CALC] Progress: {processed_count}/{len(event_ids)} events processed, {successful_matches} matched, {successful_ev_calcs} with EV")
-                    
-                    # Rate limiting
                     time.sleep(0.5)
-                    
                 except Exception as e:
                     logger.error(f"[MAIN-CALC] Error processing event {event_id}: {e}")
                     continue
-            
-            # Sort by best EV
-            results.sort(key=lambda x: x.get("best_ev", 0), reverse=True)
-            
-            # Save results
-            self.save_results(results)
-            
+            # Sort by EV and return top 10
+            results.sort(key=lambda x: x.get("ev", 0), reverse=True)
+            top_10 = results[:10]
+            self.save_results(top_10)
             logger.info(f"[MAIN-CALC] Main calculation completed:")
             logger.info(f"[MAIN-CALC] - Total events: {len(event_ids)}")
             logger.info(f"[MAIN-CALC] - Processed: {processed_count}")
@@ -517,9 +517,8 @@ class BuckeyeScraper:
             logger.info(f"[MAIN-CALC] - Events with EV: {successful_ev_calcs}")
             logger.info(f"[MAIN-CALC] - Match rate: {successful_matches/len(event_ids)*100:.1f}%")
             logger.info(f"[MAIN-CALC] - EV rate: {successful_ev_calcs/len(event_ids)*100:.1f}%")
-            
             return {
-                "events": results,
+                "events": top_10,
                 "total_processed": processed_count,
                 "total_matched": successful_matches,
                 "total_with_ev": successful_ev_calcs,
@@ -527,7 +526,6 @@ class BuckeyeScraper:
                 "ev_rate": successful_ev_calcs/len(event_ids)*100 if event_ids else 0,
                 "timestamp": datetime.now().isoformat()
             }
-            
         except Exception as e:
             logger.error(f"[MAIN-CALC] Error in main calculation: {e}")
             return {"error": str(e)}

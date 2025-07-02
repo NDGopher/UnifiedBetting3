@@ -15,6 +15,8 @@ buckeye_scraper = None
 current_results = None
 last_run_time = None
 
+BUCKEYE_RESULTS_FILE = os.path.join(os.path.dirname(__file__), 'data', 'buckeye_results.json')
+
 def get_buckeye_scraper():
     global buckeye_scraper
     if buckeye_scraper is None:
@@ -229,53 +231,60 @@ def get_event_ids():
 def run_calculations():
     """Run the complete EV calculation pipeline (Steps 2-4)"""
     global current_results, last_run_time
-    
     try:
         scraper = get_buckeye_scraper()
-        
+        print("[BuckeyeServer] Starting calculation pipeline...")
         # Step 1: Get event IDs
         event_dicts = scraper.get_todays_event_ids()
         if not event_dicts:
+            print("[BuckeyeServer] No event IDs available.")
             return jsonify({
                 "status": "error",
                 "message": "No event IDs available. Run GET EVENT IDS first.",
                 "data": {"events": [], "total_events": 0}
             })
-        
         # Step 2: Get BetBCK data
         betbck_games = get_all_betbck_games()
         if not betbck_games:
+            print("[BuckeyeServer] Failed to scrape BetBCK data.")
             return jsonify({
                 "status": "error",
                 "message": "Failed to scrape BetBCK data",
                 "data": {"events": [], "total_events": 0}
             })
-        
         # Step 3: Match games
         matched_games = match_pinnacle_to_betbck(event_dicts, {"games": betbck_games})
         if not matched_games:
+            print("[BuckeyeServer] No games matched successfully.")
             return jsonify({
                 "status": "error",
                 "message": "No games matched successfully",
                 "data": {"events": [], "total_events": 0}
             })
-        
         # Step 4: Calculate EV
         ev_table = calculate_ev_table(matched_games)
         if not ev_table:
+            print("[BuckeyeServer] No EV opportunities found.")
             return jsonify({
                 "status": "error",
                 "message": "No EV opportunities found",
                 "data": {"events": [], "total_events": 0}
             })
-        
         # Format for display
         formatted_events = format_ev_table_for_display(ev_table)
-        
-        # Store results
+        # Store results in memory and on disk
         current_results = formatted_events
         last_run_time = datetime.now().isoformat()
-        
+        try:
+            with open(BUCKEYE_RESULTS_FILE, 'w', encoding='utf-8') as f:
+                json.dump({
+                    "events": formatted_events,
+                    "total_events": len(formatted_events),
+                    "last_run": last_run_time
+                }, f, indent=2)
+            print(f"[BuckeyeServer] Results written to {BUCKEYE_RESULTS_FILE} ({len(formatted_events)} events)")
+        except Exception as e:
+            print(f"[BuckeyeServer] ERROR writing results to {BUCKEYE_RESULTS_FILE}: {e}")
         return jsonify({
             "status": "success",
             "message": f"Successfully calculated EV for {len(formatted_events)} events",
@@ -285,8 +294,8 @@ def run_calculations():
                 "last_run": last_run_time
             }
         })
-        
     except Exception as e:
+        print(f"[BuckeyeServer] ERROR in calculation pipeline: {e}")
         return jsonify({
             "status": "error",
             "message": f"Error running calculations: {str(e)}",
@@ -297,14 +306,30 @@ def run_calculations():
 def get_results():
     """Get current results"""
     global current_results, last_run_time
-    
     if current_results is None:
+        # Try to load from file
+        try:
+            if os.path.exists(BUCKEYE_RESULTS_FILE):
+                with open(BUCKEYE_RESULTS_FILE, 'r', encoding='utf-8') as f:
+                    data = json.load(f)
+                current_results = data.get("events", [])
+                last_run_time = data.get("last_run", None)
+                print(f"[BuckeyeServer] Loaded results from {BUCKEYE_RESULTS_FILE} ({len(current_results)} events)")
+            else:
+                print(f"[BuckeyeServer] No results file found at {BUCKEYE_RESULTS_FILE}")
+        except Exception as e:
+            print(f"[BuckeyeServer] ERROR loading results from {BUCKEYE_RESULTS_FILE}: {e}")
+            return jsonify({
+                "status": "error",
+                "message": f"Error loading results: {e}",
+                "data": {"events": [], "total_events": 0}
+            })
+    if not current_results:
         return jsonify({
             "status": "error",
             "message": "No results available. Run calculations first.",
             "data": {"events": [], "total_events": 0}
         })
-    
     return jsonify({
         "status": "success",
         "message": f"Loaded {len(current_results)} events",

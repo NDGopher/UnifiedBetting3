@@ -562,33 +562,29 @@ def get_event_ids():
             'data': {}
         })
 
+BUCKEYE_RESULTS_FILE = os.path.join(os.path.dirname(__file__), 'data', 'buckeye_results.json')
+current_results = None
+last_run_time = None
+
 @app.post("/api/run-pipeline")
 async def run_pipeline():
-    """Run the simplified Buckeye pipeline (2 steps: event IDs + calculations)"""
+    """Run the Buckeye pipeline: scrape BetBCK, match/normalize, fetch Swordfish, calculate EV, output."""
     logger.info("=== [API] /run-pipeline endpoint called ===")
-    
+    global current_results, last_run_time
+    import time
     try:
-        # Step 1: Get event IDs (using existing eventID.py)
-        logger.info("🔄 Step 1: Getting event IDs...")
-        event_ids_result = get_event_ids()
-        
-        if event_ids_result["status"] != "success":
-            logger.error(f"❌ Event IDs step failed: {event_ids_result['message']}")
+        # Step 1: Load event IDs from file
+        logger.info("🔄 Step 1: Loading event IDs from file...")
+        event_ids_path = os.path.join(os.path.dirname(__file__), 'data', 'buckeye_event_ids.json')
+        if not os.path.exists(event_ids_path):
+            logger.error(f"❌ Event IDs file does not exist: {event_ids_path}")
             return {
                 "status": "error",
-                "message": f"Event IDs step failed: {event_ids_result['message']}",
+                "message": f"Event IDs file missing: {event_ids_path}",
                 "data": {}
             }
-        
-        event_count = event_ids_result["data"]["event_count"]
-        logger.info(f"✅ Step 1 completed: {event_count} event IDs")
-        
-        # Step 2: Run calculations (matching + EV calculation)
-        logger.info("🔄 Step 2: Running calculations...")
-        
-        # Load event IDs from file
         try:
-            with open('data/buckeye_event_ids.json', 'r') as f:
+            with open(event_ids_path, 'r') as f:
                 events_data = json.load(f)
             event_dicts = events_data.get('event_ids', [])
             logger.info(f"[PIPELINE] Loaded {len(event_dicts)} event IDs from file.")
@@ -599,19 +595,33 @@ async def run_pipeline():
                 "message": f"Failed to load event IDs: {str(e)}",
                 "data": {}
             }
-        
-        # Get BetBCK data
+        # Step 2: Scrape BetBCK fresh
+        logger.info("🔄 Step 2: Scraping BetBCK fresh...")
         try:
             from betbck_async_scraper import _get_all_betbck_games_async
+            scrape_start = time.time()
             betbck_games = await _get_all_betbck_games_async()
-            if not betbck_games:
-                logger.error("❌ No BetBCK games scraped")
+            scrape_end = time.time()
+            logger.info(f"[PIPELINE] Scraped {len(betbck_games)} BetBCK games in {scrape_end-scrape_start:.2f}s.")
+            # Ensure the file was written and is fresh
+            betbck_games_path = os.path.join(os.path.dirname(__file__), 'data', 'betbck_games.json')
+            if not os.path.exists(betbck_games_path):
+                logger.error(f"❌ BetBCK games file not found after scrape: {betbck_games_path}")
                 return {
                     "status": "error",
-                    "message": "Failed to scrape BetBCK data",
+                    "message": f"BetBCK games file not found after scrape: {betbck_games_path}",
                     "data": {}
                 }
-            logger.info(f"[PIPELINE] Loaded {len(betbck_games)} BetBCK games.")
+            file_mtime = os.path.getmtime(betbck_games_path)
+            now = time.time()
+            if now - file_mtime > 30:
+                logger.error(f"❌ BetBCK games file is stale (last modified {now-file_mtime:.1f}s ago)")
+                return {
+                    "status": "error",
+                    "message": f"BetBCK games file is stale (last modified {now-file_mtime:.1f}s ago)",
+                    "data": {}
+                }
+            logger.info(f"[PIPELINE] BetBCK games file is fresh (last modified {now-file_mtime:.1f}s ago)")
         except Exception as e:
             logger.error(f"❌ Failed to scrape BetBCK data: {e}")
             return {
@@ -619,11 +629,12 @@ async def run_pipeline():
                 "message": f"Failed to scrape BetBCK data: {str(e)}",
                 "data": {}
             }
-        
-        # Match games
+        # Step 3: Match/normalize BetBCK games to event IDs
+        logger.info("🔄 Step 3: Matching BetBCK games to event IDs...")
         try:
             from match_games import match_pinnacle_to_betbck
             matched_games = match_pinnacle_to_betbck(event_dicts, {"games": betbck_games})
+            logger.info(f"[PIPELINE] Matched {len(matched_games)} games.")
             if not matched_games:
                 logger.error("❌ No games matched successfully")
                 return {
@@ -631,7 +642,6 @@ async def run_pipeline():
                     "message": "No games matched successfully",
                     "data": {}
                 }
-            logger.info(f"[PIPELINE] Matched {len(matched_games)} games.")
         except Exception as e:
             logger.error(f"❌ Failed to match games: {e}")
             return {
@@ -639,8 +649,8 @@ async def run_pipeline():
                 "message": f"Failed to match games: {str(e)}",
                 "data": {}
             }
-        
-        # Calculate EV
+        # Step 4: Fetch Swordfish for matched games and calculate EV
+        logger.info("🔄 Step 4: Fetching Swordfish odds and calculating EV for matched games...")
         try:
             from calculate_ev_table import calculate_ev_table, format_ev_table_for_display
             ev_table = calculate_ev_table(matched_games)
@@ -651,31 +661,54 @@ async def run_pipeline():
                     "message": "No EV opportunities found",
                     "data": {}
                 }
-            
             formatted_events = format_ev_table_for_display(ev_table)
             total_opportunities = sum(event.get("total_ev_opportunities", 0) for event in ev_table)
-            
             logger.info(f"[PIPELINE] Calculated EV for {len(formatted_events)} events.")
-            logger.info(f"✅ Step 2 completed: {len(formatted_events)} events with {total_opportunities} opportunities")
-
-            # After EV calculation, add counts to the response
-            event_id_count = len(event_dicts)
-            betbck_game_count = len(betbck_games)
-            matched_game_count = len(matched_games)
-            ev_count = len(formatted_events)
-
+            logger.info(f"✅ Step 4 completed: {len(formatted_events)} events with {total_opportunities} opportunities")
+            # Store results in memory and on disk
+            current_results = formatted_events
+            last_run_time = datetime.now().isoformat()
+            try:
+                os.makedirs(os.path.dirname(BUCKEYE_RESULTS_FILE), exist_ok=True)
+                with open(BUCKEYE_RESULTS_FILE, 'w', encoding='utf-8') as f:
+                    json.dump({
+                        "events": formatted_events,
+                        "total_events": len(formatted_events),
+                        "last_run": last_run_time
+                    }, f, indent=2)
+                logger.info(f"[PIPELINE] Results written to {BUCKEYE_RESULTS_FILE} ({len(formatted_events)} events)")
+                # Final check: ensure file is written and fresh
+                if not os.path.exists(BUCKEYE_RESULTS_FILE):
+                    logger.error(f"❌ Results file not found after write: {BUCKEYE_RESULTS_FILE}")
+                    return {
+                        "status": "error",
+                        "message": f"Results file not found after write: {BUCKEYE_RESULTS_FILE}",
+                        "data": {}
+                    }
+                file_mtime = os.path.getmtime(BUCKEYE_RESULTS_FILE)
+                now = time.time()
+                if now - file_mtime > 30:
+                    logger.error(f"❌ Results file is stale (last modified {now-file_mtime:.1f}s ago)")
+                    return {
+                        "status": "error",
+                        "message": f"Results file is stale (last modified {now-file_mtime:.1f}s ago)",
+                        "data": {}
+                    }
+                logger.info(f"[PIPELINE] Results file is fresh (last modified {now-file_mtime:.1f}s ago)")
+            except Exception as e:
+                logger.error(f"[PIPELINE] ERROR writing results to {BUCKEYE_RESULTS_FILE}: {e}")
             return {
                 "status": "success",
                 "message": f"Pipeline completed successfully: {len(formatted_events)} events, {total_opportunities} opportunities",
                 "data": {
                     "step1": {
                         "status": "success",
-                        "message": f"Retrieved {event_count} event IDs",
-                        "data": {"event_count": event_count}
+                        "message": f"Loaded {len(event_dicts)} event IDs",
+                        "data": {"event_count": len(event_dicts)}
                     },
                     "step2": {
                         "status": "success", 
-                        "message": f"Calculated EV for {len(formatted_events)} events",
+                        "message": f"Scraped and matched {len(matched_games)} games",
                         "data": {
                             "total_events": len(formatted_events),
                             "total_opportunities": total_opportunities,
@@ -692,10 +725,10 @@ async def run_pipeline():
                         }
                     },
                     "pipeline_stats": {
-                        "event_id_count": event_id_count,
-                        "betbck_game_count": betbck_game_count,
-                        "matched_game_count": matched_game_count,
-                        "ev_count": ev_count
+                        "event_id_count": len(event_dicts),
+                        "betbck_game_count": len(betbck_games),
+                        "matched_game_count": len(matched_games),
+                        "ev_count": len(formatted_events)
                     },
                     "top_10_evs": formatted_events
                 }
@@ -707,17 +740,52 @@ async def run_pipeline():
                 "message": f"Failed to calculate EV: {str(e)}",
                 "data": {}
             }
-        
     except Exception as e:
         logger.error(f"❌ [API] Pipeline endpoint error: {e}")
         import traceback
         logger.error(f"[API] Pipeline traceback: {traceback.format_exc()}")
-        
         return {
             "status": "error",
             "message": f"Pipeline execution failed: {str(e)}",
             "data": {}
         }
+
+@app.get("/api/get-results")
+def get_results():
+    global current_results, last_run_time
+    if current_results is None:
+        # Try to load from file
+        try:
+            if os.path.exists(BUCKEYE_RESULTS_FILE):
+                with open(BUCKEYE_RESULTS_FILE, 'r', encoding='utf-8') as f:
+                    data = json.load(f)
+                current_results = data.get("events", [])
+                last_run_time = data.get("last_run", None)
+                logger.info(f"[PIPELINE] Loaded results from {BUCKEYE_RESULTS_FILE} ({len(current_results)} events)")
+            else:
+                logger.info(f"[PIPELINE] No results file found at {BUCKEYE_RESULTS_FILE}")
+        except Exception as e:
+            logger.error(f"[PIPELINE] ERROR loading results from {BUCKEYE_RESULTS_FILE}: {e}")
+            return {
+                "status": "error",
+                "message": f"Error loading results: {e}",
+                "data": {"events": [], "total_events": 0}
+            }
+    if not current_results:
+        return {
+            "status": "error",
+            "message": "No results available. Run calculations first.",
+            "data": {"events": [], "total_events": 0}
+        }
+    return {
+        "status": "success",
+        "message": f"Loaded {len(current_results)} events",
+        "data": {
+            "events": current_results,
+            "total_events": len(current_results),
+            "last_run": last_run_time
+        }
+    }
 
 @app.post("/api/betbck/open_bet")
 async def open_bet(request: Request):
@@ -903,6 +971,51 @@ async def debug_matching():
             "message": f"Debug analysis failed: {str(e)}",
             "data": {}
         }
+
+@app.get("/buckeye/results")
+def get_buckeye_results():
+    """Serve the latest BuckeyeScraper EV results from buckeye_results.json for frontend table population."""
+    try:
+        results_path = os.path.join(os.path.dirname(__file__), 'data', 'buckeye_results.json')
+        if not os.path.exists(results_path):
+            return JSONResponse({
+                "status": "error",
+                "message": "No results file found. Run calculations first.",
+                "data": {"events": [], "total_events": 0}
+            }, status_code=404)
+        with open(results_path, 'r', encoding='utf-8') as f:
+            data = json.load(f)
+        events = data.get("events", [])
+        last_update = data.get("last_run")
+        # Map to frontend columns
+        all_markets = []
+        for event in events:
+            home_team = event.get("event", "").split(" vs ")[0] if " vs " in event.get("event", "") else event.get("event", "")
+            away_team = event.get("event", "").split(" vs ")[1] if " vs " in event.get("event", "") else ""
+            league = event.get("league", "")
+            for market in [event]:  # Each event is already a market row
+                all_markets.append({
+                    "matchup": f"{home_team} vs {away_team}",
+                    "league": league,
+                    "bet": f"{market.get('bet_type', '')} - {market.get('bet', '')}",
+                    "betbck_odds": market.get("betbck_odds", ""),
+                    "pinnacle_nvp": market.get("pin_nvp", ""),
+                    "ev": market.get("ev", ""),
+                    "start_time": market.get("start_time", "")
+                })
+        return JSONResponse({
+            "status": "success",
+            "data": {
+                "markets": all_markets,
+                "last_update": last_update
+            }
+        })
+    except Exception as e:
+        logger.error(f"Error getting BuckeyeScraper results: {e}")
+        return JSONResponse({
+            "status": "error",
+            "message": str(e)
+        }, status_code=500)
 
 if __name__ == "__main__":
     import uvicorn

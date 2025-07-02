@@ -183,9 +183,11 @@ def calculate_ev_table(matched_games: List[Dict[str, Any]]) -> List[Dict[str, An
             pin_ml_home_dec = ml.get('nvp_home')
             pin_ml_away_dec = ml.get('nvp_away')
             pin_ml_draw_dec = ml.get('nvp_draw')
-            bck_ml_home_am = betbck_odds_data.get('site_top_team_moneyline_american')
-            bck_ml_away_am = betbck_odds_data.get('site_bottom_team_moneyline_american')
+            # Use explicitly mapped odds from matching step
+            bck_ml_home_am = matched_event.get('betbck_home_odds')
+            bck_ml_away_am = matched_event.get('betbck_away_odds')
             bck_ml_draw_am = betbck_odds_data.get('draw_moneyline_american')
+            logger.info(f"[MAPPING-EV] Event: {home_team} vs {away_team} | BetBCK home odds: {bck_ml_home_am}, away odds: {bck_ml_away_am}")
             bck_ml_home_dec = american_to_decimal(bck_ml_home_am)
             bck_ml_away_dec = american_to_decimal(bck_ml_away_am)
             bck_ml_draw_dec = american_to_decimal(bck_ml_draw_am)
@@ -240,68 +242,107 @@ def calculate_ev_table(matched_games: List[Dict[str, Any]]) -> List[Dict[str, An
             # --- Spreads ---
             pin_spreads = period_0_data.get('spreads', {})
             if isinstance(pin_spreads, dict):
+                # Robust mapping for spreads
                 for bck_spread_info in betbck_odds_data.get('site_top_team_spreads', []):
                     bck_line = bck_spread_info.get('line')
                     bck_odds_am = bck_spread_info.get('odds')
-                    bck_odds_dec = american_to_decimal(bck_odds_am)
-                    pin_market_key = str(bck_line)
-                    if bck_line == "0": pin_market_key = "0.0"
-                    pin_spread_market = pin_spreads.get(pin_market_key)
-                    if not pin_spread_market and "." not in pin_market_key:
-                        pin_spread_market = pin_spreads.get(f"{pin_market_key}.0")
-                    if pin_spread_market and isinstance(pin_spread_market, dict):
-                        nvp_spreads = [pin_spread_market.get('nvp_home'), pin_spread_market.get('nvp_away')]
-                        nvp_pin_home_spread = nvp_spreads[0] if nvp_spreads and len(nvp_spreads) > 0 else None
-                        ev = (bck_odds_dec / nvp_pin_home_spread - 1.0) if bck_odds_dec and nvp_pin_home_spread and nvp_pin_home_spread > 1.0001 else None
+                    bck_team_raw = bck_spread_info.get('team') or matched_event.get('betbck_home_team')
+                    bck_team_norm = matched_event.get('normalized_betbck_home')
+                    # Map to event home/away
+                    mapped_team = None
+                    nvp_pin_spread = None
+                    pin_spread_key = str(bck_line)
+                    if pin_spread_key == "0": pin_spread_key = "0.0"
+                    pin_spread_market = pin_spreads.get(pin_spread_key) or pin_spreads.get(f"{pin_spread_key}.0")
+                    # Try negative and float conversion if not found
+                    if not pin_spread_market:
+                        try:
+                            neg_key = str(-float(bck_line))
+                            pin_spread_market = pin_spreads.get(neg_key) or pin_spreads.get(f"{neg_key}.0")
+                        except Exception:
+                            pass
+                    if not pin_spread_market and "." in pin_spread_key:
+                        try:
+                            float_key = str(float(pin_spread_key))
+                            pin_spread_market = pin_spreads.get(float_key)
+                        except Exception:
+                            pass
+                    if bck_team_norm == matched_event.get('normalized_pinnacle_home'):
+                        mapped_team = home_team
+                        if pin_spread_market and isinstance(pin_spread_market, dict):
+                            nvp_pin_spread = pin_spread_market.get('nvp_home')
+                    elif bck_team_norm == matched_event.get('normalized_pinnacle_away'):
+                        mapped_team = away_team
+                        if pin_spread_market and isinstance(pin_spread_market, dict):
+                            nvp_pin_spread = pin_spread_market.get('nvp_away')
+                    if mapped_team and nvp_pin_spread and isinstance(nvp_pin_spread, (int, float)) and nvp_pin_spread > 1.0001:
+                        ev = (american_to_decimal(bck_odds_am) / nvp_pin_spread - 1.0) if bck_odds_am else None
                         if ev is not None:
                             all_bets_with_ev.append({
                                 'sport': sport,
                                 'event': event_name,
-                                'bet': f"{home_team} {bck_line}",
+                                'bet': f"{mapped_team} {bck_line}",
                                 'bet_type': 'Spread',
                                 'betbck_odds': bck_odds_am,
-                                'pin_nvp': decimal_to_american(nvp_pin_home_spread),
+                                'pin_nvp': decimal_to_american(nvp_pin_spread),
                                 'ev': f"{ev*100:.2f}%",
                                 'ev_val': ev,
                                 'start_time': start_time_fmt,
                                 'league': league,
-                                'max_bet': pin_spread_market.get('max'),
+                                'max_bet': pin_spread_market.get('max') if pin_spread_market else None,
                                 'event_id': event_id
                             })
+                    else:
+                        logger.warning(f"[MAPPING-SPREAD] Skipping: Could not confidently map or missing/invalid NVP for BetBCK spread team '{bck_team_raw}' (norm: '{bck_team_norm}') line '{bck_line}' to event home/away: home='{matched_event.get('normalized_pinnacle_home')}', away='{matched_event.get('normalized_pinnacle_away')}', NVP={nvp_pin_spread}")
                 for bck_spread_info in betbck_odds_data.get('site_bottom_team_spreads', []):
                     bck_line = bck_spread_info.get('line')
                     bck_odds_am = bck_spread_info.get('odds')
-                    bck_odds_dec = american_to_decimal(bck_odds_am)
-                    try:
-                        bck_line_val = float(bck_line)
-                        pin_hdp_for_bck_away_line = str(-bck_line_val)
-                    except Exception:
-                        pin_hdp_for_bck_away_line = None
-                    if pin_hdp_for_bck_away_line and pin_hdp_for_bck_away_line.endswith(".0"):
-                        pin_hdp_for_bck_away_line = pin_hdp_for_bck_away_line[:-2]
-                    if pin_hdp_for_bck_away_line == "0": pin_hdp_for_bck_away_line = "0.0"
-                    pin_spread_market = pin_spreads.get(pin_hdp_for_bck_away_line)
-                    if not pin_spread_market and pin_hdp_for_bck_away_line and "." not in pin_hdp_for_bck_away_line:
-                        pin_spread_market = pin_spreads.get(f"{pin_hdp_for_bck_away_line}.0")
-                    if pin_spread_market and isinstance(pin_spread_market, dict):
-                        nvp_spreads = [pin_spread_market.get('nvp_home'), pin_spread_market.get('nvp_away')]
-                        nvp_pin_away_spread = nvp_spreads[1] if nvp_spreads and len(nvp_spreads) > 1 else None
-                        ev = (bck_odds_dec / nvp_pin_away_spread - 1.0) if bck_odds_dec and nvp_pin_away_spread and nvp_pin_away_spread > 1.0001 else None
+                    bck_team_raw = bck_spread_info.get('team') or matched_event.get('betbck_away_team')
+                    bck_team_norm = matched_event.get('normalized_betbck_away')
+                    mapped_team = None
+                    nvp_pin_spread = None
+                    pin_spread_key = str(bck_line)
+                    if pin_spread_key == "0": pin_spread_key = "0.0"
+                    pin_spread_market = pin_spreads.get(pin_spread_key) or pin_spreads.get(f"{pin_spread_key}.0")
+                    if not pin_spread_market:
+                        try:
+                            neg_key = str(-float(bck_line))
+                            pin_spread_market = pin_spreads.get(neg_key) or pin_spreads.get(f"{neg_key}.0")
+                        except Exception:
+                            pass
+                    if not pin_spread_market and "." in pin_spread_key:
+                        try:
+                            float_key = str(float(pin_spread_key))
+                            pin_spread_market = pin_spreads.get(float_key)
+                        except Exception:
+                            pass
+                    if bck_team_norm == matched_event.get('normalized_pinnacle_home'):
+                        mapped_team = home_team
+                        if pin_spread_market and isinstance(pin_spread_market, dict):
+                            nvp_pin_spread = pin_spread_market.get('nvp_home')
+                    elif bck_team_norm == matched_event.get('normalized_pinnacle_away'):
+                        mapped_team = away_team
+                        if pin_spread_market and isinstance(pin_spread_market, dict):
+                            nvp_pin_spread = pin_spread_market.get('nvp_away')
+                    if mapped_team and nvp_pin_spread and isinstance(nvp_pin_spread, (int, float)) and nvp_pin_spread > 1.0001:
+                        ev = (american_to_decimal(bck_odds_am) / nvp_pin_spread - 1.0) if bck_odds_am else None
                         if ev is not None:
                             all_bets_with_ev.append({
                                 'sport': sport,
                                 'event': event_name,
-                                'bet': f"{away_team} {bck_line}",
+                                'bet': f"{mapped_team} {bck_line}",
                                 'bet_type': 'Spread',
                                 'betbck_odds': bck_odds_am,
-                                'pin_nvp': decimal_to_american(nvp_pin_away_spread),
+                                'pin_nvp': decimal_to_american(nvp_pin_spread),
                                 'ev': f"{ev*100:.2f}%",
                                 'ev_val': ev,
                                 'start_time': start_time_fmt,
                                 'league': league,
-                                'max_bet': pin_spread_market.get('max'),
+                                'max_bet': pin_spread_market.get('max') if pin_spread_market else None,
                                 'event_id': event_id
                             })
+                    else:
+                        logger.warning(f"[MAPPING-SPREAD] Skipping: Could not confidently map or missing/invalid NVP for BetBCK spread team '{bck_team_raw}' (norm: '{bck_team_norm}') line '{bck_line}' to event home/away: home='{matched_event.get('normalized_pinnacle_home')}', away='{matched_event.get('normalized_pinnacle_away')}', NVP={nvp_pin_spread}")
             # --- Totals ---
             pin_totals = period_0_data.get('totals', {})
             if isinstance(pin_totals, dict):
@@ -367,6 +408,8 @@ def calculate_ev_table(matched_games: List[Dict[str, Any]]) -> List[Dict[str, An
             import traceback
             logger.error(traceback.format_exc())
             continue
+    # Filter out any bet with ev_val > 0.15 (15%)
+    all_bets_with_ev = [bet for bet in all_bets_with_ev if abs(bet.get('ev_val', 0)) <= 0.15]
     # Sort by EV descending
     all_bets_with_ev.sort(key=lambda x: x.get('ev_val', 0), reverse=True)
     return all_bets_with_ev
