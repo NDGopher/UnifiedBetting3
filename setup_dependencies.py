@@ -164,15 +164,15 @@ def setup_frontend():
         except Exception as e:
             print_status(f"Warning: Could not remove bun.lock: {e}", "WARNING")
     
-    # Install dependencies
-    if not run_command("npm install", cwd=frontend_dir):
+    # Install dependencies with PowerShell execution policy bypass
+    if not run_command("powershell -ExecutionPolicy Bypass -Command \"npm install\"", cwd=frontend_dir):
         print_status("Failed to install frontend dependencies", "ERROR")
         return False
     
     # Verify key dependencies are installed
     if not (frontend_dir / "node_modules" / "dayjs").exists():
         print_status("dayjs not found after install, trying to install it specifically...", "WARNING")
-        if not run_command("npm install dayjs", cwd=frontend_dir):
+        if not run_command("powershell -ExecutionPolicy Bypass -Command \"npm install dayjs\"", cwd=frontend_dir):
             print_status("Failed to install dayjs dependency", "ERROR")
             return False
     

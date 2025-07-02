@@ -638,15 +638,15 @@ def setup_frontend():
             except Exception as e:
                 print_status(f"Warning: Could not remove bun.lock: {e}", "WARNING", Colors.YELLOW)
         
-        # Install dependencies
-        install_result = run_command("npm install", cwd=frontend_dir, silent=False)
+        # Install dependencies with PowerShell execution policy bypass
+        install_result = run_command("powershell -ExecutionPolicy Bypass -Command \"npm install\"", cwd=frontend_dir, silent=False)
         if install_result.wait() != 0:
             raise Exception("Failed to install frontend dependencies")
         
         # Verify key dependencies are installed
         if not (frontend_dir / "node_modules" / "dayjs").exists():
             print_status("⚠️ dayjs not found after install, trying to install it specifically...", "WARNING", Colors.YELLOW)
-            dayjs_result = run_command("npm install dayjs", cwd=frontend_dir, silent=False)
+            dayjs_result = run_command("powershell -ExecutionPolicy Bypass -Command \"npm install dayjs\"", cwd=frontend_dir, silent=False)
             if dayjs_result.wait() != 0:
                 raise Exception("Failed to install dayjs dependency")
         
@@ -948,7 +948,7 @@ def launch_application():
         env = os.environ.copy()
         env['PORT'] = str(frontend_port)
         frontend_process = subprocess.Popen(
-            "npm start",
+            "powershell -ExecutionPolicy Bypass -Command \"npm start\"",
             cwd=frontend_dir,
             shell=True,
             env=env,
@@ -1008,24 +1008,53 @@ def launch_application():
         # Wait for frontend to be actually ready
         frontend_ready = False
         start_time = time.time()
-        while time.time() - start_time < 30 and not frontend_ready:
+        while time.time() - start_time < 90 and not frontend_ready:  # Increased to 90 seconds for React compilation
             try:
                 with socket.socket(socket.AF_INET, socket.SOCK_STREAM) as s:
+                    s.settimeout(2)  # 2 second timeout for connection
                     s.connect(('localhost', frontend_port))
                     frontend_ready = True
                     break
             except:
-                time.sleep(1)
+                time.sleep(2)  # Check every 2 seconds
         
         if not frontend_ready:
-            print_status("Frontend failed to start within 30 seconds", "ERROR", Colors.RED)
+            print_status("Frontend failed to start within 90 seconds", "ERROR", Colors.RED)
+            print_status("This might be due to React compilation taking too long. Trying to clean up and retry...", "WARNING", Colors.YELLOW)
             frontend_process.terminate()
+            
+            # Try to clean up Bun-related issues
+            try:
+                frontend_dir = project_dir / "frontend"
+                bun_lock = frontend_dir / "bun.lock"
+                if bun_lock.exists():
+                    bun_lock.unlink()
+                    print_status("Removed bun.lock file", "INFO", Colors.CYAN)
+            except Exception as e:
+                print_status(f"Could not clean up Bun files: {e}", "WARNING", Colors.YELLOW)
+            
             raise Exception("Frontend startup timeout")
+        
+        # Additional check: verify frontend is actually serving content
+        print_status("🔍 Verifying frontend is serving content...", "INFO", Colors.BLUE)
+        try:
+            import urllib.request
+            import urllib.error
+            req = urllib.request.Request(f'http://localhost:{frontend_port}')
+            req.add_header('User-Agent', 'Mozilla/5.0')
+            with urllib.request.urlopen(req, timeout=10) as response:
+                if response.getcode() == 200:
+                    print_status("✅ Frontend is serving content successfully", "SUCCESS", Colors.GREEN)
+                else:
+                    print_status(f"⚠️ Frontend responded with status {response.getcode()}", "WARNING", Colors.YELLOW)
+        except Exception as e:
+            print_status(f"⚠️ Could not verify frontend content: {e}", "WARNING", Colors.YELLOW)
+            print_status("💡 Frontend might still be compiling, try accessing it manually", "INFO", Colors.CYAN)
         
         # Wait for frontend to actually compile successfully
         print_status("⏳ Waiting for frontend to compile...", "INFO", Colors.YELLOW)
-        if not frontend_ready_flag.wait(timeout=60):  # Wait up to 60 seconds for compilation
-            print_status("Frontend compilation timeout", "WARNING", Colors.YELLOW)
+        if not frontend_ready_flag.wait(timeout=120):  # Wait up to 120 seconds for compilation
+            print_status("Frontend compilation timeout - but server might still be working", "WARNING", Colors.YELLOW)
         
         # Wait for PTO to actually be monitoring props
         print_status("⏳ Waiting for PTO to start monitoring...", "INFO", Colors.YELLOW)
