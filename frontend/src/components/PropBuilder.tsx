@@ -90,20 +90,21 @@ const PropBuilder: React.FC = () => {
 
   const API_BASE = "http://localhost:5001";
 
-  const getSportEmoji = (sport: string): React.ReactElement => {
+  const getSportEmoji = (sport: string, size: number = 24): React.ReactElement => {
     const sportLower = sport.toLowerCase();
+    const iconProps = { sx: { fontSize: size } };
     if (sportLower.includes("nba") || sportLower.includes("wnba"))
-      return <SportsBasketball />;
-    if (sportLower.includes("mlb")) return <SportsBaseball />;
-    if (sportLower.includes("nfl")) return <SportsFootball />;
-    if (sportLower.includes("nhl")) return <SportsHockey />;
+      return <SportsBasketball {...iconProps} />;
+    if (sportLower.includes("mlb")) return <SportsBaseball {...iconProps} />;
+    if (sportLower.includes("nfl")) return <SportsFootball {...iconProps} />;
+    if (sportLower.includes("nhl")) return <SportsHockey {...iconProps} />;
     if (
       sportLower.includes("soccer") ||
       sportLower.includes("futbol") ||
       sportLower.includes("football")
     )
-      return <SportsSoccer />;
-    return <Casino />;
+      return <SportsSoccer {...iconProps} />;
+    return <Casino {...iconProps} />;
   };
 
   const fetchPTOData = useCallback(async (isManual = false) => {
@@ -274,6 +275,7 @@ const PropBuilder: React.FC = () => {
     'draftkings': 'draftkings.png',
     'FanDuel': 'fanduel.png',
     'fanduel': 'fanduel.png',
+    'FD': 'fanduel.png',
     'Pinnacle': 'pinnacle.png',
     'pinnacle': 'pinnacle.png',
   };
@@ -295,6 +297,13 @@ const PropBuilder: React.FC = () => {
     // Add more as needed
     return b;
   };
+
+  // Sort filteredProps by EV% descending
+  const sortedProps = [...filteredProps].sort((a, b) => {
+    const evA = parseFloat(a.prop.ev.replace('%', ''));
+    const evB = parseFloat(b.prop.ev.replace('%', ''));
+    return evB - evA;
+  });
 
   return (
     <Paper
@@ -340,11 +349,24 @@ const PropBuilder: React.FC = () => {
             label="Show Hidden"
             sx={{ ml: 2 }}
           />
+          {/* Status dot and info, compact */}
+          <Box sx={{ display: 'flex', alignItems: 'center', ml: 2, gap: 1, bgcolor: 'transparent' }}>
+            <span
+              style={{
+                display: 'inline-block',
+                width: 12,
+                height: 12,
+                borderRadius: '50%',
+                backgroundColor: scraperStatus?.is_running ? '#43a047' : '#e53935',
+                marginRight: 6,
+              }}
+            />
+            <Typography variant="body2" sx={{ color: scraperStatus?.is_running ? '#43a047' : '#e53935', fontWeight: 600 }}>
+              {scraperStatus?.is_running ? 'Running' : 'Stopped'}
+            </Typography>
+          </Box>
         </Box>
       </Box>
-
-      {/* Compact Status Alert */}
-      {/* Removed Alert status bar to avoid duplicate status bars */}
 
       {/* Error Display */}
       {error && (
@@ -375,39 +397,9 @@ const PropBuilder: React.FC = () => {
           overflow: "hidden",
         }}
       >
-        {/* Single status bar, dark gray background, green/red dot, no check mark */}
-        <Box
-          sx={{
-            bgcolor: '#23272f',
-            color: scraperStatus?.is_running ? '#43a047' : '#e53935',
-            borderRadius: 2,
-            px: 2,
-            py: 1,
-            mb: 2,
-            fontWeight: 500,
-            fontSize: '0.95rem',
-            display: 'flex',
-            alignItems: 'center',
-            gap: 1,
-          }}
-        >
-          <span
-            style={{
-              display: 'inline-block',
-              width: 12,
-              height: 12,
-              borderRadius: '50%',
-              backgroundColor: scraperStatus?.is_running ? '#43a047' : '#e53935',
-              marginRight: 8,
-            }}
-          />
-          {scraperStatus?.is_running ? 'Running' : 'Stopped'} |
-          Props: {scraperStatus?.total_props ?? 0} |
-          Last: {scraperStatus ? new Date(scraperStatus.last_refresh * 1000).toLocaleTimeString() : '--:--:--'}
-        </Box>
         {filteredProps.length > 0 ? (
           <Grid container spacing={2}>
-            {filteredProps.map((propObj, idx) => {
+            {sortedProps.map((propObj, idx) => {
               const prop = propObj.prop;
               const propId = prop.propDesc + (prop.teams?.join('-') || '');
               // Debug: log the full prop object and books field
@@ -415,16 +407,14 @@ const PropBuilder: React.FC = () => {
               console.log('prop.books:', (prop as any).books);
               return (
                 <Grid item xs={12} md={6} lg={4} key={propId}>
-                  <Paper sx={{ p: 2, borderRadius: 3, boxShadow: 4, mb: 2, background: '#181c24', position: 'relative' }}>
-                    <Box sx={{ display: 'flex', alignItems: 'flex-start', justifyContent: 'space-between' }}>
+                  <Paper sx={{ p: 2, borderRadius: 3, boxShadow: 4, mb: 2, background: '#181c24', position: 'relative', minHeight: 220 }}>
+                    {/* Delete icon absolute top right */}
+                    <IconButton size="small" sx={{ position: 'absolute', top: 8, right: 8, zIndex: 2 }} onClick={() => handleHideProp(propId)}><Delete fontSize="small" /></IconButton>
+                    <Box sx={{ display: 'flex', alignItems: 'center', justifyContent: 'space-between', height: '100%' }}>
                       {/* Left: Main Info */}
                       <Box sx={{ flex: 1, minWidth: 0 }}>
-                        <Box sx={{ display: 'flex', alignItems: 'center', mb: 1 }}>
-                          {getSportEmoji(prop.sport)}
-                          <Typography variant="subtitle1" sx={{ ml: 1, fontWeight: 600 }}>{prop.teams?.join(' vs ')}</Typography>
-                          <Typography variant="body2" sx={{ ml: 2, color: 'gray' }}>{prop.gameTime}</Typography>
-                          <IconButton size="small" sx={{ ml: 'auto' }} onClick={() => handleHideProp(propId)}><Delete fontSize="small" /></IconButton>
-                        </Box>
+                        <Typography variant="subtitle2" sx={{ fontWeight: 600, fontSize: '1em', mb: 0.2, pr: 2, wordBreak: 'break-word' }}>{prop.teams?.join(' vs ')}</Typography>
+                        <Typography variant="body2" sx={{ color: 'gray', mb: 0.5 }}>{prop.gameTime}</Typography>
                         <Box sx={{ mb: 1 }}>
                           <Typography variant="body2" sx={{ fontWeight: 500 }}>{prop.propDesc}</Typography>
                           {prop.betType && (
@@ -437,12 +427,11 @@ const PropBuilder: React.FC = () => {
                             )}
                           </Box>
                         </Box>
-                        <Box sx={{ mt: 1 }}>
-                          <Box sx={{ display: 'flex', alignItems: 'center' }}>
-                            <Typography variant="body2" sx={{ mr: 1 }}>Width:</Typography>
-                            <Typography variant="body2" sx={{ fontWeight: 700 }}>{prop.width}</Typography>
-                          </Box>
-                          <Box sx={{ display: 'flex', alignItems: 'center', mt: 0.5 }}>
+                        <Box sx={{ mt: 1, display: 'flex', alignItems: 'center', gap: 1 }}>
+                          <Typography variant="body2" sx={{ mr: 0.5 }}>Width:</Typography>
+                          <Typography variant="body2" sx={{ fontWeight: 700 }}>{prop.width}</Typography>
+                          {/* Book icons */}
+                          <Box sx={{ display: 'flex', alignItems: 'center', ml: 1 }}>
                             {prop.books && prop.books.length > 0 ? (
                               prop.books.map((book: string, idx: number) => {
                                 const iconFile = bookIconMap[book] || bookIconMap[book.toLowerCase()];
@@ -465,24 +454,28 @@ const PropBuilder: React.FC = () => {
                         </Box>
                       </Box>
                       {/* Right: EV% */}
-                      <Box sx={{ display: 'flex', flexDirection: 'column', alignItems: 'flex-end', minWidth: 70, ml: 2, flexShrink: 0 }}>
-                        <Typography variant="caption" sx={{ color: 'gray', mb: 0.5, fontWeight: 500 }}>EV</Typography>
+                      <Box sx={{ display: 'flex', flexDirection: 'column', alignItems: 'center', minWidth: 60, ml: 2, flexShrink: 0, justifyContent: 'center', height: '100%' }}>
+                        <Typography variant="caption" sx={{ color: 'gray', mb: 0.2, fontWeight: 500, textAlign: 'center', width: '100%' }}>EV</Typography>
                         <Box sx={{
                           bgcolor: '#23272f',
                           border: '2px solid #43a047',
-                          borderRadius: 2,
-                          px: 2,
-                          py: 0.5,
-                          minWidth: 56,
+                          borderRadius: 1.5,
+                          px: 1.5,
+                          py: 0.2,
+                          minWidth: 40,
                           display: 'flex',
                           justifyContent: 'center',
                           alignItems: 'center',
-                          mb: 1,
+                          mb: 0.5,
                         }}>
-                          <Typography variant="h5" sx={{ color: '#43a047', fontWeight: 700, fontSize: '1.7em', lineHeight: 1 }}>{prop.ev}</Typography>
+                          <Typography variant="h6" sx={{ color: '#43a047', fontWeight: 700, fontSize: '1.15em', lineHeight: 1, textAlign: 'center', width: '100%' }}>{prop.ev}</Typography>
                         </Box>
                         {/* Room for future buttons */}
                       </Box>
+                    </Box>
+                    {/* Sport logo in bottom right corner */}
+                    <Box sx={{ position: 'absolute', bottom: 10, right: 10, zIndex: 1 }}>
+                      {getSportEmoji(prop.sport, 22)}
                     </Box>
                   </Paper>
                 </Grid>

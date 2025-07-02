@@ -333,24 +333,9 @@ const PODAlerts: React.FC = () => {
           <CircularProgress />
         </Box>
       ) : Object.keys(events).length === 0 && !loading && !error && (
-        <Box
-          sx={{
-            width: '100%',
-            minHeight: 56,
-            display: 'flex',
-            alignItems: 'center',
-            justifyContent: 'center',
-            bgcolor: '#23272f',
-            color: '#bdbdbd',
-            borderRadius: 2,
-            fontStyle: 'italic',
-            fontWeight: 500,
-            fontSize: '1rem',
-            mt: 1,
-          }}
-        >
+        <Typography variant="body2" sx={{ color: 'gray', textAlign: 'center', fontStyle: 'italic', mt: 2 }}>
           No active alerts at the moment
-        </Box>
+        </Typography>
       )}
       {activeEvents.length === 0 && Object.keys(events).length !== 0 ? null : (
         <Grid container spacing={2} wrap="wrap">
@@ -360,7 +345,7 @@ const PODAlerts: React.FC = () => {
               const bestEV = getBestEV(event.markets);
               return (
                 <Grid item xs={12} sm={12} md={6} key={eventId} sx={{ maxWidth: 900, width: '100%' }}>
-                  <Paper sx={{ mb: 2, p: 2, background: '#232b3b', borderRadius: 3, boxShadow: 3, maxWidth: 900, width: '100%' }} className="event-container">
+                  <Paper sx={{ p: 2, mb: 3, borderRadius: 3, boxShadow: 4, border: '1.5px solid #2e7d32', background: '#181c24' }} className="event-container">
                     <Box display="flex" justifyContent="space-between" alignItems="center" mb={2}>
                       <Box>
                         <Typography variant="subtitle1" className="event-title">{event.title}</Typography>

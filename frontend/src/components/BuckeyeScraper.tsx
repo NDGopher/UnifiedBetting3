@@ -135,10 +135,13 @@ const BuckeyeScraper: React.FC = () => {
             borderColor: '#43a047',
             borderRadius: 2,
             fontWeight: 600,
-            px: 1.5,
-            py: 0.5,
-            fontSize: '0.95rem',
+            px: 1,
+            py: 0.25,
+            fontSize: '0.92rem',
             minWidth: 0,
+            height: 32,
+            textTransform: 'none',
+            lineHeight: 1.2,
             '&:hover': {
               bgcolor: '#1b2b1b',
               borderColor: '#43a047',
@@ -146,7 +149,7 @@ const BuckeyeScraper: React.FC = () => {
           }}
           onClick={handleGetEventIds}
         >
-          GET EVENT IDS
+          Get Event IDs
         </Button>
         <Button
           variant="outlined"
@@ -156,10 +159,13 @@ const BuckeyeScraper: React.FC = () => {
             borderColor: '#b0b3b8',
             borderRadius: 2,
             fontWeight: 600,
-            px: 1.5,
-            py: 0.5,
-            fontSize: '0.95rem',
+            px: 1,
+            py: 0.25,
+            fontSize: '0.92rem',
             minWidth: 0,
+            height: 32,
+            textTransform: 'none',
+            lineHeight: 1.2,
             '&:hover': {
               bgcolor: '#23272f',
               borderColor: '#b0b3b8',
@@ -167,7 +173,7 @@ const BuckeyeScraper: React.FC = () => {
           }}
           onClick={handleRunCalculations}
         >
-          RUN CALCULATIONS
+          Run Calculations
         </Button>
       </Box>
       {lastUpdate && (
@@ -181,14 +187,14 @@ const BuckeyeScraper: React.FC = () => {
       <TableContainer sx={{ background: 'rgba(34,34,34,0.95)', borderRadius: 2, boxShadow: 0, border: '1px solid rgba(255,255,255,0.07)' }}>
         <Table size="small">
           <TableHead>
-            <TableRow sx={{ background: 'linear-gradient(90deg, #43a047 0%, #23272f 100%)', borderBottom: '2px solid #43a047' }}>
-              <TableCell sx={{ color: '#f4f4f4', fontWeight: 700, fontSize: '1rem', borderBottom: '2px solid #23272f' }}>Matchup</TableCell>
-              <TableCell sx={{ color: '#f4f4f4', fontWeight: 700, fontSize: '1rem', borderBottom: '2px solid #23272f' }}>League</TableCell>
-              <TableCell sx={{ color: '#f4f4f4', fontWeight: 700, fontSize: '1rem', borderBottom: '2px solid #23272f' }}>Bet</TableCell>
-              <TableCell sx={{ color: '#f4f4f4', fontWeight: 700, fontSize: '1rem', borderBottom: '2px solid #23272f' }}>BetBCK Odds</TableCell>
-              <TableCell sx={{ color: '#f4f4f4', fontWeight: 700, fontSize: '1rem', borderBottom: '2px solid #23272f' }}>Pinnacle NVP</TableCell>
-              <TableCell sx={{ color: '#f4f4f4', fontWeight: 700, fontSize: '1rem', borderBottom: '2px solid #23272f' }}>EV</TableCell>
-              <TableCell sx={{ color: '#f4f4f4', fontWeight: 700, fontSize: '1rem', borderBottom: '2px solid #23272f' }}>Start Time</TableCell>
+            <TableRow>
+              <TableCell sx={{ color: '#b0b3b8', fontWeight: 600, fontSize: '1rem' }}>Matchup</TableCell>
+              <TableCell sx={{ color: '#b0b3b8', fontWeight: 600, fontSize: '1rem' }}>League</TableCell>
+              <TableCell sx={{ color: '#b0b3b8', fontWeight: 600, fontSize: '1rem' }}>Bet</TableCell>
+              <TableCell align="center" sx={{ color: '#b0b3b8', fontWeight: 600, fontSize: '1rem' }}>BetBCK Odds</TableCell>
+              <TableCell align="center" sx={{ color: '#b0b3b8', fontWeight: 600, fontSize: '1rem' }}>Pinnacle NVP</TableCell>
+              <TableCell align="center" sx={{ color: '#b0b3b8', fontWeight: 600, fontSize: '1rem' }}>EV</TableCell>
+              <TableCell sx={{ color: '#b0b3b8', fontWeight: 600, fontSize: '1rem' }}>Start Time</TableCell>
             </TableRow>
           </TableHead>
           <TableBody>
@@ -204,10 +210,34 @@ const BuckeyeScraper: React.FC = () => {
                   <TableCell sx={{ color: '#fff', fontWeight: 500 }}>{row.matchup}</TableCell>
                   <TableCell sx={{ color: '#fff', fontWeight: 500 }}>{row.league}</TableCell>
                   <TableCell sx={{ color: '#fff', fontWeight: 500 }}>{row.bet}</TableCell>
-                  <TableCell sx={{ color: '#fff', fontWeight: 500 }}>{row.betbck_odds}</TableCell>
-                  <TableCell sx={{ color: '#fff', fontWeight: 500 }}>{row.pinnacle_nvp}</TableCell>
-                  <TableCell sx={{ color: '#fff', fontWeight: 700 }}>{row.ev}</TableCell>
-                  <TableCell sx={{ color: '#fff', fontWeight: 500 }}>{row.start_time}</TableCell>
+                  <TableCell align="center">
+                    {row.betbck_odds}
+                  </TableCell>
+                  <TableCell align="center">
+                    {row.pinnacle_nvp}
+                  </TableCell>
+                  <TableCell align="center">
+                    {parseFloat(row.ev) > 0 ? (
+                      <Box sx={{
+                        display: 'inline-block',
+                        px: 1.2,
+                        py: 0.2,
+                        border: '2px solid #43a047',
+                        borderRadius: 1.5,
+                        color: '#43a047',
+                        fontWeight: 700,
+                        fontSize: '1em',
+                        bgcolor: '#23272f',
+                      }}>
+                        {row.ev}
+                      </Box>
+                    ) : (
+                      <span>{row.ev}</span>
+                    )}
+                  </TableCell>
+                  <TableCell align="left">
+                    {dayjs(row.start_time).format('M/D/YYYY [at] h:mm A')}
+                  </TableCell>
                 </TableRow>
               ))
             )}
