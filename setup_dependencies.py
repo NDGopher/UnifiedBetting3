@@ -154,6 +154,16 @@ def setup_frontend():
         except Exception as e:
             print_status(f"Warning: Could not clean node_modules: {e}", "WARNING")
     
+    # Clean up any conflicting lock files
+    bun_lock = frontend_dir / "bun.lock"
+    if bun_lock.exists():
+        print_status("Cleaning up conflicting Bun lock file...", "INFO")
+        try:
+            bun_lock.unlink()
+            print_status("Removed bun.lock to prevent conflicts", "SUCCESS")
+        except Exception as e:
+            print_status(f"Warning: Could not remove bun.lock: {e}", "WARNING")
+    
     # Install dependencies
     if not run_command("npm install", cwd=frontend_dir):
         print_status("Failed to install frontend dependencies", "ERROR")

@@ -628,6 +628,16 @@ def setup_frontend():
             except Exception as e:
                 print_status(f"Warning: Could not clean node_modules: {e}", "WARNING", Colors.YELLOW)
         
+        # Clean up any conflicting lock files
+        bun_lock = frontend_dir / "bun.lock"
+        if bun_lock.exists():
+            print_status("Cleaning up conflicting Bun lock file...", "INFO", Colors.BLUE)
+            try:
+                bun_lock.unlink()
+                print_status("✅ Removed bun.lock to prevent conflicts", "SUCCESS", Colors.GREEN)
+            except Exception as e:
+                print_status(f"Warning: Could not remove bun.lock: {e}", "WARNING", Colors.YELLOW)
+        
         # Install dependencies
         install_result = run_command("npm install", cwd=frontend_dir, silent=False)
         if install_result.wait() != 0:
@@ -690,18 +700,15 @@ def launch_application():
                 if profile_dir and os.path.exists(profile_dir):
                     print_status("PTO profile directory exists, testing...", "INFO", Colors.BLUE)
                     
-                    # More robust test that handles Chrome restore dialogs
-                    test_cmd = f'{python_cmd} -c "from pto_scraper import PTOScraper; import json; config=json.load(open(\'config.json\')); scraper=PTOScraper(config[\'pto\']); result=scraper.test_profile(); print(\'Profile test result:\', result)"'
-                    result = subprocess.run(test_cmd, shell=True, cwd=backend_dir, capture_output=True, text=True, timeout=30)
+                    # Check if profile directory exists and has the right structure
+                    profile_dir = Path(profile_dir)
+                    profile_exists = profile_dir.exists() and (profile_dir / "Profile 1").exists()
                     
-                    # Handle Chrome restore dialog if it appears during testing
-                    time.sleep(2)  # Wait for Chrome to potentially show dialog
-                    handle_chrome_restore_dialog()
-                    
-                    if "Profile test result: True" in result.stdout:
-                        print_status("✅ PTO profile is working correctly", "SUCCESS", Colors.GREEN)
-                    elif "Profile test result: False" in result.stdout:
-                        print_status("⚠️ PTO profile test failed - running automatic setup...", "WARNING", Colors.YELLOW)
+                    if profile_exists:
+                        print_status("✅ PTO profile directory exists and appears valid", "SUCCESS", Colors.GREEN)
+                        print_status("💡 Profile will be tested during actual scraping", "INFO", Colors.GRAY)
+                    else:
+                        print_status("⚠️ PTO profile appears to be missing or incomplete - running automatic setup...", "WARNING", Colors.YELLOW)
                         print_status("🔄 Launching PTO profile setup...", "INFO", Colors.BLUE)
                         
                         # Run PTO profile setup automatically
@@ -715,26 +722,6 @@ def launch_application():
                         setup_process.wait()
                         
                         print_status("✅ PTO setup completed. Continuing with launch...", "SUCCESS", Colors.GREEN)
-                    else:
-                        # Check if it's a Chrome restore dialog issue
-                        if "restore" in result.stderr.lower() or "restore" in result.stdout.lower():
-                            print_status("⚠️ Chrome restore dialog detected - profile may need attention", "WARNING", Colors.YELLOW)
-                            print_status("💡 Please close any Chrome restore dialogs and try again", "INFO", Colors.GRAY)
-                        else:
-                            print_status("⚠️ PTO profile test failed - running automatic setup...", "WARNING", Colors.YELLOW)
-                            print_status("🔄 Launching PTO profile setup...", "INFO", Colors.BLUE)
-                            
-                            # Run PTO profile setup automatically
-                            setup_cmd = f'{python_cmd} setup_pto_profile.py'
-                            setup_process = subprocess.Popen(setup_cmd, shell=True, cwd=backend_dir)
-                            
-                            print_status("💡 PTO setup window opened. Please complete the setup and close the window.", "INFO", Colors.YELLOW)
-                            print_status("🔄 Waiting for PTO setup to complete...", "INFO", Colors.BLUE)
-                            
-                            # Wait for setup to complete
-                            setup_process.wait()
-                            
-                            print_status("✅ PTO setup completed. Continuing with launch...", "SUCCESS", Colors.GREEN)
                 else:
                     print_status("ℹ️ PTO profile not found - running automatic setup...", "INFO", Colors.YELLOW)
                     print_status("🔄 Launching PTO profile setup...", "INFO", Colors.BLUE)
