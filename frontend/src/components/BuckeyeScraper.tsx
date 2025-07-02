@@ -1,6 +1,9 @@
 import React, { useState } from 'react';
 import { Box, Button, Typography, Paper, Table, TableBody, TableCell, TableContainer, TableHead, TableRow, CircularProgress, Alert } from '@mui/material';
 import MatchingStats from './MatchingStats';
+import dayjs from 'dayjs';
+import relativeTime from 'dayjs/plugin/relativeTime';
+dayjs.extend(relativeTime);
 
 interface Market {
   market: string;
@@ -32,41 +35,29 @@ const BuckeyeScraper: React.FC = () => {
   const [message, setMessage] = useState<string | null>(null);
   const [topMarkets, setTopMarkets] = useState<any[]>([]);
   const [stats, setStats] = useState({ pinnacleEvents: 0, betbckMatches: 0, matchRate: 0 });
+  const [lastUpdate, setLastUpdate] = useState<string | null>(null);
 
   const fetchEvents = async () => {
     setLoading(true);
     setError(null);
     setMessage(null);
     try {
-      console.log('[BuckeyeScraper] Fetching events...');
-      const res = await fetch(`${API_BASE}/buckeye/events`);
+      console.log('[BuckeyeScraper] Fetching results...');
+      const res = await fetch(`${API_BASE}/buckeye/results`);
       const data = await res.json();
-      console.log('[BuckeyeScraper] Events response:', data);
+      console.log('[BuckeyeScraper] Results response:', data);
       if (data.status === 'success') {
-        setEvents((data.data.events || []));
-        // Flatten all markets with event info, then sort by EV
-        const allMarkets = (data.data.events || []).flatMap((event: BuckeyeEvent) =>
-          (event.markets || []).map((market: Market) => ({
-            matchup: `${event.home_team} vs ${event.away_team}`,
-            league: event.league,
-            bet: `${market.market} - ${market.selection} ${market.line}`,
-            betbck_odds: market.betbck_odds,
-            pinnacle_nvp: market.pinnacle_nvp,
-            ev: market.ev,
-            ev_num: parseFloat((market.ev || '0').replace('%','')),
-          }))
-        );
-        allMarkets.sort((a: any, b: any) => b.ev_num - a.ev_num);
-        setTopMarkets(allMarkets.slice(0, 10));
-        // Update stats if available
-        setStats(s => ({ ...s, pinnacleEvents: data.data.total_events || 0, betbckMatches: data.data.total_matched || 0, matchRate: data.data.match_rate || 0 }));
+        setLastUpdate(data.data.last_update || null);
+        const allMarkets = data.data.markets || [];
+        allMarkets.sort((a: any, b: any) => parseFloat(b.ev) - parseFloat(a.ev));
+        setTopMarkets(allMarkets.length > 0 ? allMarkets.slice(0, 10) : []);
       } else {
-        setError(data.message || 'Failed to fetch events');
+        setError(data.message || 'Failed to fetch results');
         setTopMarkets([]);
       }
     } catch (err) {
-      console.error('[BuckeyeScraper] Error fetching events:', err);
-      setError('Failed to fetch events');
+      console.error('[BuckeyeScraper] Error fetching results:', err);
+      setError('Failed to fetch results');
       setTopMarkets([]);
     } finally {
       setLoading(false);
@@ -165,6 +156,11 @@ const BuckeyeScraper: React.FC = () => {
         <Box sx={{ flexGrow: 1 }} />
         <MatchingStats pinnacleEvents={stats.pinnacleEvents} betbckMatches={stats.betbckMatches} matchRate={stats.matchRate} />
       </Box>
+      {lastUpdate && (
+        <Typography variant="body2" sx={{ color: '#aaa', mb: 1, ml: 1 }}>
+          Last Updated: {dayjs(lastUpdate).format('YYYY-MM-DD HH:mm:ss')} ({dayjs(lastUpdate).fromNow()})
+        </Typography>
+      )}
       {loading && <CircularProgress sx={{ mb: 2 }} />}
       {error && <Alert severity="error" sx={{ mb: 2 }}>{error}</Alert>}
       {message && <Alert severity="success" sx={{ mb: 2 }}>{message}</Alert>}
@@ -178,13 +174,14 @@ const BuckeyeScraper: React.FC = () => {
               <TableCell sx={{ color: '#fff', fontWeight: 700, fontSize: '1rem', borderBottom: '2px solid #222' }}>BetBCK Odds</TableCell>
               <TableCell sx={{ color: '#fff', fontWeight: 700, fontSize: '1rem', borderBottom: '2px solid #222' }}>Pinnacle NVP</TableCell>
               <TableCell sx={{ color: '#fff', fontWeight: 700, fontSize: '1rem', borderBottom: '2px solid #222' }}>EV</TableCell>
+              <TableCell sx={{ color: '#fff', fontWeight: 700, fontSize: '1rem', borderBottom: '2px solid #222' }}>Start Time</TableCell>
             </TableRow>
           </TableHead>
           <TableBody>
-            {topMarkets.length === 0 ? (
+            {topMarkets.length === 0 && !loading && !error ? (
               <TableRow>
-                <TableCell colSpan={6} align="center" sx={{ color: '#888', fontStyle: 'italic' }}>
-                  No data. Click RUN CALCULATIONS to populate.
+                <TableCell colSpan={7} align="center" sx={{ color: '#888', fontStyle: 'italic' }}>
+                  No valid markets found. Click RUN CALCULATIONS to populate or check backend filters.
                 </TableCell>
               </TableRow>
             ) : (
@@ -196,6 +193,7 @@ const BuckeyeScraper: React.FC = () => {
                   <TableCell sx={{ color: '#fff', fontWeight: 500 }}>{row.betbck_odds}</TableCell>
                   <TableCell sx={{ color: '#fff', fontWeight: 500 }}>{row.pinnacle_nvp}</TableCell>
                   <TableCell sx={{ color: '#fff', fontWeight: 700 }}>{row.ev}</TableCell>
+                  <TableCell sx={{ color: '#fff', fontWeight: 500 }}>{row.start_time}</TableCell>
                 </TableRow>
               ))
             )}
