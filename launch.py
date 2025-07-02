@@ -603,13 +603,43 @@ def setup_frontend():
     print_status("=== Setting up Frontend ===", "INFO", Colors.BLUE)
     frontend_dir = Path("frontend")
     
-    # Check if node_modules already exists
-    if (frontend_dir / "node_modules").exists():
+    # Check if package.json exists
+    if not (frontend_dir / "package.json").exists():
+        print_status("package.json not found in frontend directory", "WARNING", Colors.YELLOW)
+        return
+    
+    # Check if node_modules already exists and key dependencies are installed
+    node_modules_exists = (frontend_dir / "node_modules").exists()
+    dayjs_exists = (frontend_dir / "node_modules" / "dayjs").exists() if node_modules_exists else False
+    
+    if node_modules_exists and dayjs_exists:
         print_status("✅ Frontend dependencies already installed", "SUCCESS", Colors.GREEN)
     else:
         print_status("Installing frontend dependencies...", "INFO", Colors.BLUE)
-        if run_command("npm install", cwd=frontend_dir, silent=True).wait() != 0:
+        print_status("💡 This may take a few minutes...", "INFO", Colors.YELLOW)
+        
+        # Force clean install to ensure all dependencies are properly installed
+        if node_modules_exists:
+            print_status("Cleaning existing node_modules for fresh install...", "INFO", Colors.BLUE)
+            import shutil
+            try:
+                shutil.rmtree(frontend_dir / "node_modules")
+                print_status("✅ Cleaned existing node_modules", "SUCCESS", Colors.GREEN)
+            except Exception as e:
+                print_status(f"Warning: Could not clean node_modules: {e}", "WARNING", Colors.YELLOW)
+        
+        # Install dependencies
+        install_result = run_command("npm install", cwd=frontend_dir, silent=False)
+        if install_result.wait() != 0:
             raise Exception("Failed to install frontend dependencies")
+        
+        # Verify key dependencies are installed
+        if not (frontend_dir / "node_modules" / "dayjs").exists():
+            print_status("⚠️ dayjs not found after install, trying to install it specifically...", "WARNING", Colors.YELLOW)
+            dayjs_result = run_command("npm install dayjs", cwd=frontend_dir, silent=False)
+            if dayjs_result.wait() != 0:
+                raise Exception("Failed to install dayjs dependency")
+        
         print_status("✅ Frontend dependencies installed successfully", "SUCCESS", Colors.GREEN)
 
 def wait_for_backend(port=5001, timeout=30):
@@ -671,25 +701,85 @@ def launch_application():
                     if "Profile test result: True" in result.stdout:
                         print_status("✅ PTO profile is working correctly", "SUCCESS", Colors.GREEN)
                     elif "Profile test result: False" in result.stdout:
-                        print_status("⚠️ PTO profile test failed - may need setup", "WARNING", Colors.YELLOW)
-                        print_status("💡 You can run 'python setup_pto_profile.py' in the backend directory to fix this", "INFO", Colors.GRAY)
+                        print_status("⚠️ PTO profile test failed - running automatic setup...", "WARNING", Colors.YELLOW)
+                        print_status("🔄 Launching PTO profile setup...", "INFO", Colors.BLUE)
+                        
+                        # Run PTO profile setup automatically
+                        setup_cmd = f'{python_cmd} setup_pto_profile.py'
+                        setup_process = subprocess.Popen(setup_cmd, shell=True, cwd=backend_dir)
+                        
+                        print_status("💡 PTO setup window opened. Please complete the setup and close the window.", "INFO", Colors.YELLOW)
+                        print_status("🔄 Waiting for PTO setup to complete...", "INFO", Colors.BLUE)
+                        
+                        # Wait for setup to complete
+                        setup_process.wait()
+                        
+                        print_status("✅ PTO setup completed. Continuing with launch...", "SUCCESS", Colors.GREEN)
                     else:
                         # Check if it's a Chrome restore dialog issue
                         if "restore" in result.stderr.lower() or "restore" in result.stdout.lower():
                             print_status("⚠️ Chrome restore dialog detected - profile may need attention", "WARNING", Colors.YELLOW)
                             print_status("💡 Please close any Chrome restore dialogs and try again", "INFO", Colors.GRAY)
                         else:
-                            print_status("⚠️ PTO profile test failed - will need setup", "WARNING", Colors.YELLOW)
-                            print_status("💡 You can run 'python setup_pto_profile.py' in the backend directory to fix this", "INFO", Colors.GRAY)
+                            print_status("⚠️ PTO profile test failed - running automatic setup...", "WARNING", Colors.YELLOW)
+                            print_status("🔄 Launching PTO profile setup...", "INFO", Colors.BLUE)
+                            
+                            # Run PTO profile setup automatically
+                            setup_cmd = f'{python_cmd} setup_pto_profile.py'
+                            setup_process = subprocess.Popen(setup_cmd, shell=True, cwd=backend_dir)
+                            
+                            print_status("💡 PTO setup window opened. Please complete the setup and close the window.", "INFO", Colors.YELLOW)
+                            print_status("🔄 Waiting for PTO setup to complete...", "INFO", Colors.BLUE)
+                            
+                            # Wait for setup to complete
+                            setup_process.wait()
+                            
+                            print_status("✅ PTO setup completed. Continuing with launch...", "SUCCESS", Colors.GREEN)
                 else:
-                    print_status("ℹ️ PTO profile not found - will need setup", "INFO", Colors.YELLOW)
-                    print_status("💡 You can run 'python setup_pto_profile.py' in the backend directory to set it up", "INFO", Colors.GRAY)
+                    print_status("ℹ️ PTO profile not found - running automatic setup...", "INFO", Colors.YELLOW)
+                    print_status("🔄 Launching PTO profile setup...", "INFO", Colors.BLUE)
+                    
+                    # Run PTO profile setup automatically
+                    setup_cmd = f'{python_cmd} setup_pto_profile.py'
+                    setup_process = subprocess.Popen(setup_cmd, shell=True, cwd=backend_dir)
+                    
+                    print_status("💡 PTO setup window opened. Please complete the setup and close the window.", "INFO", Colors.YELLOW)
+                    print_status("🔄 Waiting for PTO setup to complete...", "INFO", Colors.BLUE)
+                    
+                    # Wait for setup to complete
+                    setup_process.wait()
+                    
+                    print_status("✅ PTO setup completed. Continuing with launch...", "SUCCESS", Colors.GREEN)
             except Exception as e:
                 print_status(f"Error checking PTO profile: {e}", "ERROR", Colors.RED)
-                print_status("💡 You can run 'python setup_pto_profile.py' in the backend directory to set it up", "INFO", Colors.GRAY)
+                print_status("🔄 Running automatic PTO setup...", "INFO", Colors.BLUE)
+                
+                # Run PTO profile setup automatically
+                setup_cmd = f'{python_cmd} setup_pto_profile.py'
+                setup_process = subprocess.Popen(setup_cmd, shell=True, cwd=backend_dir)
+                
+                print_status("💡 PTO setup window opened. Please complete the setup and close the window.", "INFO", Colors.YELLOW)
+                print_status("🔄 Waiting for PTO setup to complete...", "INFO", Colors.BLUE)
+                
+                # Wait for setup to complete
+                setup_process.wait()
+                
+                print_status("✅ PTO setup completed. Continuing with launch...", "SUCCESS", Colors.GREEN)
         else:
-            print_status("config.json not found, PTO setup will be needed", "WARNING", Colors.YELLOW)
-            print_status("💡 You can run 'python setup_pto_profile.py' in the backend directory to set it up", "INFO", Colors.GRAY)
+            print_status("config.json not found - running automatic PTO setup...", "WARNING", Colors.YELLOW)
+            print_status("🔄 Launching PTO profile setup...", "INFO", Colors.BLUE)
+            
+            # Run PTO profile setup automatically
+            setup_cmd = f'{python_cmd} setup_pto_profile.py'
+            setup_process = subprocess.Popen(setup_cmd, shell=True, cwd=backend_dir)
+            
+            print_status("💡 PTO setup window opened. Please complete the setup and close the window.", "INFO", Colors.YELLOW)
+            print_status("🔄 Waiting for PTO setup to complete...", "INFO", Colors.BLUE)
+            
+            # Wait for setup to complete
+            setup_process.wait()
+            
+            print_status("✅ PTO setup completed. Continuing with launch...", "SUCCESS", Colors.GREEN)
         
         # Continue with the rest of the launch sequence
         print_status("🔍 Checking for existing processes...", "INFO", Colors.BLUE)

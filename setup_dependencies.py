@@ -127,21 +127,44 @@ def setup_frontend():
         print_status("Frontend directory not found!", "ERROR")
         return False
     
-    # Check if node_modules already exists
-    if (frontend_dir / "node_modules").exists():
-        print_status("Frontend dependencies already installed", "SUCCESS")
-        return True
-    
     # Check if package.json exists
     if not (frontend_dir / "package.json").exists():
         print_status("package.json not found in frontend directory", "WARNING")
         return True
     
+    # Check if node_modules already exists and key dependencies are installed
+    node_modules_exists = (frontend_dir / "node_modules").exists()
+    dayjs_exists = (frontend_dir / "node_modules" / "dayjs").exists() if node_modules_exists else False
+    
+    if node_modules_exists and dayjs_exists:
+        print_status("Frontend dependencies already installed", "SUCCESS")
+        return True
+    
     # Install dependencies
     print_status("Installing frontend dependencies...", "INFO")
+    print_status("This may take a few minutes...", "INFO")
+    
+    # Force clean install to ensure all dependencies are properly installed
+    if node_modules_exists:
+        print_status("Cleaning existing node_modules for fresh install...", "INFO")
+        import shutil
+        try:
+            shutil.rmtree(frontend_dir / "node_modules")
+            print_status("Cleaned existing node_modules", "SUCCESS")
+        except Exception as e:
+            print_status(f"Warning: Could not clean node_modules: {e}", "WARNING")
+    
+    # Install dependencies
     if not run_command("npm install", cwd=frontend_dir):
         print_status("Failed to install frontend dependencies", "ERROR")
         return False
+    
+    # Verify key dependencies are installed
+    if not (frontend_dir / "node_modules" / "dayjs").exists():
+        print_status("dayjs not found after install, trying to install it specifically...", "WARNING")
+        if not run_command("npm install dayjs", cwd=frontend_dir):
+            print_status("Failed to install dayjs dependency", "ERROR")
+            return False
     
     print_status("Frontend dependencies installed successfully", "SUCCESS")
     return True
