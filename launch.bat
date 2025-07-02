@@ -1,13 +1,31 @@
 @echo off
-REM Unified Betting App Launcher
-REM This batch file launches the app using launch.py, which now always starts the backend with uvicorn for WebSocket support.
-REM No changes needed here unless you want to add more logging or checks.
+echo.
+echo ========================================
+echo   UNIFIED BETTING APP - ONE CLICK
+echo ========================================
+echo.
+echo Starting Unified Betting Application...
+echo.
 
+REM Run the Python launcher
 python launch.py
 
-REM If we get here, the script has exited
-echo.
-echo Application has stopped.
-echo All processes and windows have been cleaned up.
-echo.
+REM If Python launcher fails, try setup first
+if errorlevel 1 (
+    echo.
+    echo Launcher failed. Running setup first...
+    echo.
+    python setup_dependencies.py
+    if errorlevel 1 (
+        echo.
+        echo Setup failed! Please check the errors above.
+        pause
+        exit /b 1
+    )
+    echo.
+    echo Setup completed. Trying launcher again...
+    echo.
+    python launch.py
+)
+
 pause 
