@@ -49,21 +49,29 @@ A comprehensive betting automation platform that combines real-time odds analysi
 ### **Quick Start**
 1. **Clone the repository**
    ```bash
-   git clone <repository-url>
+   git clone https://github.com/NDGopher/UnifiedBetting2.git
    cd UnifiedBetting2
    ```
 
-2. **Launch the application**
+2. **Run the setup script**
    ```bash
-   launch.bat
+   # On Windows:
+   setup_dependencies.bat
+   
+   # On Mac/Linux:
+   python setup_dependencies.py
    ```
 
-That's it! The script will automatically:
-- Install all dependencies
-- Set up virtual environments
-- Start backend and frontend servers
-- Open required browser tabs
-- Launch PTO scraper
+3. **Launch the application**
+   ```bash
+   python launch.py
+   ```
+
+The setup script will automatically:
+- Create a Python virtual environment
+- Install all backend dependencies
+- Install all frontend dependencies
+- Verify everything is working
 
 ### **Manual Setup (Optional)**
 If you prefer manual setup:
@@ -371,4 +379,126 @@ This project is licensed under the MIT License - see the [LICENSE](LICENSE) file
   4. Click **Load unpacked**
   5. Select the folder containing the POD extension
 
-**⚠️ Both extensions must be loaded and enabled in Chrome for the Unified Betting App to function correctly.** 
+**⚠️ Both extensions must be loaded and enabled in Chrome for the Unified Betting App to function correctly.**
+
+## 🔧 Troubleshooting
+
+### Common Issues
+
+#### "No pyvenv.cfg file" Error
+**Problem:** Virtual environment is missing or corrupted.
+
+**Solution:** Run the setup script again:
+```bash
+python setup_dependencies.py
+```
+
+#### "Failed to upgrade pip" Error
+**Problem:** Pip upgrade fails but installation continues.
+
+**Solution:** This is usually harmless. The app will still work. If you want to fix it:
+```bash
+cd backend
+venv\Scripts\python -m pip install --upgrade pip --force-reinstall
+```
+
+#### "Module not found" Errors
+**Problem:** Dependencies not installed properly.
+
+**Solution:** Reinstall dependencies:
+```bash
+cd backend
+venv\Scripts\pip install -r requirements.txt --no-cache-dir
+```
+
+#### Port Already in Use
+**Problem:** Ports 3000 or 5001 are already occupied.
+
+**Solution:** The launcher will automatically find free ports, or manually kill processes:
+```bash
+# Windows
+netstat -ano | findstr :3000
+taskkill /PID <PID> /F
+
+# Mac/Linux
+lsof -ti:3000 | xargs kill -9
+```
+
+#### Chrome Profile Issues
+**Problem:** PTO scraper can't access Chrome profile.
+
+**Solution:** Set up PTO profile:
+```bash
+cd backend
+python setup_pto_profile.py
+```
+
+### Manual Setup (If Automatic Setup Fails)
+
+If the automatic setup fails, you can set up dependencies manually:
+
+#### Backend Setup
+```bash
+cd backend
+python -m venv venv
+venv\Scripts\activate  # Windows
+# OR
+source venv/bin/activate  # Mac/Linux
+pip install -r requirements.txt
+```
+
+#### Frontend Setup
+```bash
+cd frontend
+npm install
+```
+
+### System Requirements
+
+- **Windows 10/11** (recommended) or **Mac/Linux**
+- **8GB RAM** minimum (16GB recommended)
+- **2GB free disk space**
+- **Stable internet connection**
+
+### Getting Help
+
+If you're still having issues:
+
+1. **Check the logs:** Look for error messages in the console output
+2. **Verify prerequisites:** Make sure Python 3.8+ and Node.js 16+ are installed
+3. **Check internet:** Ensure you have a stable internet connection
+4. **Restart:** Sometimes a simple restart fixes issues
+5. **Clean install:** Delete the `backend/venv` and `frontend/node_modules` folders and run setup again
+
+## 📁 Project Structure
+
+```
+UnifiedBetting2/
+├── backend/                 # Python backend
+│   ├── venv/               # Virtual environment (auto-created)
+│   ├── requirements.txt    # Python dependencies
+│   └── ...
+├── frontend/               # React frontend
+│   ├── node_modules/       # Node.js dependencies (auto-created)
+│   ├── package.json        # Frontend dependencies
+│   └── ...
+├── launch.py              # Main launcher script
+├── setup_dependencies.py  # Dependency setup script
+└── setup_dependencies.bat # Windows setup script
+```
+
+## 🔄 Updates
+
+When you pull updates from GitHub:
+
+1. **Run setup again** to ensure dependencies are up to date:
+   ```bash
+   python setup_dependencies.py
+   ```
+
+2. **Launch normally:**
+   ```bash
+   python launch.py
+   ```
+
+The setup script is smart enough to only install what's needed, so it's safe to run multiple times. 

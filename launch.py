@@ -517,10 +517,15 @@ def setup_backend():
     backend_dir = Path("backend")
     
     # Create virtual environment if it doesn't exist
-    if not (backend_dir / "venv").exists():
+    venv_path = backend_dir / "venv"
+    if not venv_path.exists():
         print_status("Creating virtual environment...", "INFO", Colors.BLUE)
-        if run_command("python -m venv venv", cwd=backend_dir).wait() != 0:
+        result = run_command("python -m venv venv", cwd=backend_dir)
+        if result.wait() != 0:
             raise Exception("Failed to create virtual environment")
+        print_status("✅ Virtual environment created successfully", "SUCCESS", Colors.GREEN)
+    else:
+        print_status("✅ Virtual environment already exists", "SUCCESS", Colors.GREEN)
     
     # Activate virtual environment and install dependencies
     if sys.platform == "win32":
@@ -552,8 +557,10 @@ def setup_backend():
             
             # First upgrade pip to avoid warnings (with output)
             print_status("Upgrading pip...", "INFO", Colors.BLUE)
-            if run_command(f"{python_cmd} -m pip install --upgrade pip", cwd=backend_dir, silent=False).wait() != 0:
-                raise Exception("Failed to upgrade pip")
+            pip_upgrade_result = run_command(f"{python_cmd} -m pip install --upgrade pip", cwd=backend_dir, silent=False)
+            if pip_upgrade_result.wait() != 0:
+                print_status("⚠️ Pip upgrade failed, but continuing with installation...", "WARNING", Colors.YELLOW)
+                # Don't fail completely - some systems work fine without pip upgrade
             
             # Then install requirements (with output and timeout)
             print_status("Installing Python packages...", "INFO", Colors.BLUE)
