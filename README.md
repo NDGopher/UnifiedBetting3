@@ -502,3 +502,27 @@ When you pull updates from GitHub:
    ```
 
 The setup script is smart enough to only install what's needed, so it's safe to run multiple times. 
+
+## 🧹 OneDrive Sync Issues & Auto-Cleanup (Windows)
+
+If you use this project inside a OneDrive-synced folder on Windows, you may encounter sync errors due to auto-generated folders like `.config` or `~` (especially inside `node_modules`). These are created by some dependencies and are not needed for backup or sync.
+
+To prevent OneDrive sync issues:
+
+1. **Run the cleanup script:**
+   ```bash
+   python scripts/onedrive_cleanup.py
+   ```
+   This will safely remove problematic folders/files that OneDrive can't sync. It will not touch your source code or important files.
+
+2. **When to run:**
+   - After running `npm install` or updating dependencies
+   - Before committing or pushing code
+   - Whenever you see OneDrive sync errors about `.config` or `~` folders
+
+3. **What it does:**
+   - Recursively deletes `.config` and `~` folders/files from the project
+   - Prints what it removes
+   - Safe for all normal development workflows
+
+**Note:** If you ever move the project outside OneDrive, you may not need this step. This script is only needed for Windows/OneDrive users. 
