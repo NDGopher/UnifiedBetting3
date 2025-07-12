@@ -12,7 +12,7 @@ load_dotenv()
 def setup_logging():
     """Setup comprehensive logging configuration"""
     # Create logs directory
-    logs_dir = Path("backend/logs")
+    logs_dir = Path("logs")
     logs_dir.mkdir(exist_ok=True)
     
     # Configure root logger

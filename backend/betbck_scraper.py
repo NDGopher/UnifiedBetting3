@@ -442,8 +442,54 @@ def parse_specific_game_from_search_html(html_content, target_home_team_pod, tar
         if len(data_rows)>2 and "draw" in data_rows[2].get_text(strip=True).lower():
             tds_draw = data_rows[2].find_all('td',class_=lambda x:x and 'tbl_betAmount_td' in x)
             if len(tds_draw)>1: output_data["draw_moneyline_american"]=extract_american_odds_from_text(tds_draw[1])
-        print(f"[BetbckParser] Final Parsed Data: {json.dumps(output_data, indent=2)} (Event ID: {event_id})"); return output_data
+        
+        return output_data
     print(f"[BetbckParser] No game matching POD teams found after all wrappers. (Event ID: {event_id})"); return None
+
+def parse_game_data_from_html(search_results_html, search_term):
+    """
+    Wrapper function that parses game data from BetBCK search results HTML.
+    Used by the BetBCK Request Manager for consistent parsing.
+    """
+    # For now, we need to extract the home/away team names from search context
+    # Since we only have the search term, we'll try to find the first matching game
+    # This is a simplified approach - in a real implementation, you'd want to 
+    # specify the exact teams to search for
+    
+    if not search_results_html:
+        return None
+    
+    from bs4 import BeautifulSoup
+    soup = BeautifulSoup(search_results_html, 'html.parser')
+    search_context = soup.find('form', {'name': 'GameSelectionForm', 'id': 'GameSelectionForm'}) or soup
+    
+    # Find the first valid game wrapper
+    game_wrappers = []
+    for gw_class in GAME_WRAPPER_PRIMARY_CLASSES:
+        game_wrappers.extend(f for f in search_context.find_all('table', class_=gw_class) if f not in game_wrappers)
+    
+    if not game_wrappers:
+        return None
+    
+    # Take the first game wrapper and extract team names
+    game_wrapper_table = game_wrappers[0]
+    team_name_td = game_wrapper_table.find('td', class_=lambda x: x and x.startswith('tbl_betAmount_team1_main_name'))
+    if not team_name_td:
+        return None
+        
+    div_t1 = team_name_td.find('div', class_='team1_name_up')
+    div_t2 = team_name_td.find('div', class_='team2_name_down')
+    if not (div_t1 and div_t2):
+        return None
+        
+    home_team = get_cleaned_team_name_from_div(div_t1)
+    away_team = get_cleaned_team_name_from_div(div_t2)
+    
+    if not home_team or not away_team:
+        return None
+    
+    # Use the existing parsing function with the extracted team names
+    return parse_specific_game_from_search_html(search_results_html, home_team, away_team)
 
 # --- Main Callable Function ---
 def scrape_betbck_for_game(pod_home_team, pod_away_team, search_team_name_betbck=None, event_id=None):

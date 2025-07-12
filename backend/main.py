@@ -12,7 +12,8 @@ import threading
 import traceback
 from pod_event_manager import PodEventManager
 from main_logic import process_alert_and_scrape_betbck, analyze_markets_for_ev
-from odds_processing import fetch_live_pinnacle_event_odds, process_event_odds_for_display
+from odds_processing import fetch_live_pinnacle_event_odds
+from utils import process_event_odds_for_display
 import copy
 from team_utils import match_betbck_to_pinnacle_markets
 from utils.pod_utils import clean_pod_team_name_for_search, american_to_decimal, calculate_ev, decimal_to_american, normalize_team_name_for_matching, is_prop_or_corner_alert, determine_betbck_search_term
@@ -25,6 +26,7 @@ import subprocess
 import os
 import collections
 # from betbck_async_scraper import get_all_betbck_games  # Removed - use async version instead
+from betbck_request_manager import betbck_manager
 
 # Configure logging
 logging.basicConfig(
@@ -685,7 +687,7 @@ async def run_pipeline():
             from calculate_ev_table import calculate_ev_table, format_ev_table_for_display
             ev_table = calculate_ev_table(matched_games)
             if not ev_table:
-                logger.error("❌ No EV opportunities found")
+                logger.error("[PIPELINE] No EV opportunities found")
                 return {
                     "status": "error",
                     "message": "No EV opportunities found",
@@ -694,7 +696,7 @@ async def run_pipeline():
             formatted_events = format_ev_table_for_display(ev_table)
             total_opportunities = sum(event.get("total_ev_opportunities", 0) for event in ev_table)
             logger.info(f"[PIPELINE] Calculated EV for {len(formatted_events)} events.")
-            logger.info(f"✅ Step 4 completed: {len(formatted_events)} events with {total_opportunities} opportunities")
+            logger.info(f"[PIPELINE] Step 4 completed: {len(formatted_events)} events with {total_opportunities} opportunities")
             # Store results in memory and on disk
             current_results = formatted_events
             last_run_time = datetime.now().isoformat()
@@ -709,7 +711,7 @@ async def run_pipeline():
                 logger.info(f"[PIPELINE] Results written to {BUCKEYE_RESULTS_FILE} ({len(formatted_events)} events)")
                 # Final check: ensure file is written and fresh
                 if not os.path.exists(BUCKEYE_RESULTS_FILE):
-                    logger.error(f"❌ Results file not found after write: {BUCKEYE_RESULTS_FILE}")
+                    logger.error(f"[PIPELINE] Results file not found after write: {BUCKEYE_RESULTS_FILE}")
                     return {
                         "status": "error",
                         "message": f"Results file not found after write: {BUCKEYE_RESULTS_FILE}",
@@ -718,7 +720,7 @@ async def run_pipeline():
                 file_mtime = os.path.getmtime(BUCKEYE_RESULTS_FILE)
                 now = time.time()
                 if now - file_mtime > 30:
-                    logger.error(f"❌ Results file is stale (last modified {now-file_mtime:.1f}s ago)")
+                    logger.error(f"[PIPELINE] Results file is stale (last modified {now-file_mtime:.1f}s ago)")
                     return {
                         "status": "error",
                         "message": f"Results file is stale (last modified {now-file_mtime:.1f}s ago)",
@@ -1042,6 +1044,22 @@ def get_buckeye_results():
         })
     except Exception as e:
         logger.error(f"Error getting BuckeyeScraper results: {e}")
+        return JSONResponse({
+            "status": "error",
+            "message": str(e)
+        }, status_code=500)
+
+@app.get("/api/betbck/status")
+async def get_betbck_status():
+    """Get BetBCK Request Manager status"""
+    try:
+        status = betbck_manager.get_status()
+        return JSONResponse({
+            "status": "success",
+            "data": status
+        })
+    except Exception as e:
+        logger.error(f"[BetBCK-Status] Error getting status: {e}")
         return JSONResponse({
             "status": "error",
             "message": str(e)

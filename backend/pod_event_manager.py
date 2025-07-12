@@ -3,7 +3,8 @@ import threading
 import logging
 import copy
 from typing import Dict, Set, Any
-from odds_processing import fetch_live_pinnacle_event_odds, process_event_odds_for_display
+from odds_processing import fetch_live_pinnacle_event_odds
+from utils import process_event_odds_for_display
 from collections import defaultdict
 import asyncio
 

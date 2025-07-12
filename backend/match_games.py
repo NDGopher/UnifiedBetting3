@@ -291,10 +291,10 @@ def match_pinnacle_to_betbck(pinnacle_events: List[Dict[str, Any]], betbck_data:
     
     # Summary logging
     logger.info(f"[MATCH] SUMMARY:")
-    logger.info(f"[MATCH]   ✓ Matched: {len(matched_events)} games")
-    logger.info(f"[MATCH]   ✗ Unmatched BetBCK: {len(unmatched_betbck)} games")
-    logger.info(f"[MATCH]   ✗ Unmatched Pinnacle: {len(unmatched_pinnacle)} events")
-    logger.info(f"[MATCH]   📊 Match rate: {len(matched_events)}/{len(betbck_games)} = {len(matched_events)/len(betbck_games)*100:.1f}%")
+    logger.info(f"[MATCH]   [MATCHED] Matched: {len(matched_events)} games")
+    logger.info(f"[MATCH]   [UNMATCHED] Unmatched BetBCK: {len(unmatched_betbck)} games")
+    logger.info(f"[MATCH]   [UNMATCHED] Unmatched Pinnacle: {len(unmatched_pinnacle)} events")
+    logger.info(f"[MATCH]   [STATS] Match rate: {len(matched_events)}/{len(betbck_games)} = {len(matched_events)/len(betbck_games)*100:.1f}%")
     
     # Log unmatched details for debugging
     if unmatched_betbck:

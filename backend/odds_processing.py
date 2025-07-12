@@ -1,207 +1,269 @@
-import requests
-import math
-import logging
-import time
-import json
-from utils.pod_utils import (
-    process_event_odds_for_display,
-    clean_pod_team_name_for_search,
-    american_to_decimal,
-    calculate_ev,
-    analyze_markets_for_ev,
-    normalize_team_name_for_matching
-)
-from utils import normalize_team_name_for_matching
-from team_utils import is_prop_market_by_name
-import re
-from typing import Dict, List, Optional, Any, Tuple, Union
-from datetime import datetime
-import dateutil.parser
+import numpy as np
 import hashlib
+import time
+import re
+import logging
+from typing import Dict, List, Any, Optional, Union, Tuple
+import requests
 from bs4 import BeautifulSoup
-from fuzzywuzzy import fuzz
-
+from datetime import datetime, timezone
+from utils import normalize_team_name_for_matching, get_team_aliases, calculate_name_similarity
+from utils.pod_utils import normalize_team_name_for_matching, american_to_decimal, calculate_ev, decimal_to_american, clean_pod_team_name_for_search, is_prop_or_corner_alert, determine_betbck_search_term, analyze_markets_for_ev
+import json
+import config
+import os
+from pinnacle_fetcher import fetch_live_pinnacle_event_odds
+from utils import process_event_odds_for_display
 from betbck_scraper import scrape_betbck_for_game
-
-try:
-    from fuzzywuzzy import fuzz
-    FUZZY_MATCH_THRESHOLD = 60
-    print("[OddsProcessing] fuzzywuzzy library loaded.")
-except ImportError:
-    print("[OddsProcessing] WARNING: fuzzywuzzy library not found. Team matching will rely on exact normalization.")
-    fuzz = None
-    FUZZY_MATCH_THRESHOLD = 101
+from betbck_request_manager import scrape_betbck_for_game_queued
+from utils.pod_utils import determine_betbck_search_term
 
 logger = logging.getLogger(__name__)
 
 def decimal_to_american(decimal_odds):
+    if decimal_odds is None or decimal_odds <= 1.0:
+        return None
+    if decimal_odds >= 2.0:
+        return f"+{int((decimal_odds - 1) * 100)}"
+    else:
+        return f"-{int(100 / (decimal_odds - 1))}"
+
+def american_to_decimal(american_odds):
+    if american_odds is None:
+        return None
     try:
-        decimal_odds = float(decimal_odds)
-        if decimal_odds >= 2:
-            return int((decimal_odds - 1) * 100)
+        if isinstance(american_odds, str):
+            american_odds = american_odds.replace('+', '')
+        odds = float(american_odds)
+        if odds > 0:
+            return (odds / 100) + 1
         else:
-            return int(-100 / (decimal_odds - 1))
-    except Exception:
+            return (100 / abs(odds)) + 1
+    except (ValueError, TypeError):
         return None
 
-# --- Pinnacle Odds Fetcher ---
-SWORDFISH_API_BASE_URL = "https://swordfish-production.up.railway.app/events/"
-REQUEST_HEADERS = {
-    "User-Agent": "Mozilla/5.0 (Windows NT 10.0; Win64; x64) AppleWebKit/537.36 (KHTML, like Gecko) Chrome/136.0.0.0 Safari/537.36",
-    "Accept": "*/*",
-    "Origin": "https://www.pinnacleoddsdropper.com",
-    "Referer": "https://www.pinnacleoddsdropper.com/",
-    "Sec-Ch-Ua": '"Chromium";v="136", "Google Chrome";v="136", "Not:A-Brand";v="99"',
-    "Sec-Ch-Ua-Mobile": "?0",
-    "Sec-Ch-Ua-Platform": '"Windows"',
-    "Sec-Fetch-Dest": "empty",
-    "Sec-Fetch-Mode": "cors",
-    "Sec-Fetch-Site": "cross-site",
-}
+def calculate_ev(bet_decimal_odds, true_decimal_odds):
+    if not all([bet_decimal_odds, true_decimal_odds]) or true_decimal_odds <= 1.0:
+        return None
+    ev = (bet_decimal_odds / true_decimal_odds) - 1
+    return ev if -0.5 < ev < 0.20 else None
 
-def remove_history(data):
-    """Recursively remove any 'history' key from a dictionary."""
-    if isinstance(data, dict):
-        cleaned_data = {}
-        for key, value in data.items():
-            if key == "history":
-                continue
-            cleaned_data[key] = remove_history(value)
-        return cleaned_data
-    elif isinstance(data, list):
-        return [remove_history(item) for item in data]
-    else:
-        return data
-
-def fetch_live_pinnacle_event_odds(event_id):
-    """
-    Fetches all live lines for a given event_id from the Swordfish API that POD uses.
-    """
-    url = f"{SWORDFISH_API_BASE_URL}{event_id}"
-    print(f"[Pinnacle Fetcher] Attempting to fetch: {url}")
+def normalize_line_value(line_value):
+    if line_value is None:
+        return None
     try:
-        response = requests.get(url, headers=REQUEST_HEADERS, timeout=10)
-        response.raise_for_status()
-        print(f"[Pinnacle Fetcher] Status Code: {response.status_code} for {event_id}")
-        odds_data = response.json()
-        print(f"[Pinnacle Fetcher] Odds keys for {event_id}: {list(odds_data.keys())}")
-        cleaned_odds_data = remove_history(odds_data)  # Remove 'history'
-        return {"success": True, "data": cleaned_odds_data, "event_id": event_id}
-    except requests.exceptions.HTTPError as http_err:
-        error_message = f"HTTP error occurred: {http_err} - Response: {response.text[:200]}"
-        print(f"[Pinnacle Fetcher] {error_message}")
-        return {"success": False, "error": error_message, "event_id": event_id}
-    except requests.exceptions.RequestException as req_err:
-        error_message = f"Request error occurred: {req_err}"
-        print(f"[Pinnacle Fetcher] {error_message}")
-        return {"success": False, "error": error_message, "event_id": event_id}
-    except json.JSONDecodeError as json_err:
-        error_message = f"Failed to decode JSON: {json_err} - Response text: {response.text[:200]}"
-        print(f"[Pinnacle Fetcher] {error_message}")
-        return {"success": False, "error": error_message, "event_id": event_id}
-    except Exception as e:
-        error_message = f"An unexpected error occurred: {e}"
-        print(f"[Pinnacle Fetcher] {error_message}")
-        return {"success": False, "error": error_message, "event_id": event_id}
+        line_str = str(line_value).replace(' ', '').replace(',', '')
+        if 'pk' in line_str.lower() or line_str == '0':
+            return 0.0
+        return float(line_str)
+    except (ValueError, TypeError):
+        return None
 
-# --- Odds Processing ---
-def calculate_nvp_for_market(odds_list):
-    """Calculate No Vig Price (NVP) for a list of odds."""
-    from utils.pod_utils import calculate_nvp_for_market as pod_calculate_nvp
-    return pod_calculate_nvp(odds_list)
-
-def process_event_odds_for_display(pinnacle_event_json_data):
-    """Add NVP (No Vig Price) and American Odds to Pinnacle odds data."""
-    if not pinnacle_event_json_data or 'data' not in pinnacle_event_json_data:
-        return pinnacle_event_json_data
-
-    event_detail = pinnacle_event_json_data['data']
-    if not isinstance(event_detail, dict):
-        return pinnacle_event_json_data
-
-    periods = event_detail.get("periods", {})
-    if not isinstance(periods, dict):
-        return pinnacle_event_json_data
-
-    for period_key, period_data in periods.items():
-        if not isinstance(period_data, dict):
+def calculate_totals_ev(pinnacle_totals, betbck_totals):
+    results = []
+    if not pinnacle_totals or not betbck_totals:
+        return results
+    
+    for pt in pinnacle_totals:
+        pt_line = normalize_line_value(pt.get('line'))
+        pt_over_price = american_to_decimal(pt.get('over_price'))
+        pt_under_price = american_to_decimal(pt.get('under_price'))
+        
+        if pt_line is None:
             continue
+        
+        for bt in betbck_totals:
+            bt_line = normalize_line_value(bt.get('line'))
+            bt_over_odds = american_to_decimal(bt.get('over_odds'))
+            bt_under_odds = american_to_decimal(bt.get('under_odds'))
+            
+            if bt_line is None or abs(pt_line - bt_line) > 0.5:
+                continue
+            
+            if pt_over_price and bt_over_odds:
+                over_ev = calculate_ev(bt_over_odds, pt_over_price)
+                if over_ev is not None:
+                    results.append({
+                        'market': 'Total',
+                        'selection': 'Over',
+                        'line': bt_line,
+                        'pinnacle_nvp': decimal_to_american(pt_over_price),
+                        'betbck_odds': decimal_to_american(bt_over_odds),
+                        'ev': f"{over_ev:.2%}"
+                    })
+            
+            if pt_under_price and bt_under_odds:
+                under_ev = calculate_ev(bt_under_odds, pt_under_price)
+                if under_ev is not None:
+                    results.append({
+                        'market': 'Total',
+                        'selection': 'Under',
+                        'line': bt_line,
+                        'pinnacle_nvp': decimal_to_american(pt_under_price),
+                        'betbck_odds': decimal_to_american(bt_under_odds),
+                        'ev': f"{under_ev:.2%}"
+                    })
+    
+    return results
 
-        # Remove the 'history' key from each period
-        if 'history' in period_data:
-            del period_data['history']
+def calculate_spreads_ev(pinnacle_spreads, betbck_spreads):
+    results = []
+    if not pinnacle_spreads or not betbck_spreads:
+        return results
+    
+    for ps in pinnacle_spreads:
+        ps_line = normalize_line_value(ps.get('line'))
+        ps_home_price = american_to_decimal(ps.get('home_price'))
+        ps_away_price = american_to_decimal(ps.get('away_price'))
+        
+        if ps_line is None:
+            continue
+        
+        for bs in betbck_spreads:
+            bs_line = normalize_line_value(bs.get('line'))
+            bs_home_odds = american_to_decimal(bs.get('home_odds'))
+            bs_away_odds = american_to_decimal(bs.get('away_odds'))
+            
+            if bs_line is None or abs(ps_line - bs_line) > 0.5:
+                continue
+            
+            if ps_home_price and bs_home_odds:
+                home_ev = calculate_ev(bs_home_odds, ps_home_price)
+                if home_ev is not None:
+                    results.append({
+                        'market': 'Spread',
+                        'selection': 'Home',
+                        'line': bs_line,
+                        'pinnacle_nvp': decimal_to_american(ps_home_price),
+                        'betbck_odds': decimal_to_american(bs_home_odds),
+                        'ev': f"{home_ev:.2%}"
+                    })
+            
+            if ps_away_price and bs_away_odds:
+                away_ev = calculate_ev(bs_away_odds, ps_away_price)
+                if away_ev is not None:
+                    results.append({
+                        'market': 'Spread',
+                        'selection': 'Away',
+                        'line': bs_line,
+                        'pinnacle_nvp': decimal_to_american(ps_away_price),
+                        'betbck_odds': decimal_to_american(bs_away_odds),
+                        'ev': f"{away_ev:.2%}"
+                    })
+    
+    return results
 
-        # Moneyline
-        if period_data.get("money_line") and isinstance(period_data["money_line"], dict):
-            ml = period_data["money_line"]
-            odds_dec = [ml.get("home"), ml.get("draw"), ml.get("away")]
-            nvps_dec = calculate_nvp_for_market(odds_dec)
+def calculate_moneyline_ev(pinnacle_moneyline, betbck_moneyline):
+    results = []
+    
+    p_home = american_to_decimal(pinnacle_moneyline.get('home_price'))
+    p_away = american_to_decimal(pinnacle_moneyline.get('away_price'))
+    p_draw = american_to_decimal(pinnacle_moneyline.get('draw_price'))
+    
+    b_home = american_to_decimal(betbck_moneyline.get('home_odds'))
+    b_away = american_to_decimal(betbck_moneyline.get('away_odds'))
+    b_draw = american_to_decimal(betbck_moneyline.get('draw_odds'))
+    
+    if p_home and b_home:
+        home_ev = calculate_ev(b_home, p_home)
+        if home_ev is not None:
+            results.append({
+                'market': 'Moneyline',
+                'selection': 'Home',
+                'line': '',
+                'pinnacle_nvp': decimal_to_american(p_home),
+                'betbck_odds': decimal_to_american(b_home),
+                'ev': f"{home_ev:.2%}"
+            })
+    
+    if p_away and b_away:
+        away_ev = calculate_ev(b_away, p_away)
+        if away_ev is not None:
+            results.append({
+                'market': 'Moneyline',
+                'selection': 'Away',
+                'line': '',
+                'pinnacle_nvp': decimal_to_american(p_away),
+                'betbck_odds': decimal_to_american(b_away),
+                'ev': f"{away_ev:.2%}"
+            })
+    
+    if p_draw and b_draw:
+        draw_ev = calculate_ev(b_draw, p_draw)
+        if draw_ev is not None:
+            results.append({
+                'market': 'Moneyline',
+                'selection': 'Draw',
+                'line': '',
+                'pinnacle_nvp': decimal_to_american(p_draw),
+                'betbck_odds': decimal_to_american(b_draw),
+                'ev': f"{draw_ev:.2%}"
+            })
+    
+    return results
 
-            if len(nvps_dec) == 3:
-                ml["nvp_home"] = nvps_dec[0]
-                ml["nvp_draw"] = nvps_dec[1]
-                ml["nvp_away"] = nvps_dec[2]
-            ml["american_home"] = decimal_to_american(ml.get("home"))
-            ml["american_draw"] = decimal_to_american(ml.get("draw"))
-            ml["american_away"] = decimal_to_american(ml.get("away"))
-            ml["nvp_american_home"] = decimal_to_american(ml.get("nvp_home"))
-            ml["nvp_american_draw"] = decimal_to_american(ml.get("nvp_draw"))
-            ml["nvp_american_away"] = decimal_to_american(ml.get("nvp_away"))
+def find_matching_event(pinnacle_event_ids: List[str], betbck_games: List[Dict[str, Any]]) -> List[Dict[str, Any]]:
+    """Match Pinnacle event IDs with BetBCK games based on team names and odds."""
+    matched_events = []
+    
+    for event_id in pinnacle_event_ids:
+        # Get Pinnacle odds for this event
+        pinnacle_data = fetch_live_pinnacle_event_odds(event_id)
+        if not pinnacle_data or pinnacle_data.get('status') != 'success':
+            continue
+        
+        pinnacle_odds = pinnacle_data.get('data', {})
+        pinnacle_home = pinnacle_odds.get('home', '')
+        pinnacle_away = pinnacle_odds.get('away', '')
+        
+        if not pinnacle_home or not pinnacle_away:
+            continue
+        
+        # Normalize Pinnacle team names
+        norm_pinnacle_home = normalize_team_name_for_matching(pinnacle_home)
+        norm_pinnacle_away = normalize_team_name_for_matching(pinnacle_away)
+        
+        # Find matching BetBCK game
+        best_match = None
+        best_score = 0
+        
+        for betbck_game in betbck_games:
+            betbck_home = betbck_game.get('betbck_site_home_team', '')
+            betbck_away = betbck_game.get('betbck_site_away_team', '')
+            
+            if not betbck_home or not betbck_away:
+                continue
+            
+            norm_betbck_home = normalize_team_name_for_matching(betbck_home)
+            norm_betbck_away = normalize_team_name_for_matching(betbck_away)
+            
+            # Calculate similarity scores
+            score1 = (calculate_name_similarity(norm_pinnacle_home, norm_betbck_home) + 
+                     calculate_name_similarity(norm_pinnacle_away, norm_betbck_away)) / 2
+            
+            score2 = (calculate_name_similarity(norm_pinnacle_home, norm_betbck_away) + 
+                     calculate_name_similarity(norm_pinnacle_away, norm_betbck_home)) / 2
+            
+            match_score = max(score1, score2)
+            teams_flipped = score2 > score1
+            
+            if match_score > 0.7 and match_score > best_score:
+                best_score = match_score
+                best_match = {
+                    'pinnacle_event_id': event_id,
+                    'pinnacle_data': pinnacle_odds,
+                    'betbck_data': betbck_game,
+                    'match_score': match_score,
+                    'teams_flipped': teams_flipped
+                }
+        
+        if best_match:
+            matched_events.append(best_match)
+    
+    return matched_events
 
-        # Spreads
-        if period_data.get("spreads") and isinstance(period_data["spreads"], dict):
-            for hdp_key, spread_details in period_data["spreads"].items():
-                if isinstance(spread_details, dict):
-                    odds_dec = [spread_details.get("home"), spread_details.get("away")]
-                    nvps_dec = calculate_nvp_for_market(odds_dec)
-                    if len(nvps_dec) == 2:
-                        spread_details["nvp_home"], spread_details["nvp_away"] = nvps_dec[0], nvps_dec[1]
-                    spread_details["american_home"] = decimal_to_american(spread_details.get("home"))
-                    spread_details["american_away"] = decimal_to_american(spread_details.get("away"))
-                    spread_details["nvp_american_home"] = decimal_to_american(spread_details.get("nvp_home"))
-                    spread_details["nvp_american_away"] = decimal_to_american(spread_details.get("nvp_away"))
-
-        # Totals
-        if period_data.get("totals") and isinstance(period_data["totals"], dict):
-            for points_key, total_details in period_data["totals"].items():
-                if isinstance(total_details, dict):
-                    odds_dec = [total_details.get("over"), total_details.get("under")]
-                    nvps_dec = calculate_nvp_for_market(odds_dec)
-                    if len(nvps_dec) == 2:
-                        total_details["nvp_over"], total_details["nvp_under"] = nvps_dec[0], nvps_dec[1]
-                    total_details["american_over"] = decimal_to_american(total_details.get("over"))
-                    total_details["american_under"] = decimal_to_american(total_details.get("under"))
-                    total_details["nvp_american_over"] = decimal_to_american(total_details.get("nvp_over"))
-                    total_details["nvp_american_under"] = decimal_to_american(total_details.get("nvp_under"))
-
-    return pinnacle_event_json_data
-
-# --- BetBCK Scraper ---
-# Use the real scrape_betbck_for_game from betbck_scraper
-
-def determine_betbck_search_term(pod_home_team_raw, pod_away_team_raw):
-    pod_home_clean = clean_pod_team_name_for_search(pod_home_team_raw)
-    pod_away_clean = clean_pod_team_name_for_search(pod_away_team_raw)
-    known_terms = {
-        "south korea": "Korea", "faroe islands": "Faroe", "milwaukee brewers": "Brewers",
-        "philadelphia phillies": "Phillies", "los angeles angels": "Angels", "pittsburgh pirates": "Pirates",
-        "arizona diamondbacks": "Diamondbacks", "san diego padres": "Padres", "italy": "Italy",
-        "st. louis cardinals": "Cardinals", "china pr": "China", "bahrain": "Bahrain", "czechia": "Czech Republic",
-        "athletic club": "Athletic Club", "romania": "Romania", "cyprus": "Cyprus"
-    }
-    if pod_home_clean.lower() in known_terms:
-        return known_terms[pod_home_clean.lower()]
-    if pod_away_clean.lower() in known_terms:
-        return known_terms[pod_away_clean.lower()]
-    parts = pod_home_clean.split()
-    if parts:
-        if len(parts) > 1 and len(parts[-1]) > 3 and parts[-1].lower() not in ['fc', 'sc', 'united', 'city', 'club', 'de', 'do', 'ac', 'if', 'bk', 'aif', 'kc', 'sr', 'mg', 'us', 'br']:
-            return parts[-1]
-        elif len(parts[0]) > 2 and parts[0].lower() not in ['fc', 'sc', 'ac', 'if', 'bk', 'de', 'do', 'aif', 'kc', 'sr', 'mg', 'us', 'br']:
-            return parts[0]
-        else:
-            return pod_home_clean
-    return pod_home_clean if pod_home_clean else ""
+# Note: process_event_odds_for_display is now imported from utils 
+# The function was moved to utils/pod_utils.py to include proper NVP calculations
 
 def process_alert_and_scrape_betbck(event_id: str, original_alert_details: Dict[str, Any], processed_pinnacle_data: Dict[str, Any], scrape_betbck: bool = True) -> Dict[str, Any]:
     print(f"\n[MainLogic] process_alert_and_scrape_betbck initiated for Event ID: {event_id}")
@@ -216,7 +278,7 @@ def process_alert_and_scrape_betbck(event_id: str, original_alert_details: Dict[
         if isinstance(original_alert_details, dict):
             original_alert_details['betbck_search_term_used'] = betbck_search_query
         print(f"[MainLogic] POD Teams (Raw): '{pod_home_team_raw}' vs '{pod_away_team_raw}'. BetBCK Search: '{betbck_search_query}'")
-        bet_data = scrape_betbck_for_game(pod_home_team_raw, pod_away_team_raw, search_team_name_betbck=betbck_search_query, event_id=event_id)
+        bet_data = scrape_betbck_for_game_queued(pod_home_team_raw, pod_away_team_raw, search_team_name_betbck=betbck_search_query, event_id=event_id)
         if not isinstance(bet_data, dict) or bet_data.get("source") != "betbck.com":
             error_msg = "Scraper returned no data."
             if isinstance(bet_data, dict) and "message" in bet_data:
@@ -232,52 +294,4 @@ def process_alert_and_scrape_betbck(event_id: str, original_alert_details: Dict[
     bet_data["potential_bets_analyzed"] = pod_utils.analyze_markets_for_ev(bet_data, processed_pinnacle_data)
     import logging
     logging.getLogger(__name__).info(f"[DEBUG] Markets for {event_id}: {bet_data['potential_bets_analyzed']}")
-    return {"status": "success", "message": "BetBCK odds analyzed.", "data": bet_data}
-
-def calculate_ev(bet_decimal_odds, true_decimal_odds):
-    if bet_decimal_odds is None or true_decimal_odds is None: return None
-    if not all([bet_decimal_odds, true_decimal_odds]) or true_decimal_odds <= 1.0: return None
-    ev = (bet_decimal_odds / true_decimal_odds) - 1
-    return ev if -0.5 < ev < 0.20 else None
-
-def convert_american_to_decimal(american_odds: float) -> float:
-    """Convert American odds to decimal odds."""
-    if american_odds > 0:
-        return (american_odds / 100) + 1
-    else:
-        return (100 / abs(american_odds)) + 1
-
-def convert_decimal_to_american(decimal_odds: float) -> float:
-    """Convert decimal odds to American odds."""
-    if decimal_odds >= 2:
-        return (decimal_odds - 1) * 100
-    else:
-        return -100 / (decimal_odds - 1)
-
-def calculate_implied_probability(odds: float, is_american: bool = True) -> float:
-    """Calculate implied probability from odds."""
-    if is_american:
-        decimal_odds = convert_american_to_decimal(odds)
-    else:
-        decimal_odds = odds
-    return 1 / decimal_odds
-
-def process_odds_data(bet_data: Dict, pinnacle_data: Dict) -> Dict:
-    """Process odds data and find value opportunities."""
-    # Normalize team names
-    for market_type in ['moneyline', 'spreads', 'team_totals']:
-        if market_type in bet_data:
-            normalized_markets = {}
-            for team, data in bet_data[market_type].items():
-                normalized_team = normalize_team_name_for_matching(team)
-                if normalized_team:
-                    normalized_markets[normalized_team] = data
-            bet_data[market_type] = normalized_markets
-    
-    # Skip prop markets
-    if is_prop_market_by_name(bet_data.get('home_team', ''), bet_data.get('away_team', '')):
-        bet_data['is_prop_market'] = True
-        return bet_data
-    
-    # Analyze markets for EV
-    return analyze_markets_for_ev(bet_data, pinnacle_data) 
+    return {"status": "success", "message": "BetBCK odds analyzed.", "data": bet_data} 

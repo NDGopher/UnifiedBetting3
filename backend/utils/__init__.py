@@ -4,7 +4,9 @@ from .pod_utils import (
     clean_pod_team_name_for_search,
     process_event_odds_for_display,
     analyze_markets_for_ev,
-    normalize_team_name_for_matching
+    normalize_team_name_for_matching,
+    calculate_name_similarity,
+    get_team_aliases
 )
 
 __all__ = [
@@ -13,5 +15,7 @@ __all__ = [
     'clean_pod_team_name_for_search',
     'process_event_odds_for_display',
     'analyze_markets_for_ev',
-    'normalize_team_name_for_matching'
+    'normalize_team_name_for_matching',
+    'calculate_name_similarity',
+    'get_team_aliases'
 ] 

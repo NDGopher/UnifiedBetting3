@@ -34,9 +34,9 @@ def test_normalization():
         normalized = normalize_team_name(original)
         logger.info(f"Original: '{original}' -> Normalized: '{normalized}' (Expected: '{expected}')")
         if normalized == expected:
-            logger.info("✓ PASS")
+            logger.info("[PASS]")
         else:
-            logger.warning("✗ FAIL")
+            logger.warning("[FAIL]")
 
 def test_fuzzy_similarity():
     """Test fuzzy similarity matching"""

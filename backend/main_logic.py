@@ -4,15 +4,14 @@ import math
 from hashlib import sha256
 try:
     from betbck_scraper import scrape_betbck_for_game
+    from betbck_request_manager import scrape_betbck_for_game_queued
     print("[MainLogic] SUCCESS: 'scrape_betbck_for_game' imported successfully.")
 except ImportError as e:
     print(f"[MainLogic] CRITICAL_ERROR: {e}")
     raise
-from utils import normalize_team_name_for_matching
+from utils import normalize_team_name_for_matching, process_event_odds_for_display
 from utils.pod_utils import analyze_markets_for_ev, clean_pod_team_name_for_search
-
-# Import normalize_team_name_for_matching from utils to ensure consistent normalization
-from utils import normalize_team_name_for_matching
+from pinnacle_fetcher import fetch_live_pinnacle_event_odds
 
 def american_to_decimal(american_odds):
     if american_odds is None or american_odds == "N/A": return None
@@ -83,7 +82,7 @@ def process_alert_and_scrape_betbck(event_id, original_alert_details, processed_
             return {"status": "success", "data": {}}
 
         # Pass event_id to scraper to prevent race conditions
-        betbck_result = scrape_betbck_for_game(pod_home_team_raw, pod_away_team_raw, search_term, event_id)
+        betbck_result = scrape_betbck_for_game_queued(pod_home_team_raw, pod_away_team_raw, search_term, event_id)
         if not betbck_result:
             return {"status": "error", "message": "Failed to scrape BetBCK"}
 

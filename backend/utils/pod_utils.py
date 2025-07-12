@@ -300,11 +300,8 @@ def analyze_markets_for_ev(bet_data: Dict, pinnacle_data: Dict) -> List[Dict]:
     if not pinnacle_data_copy or not pinnacle_data_copy.get('data'):
         logger.info("[AnalyzeMarkets] No Pinnacle data available")
         return potential_bets
-
+    
     try:
-        logger.info(f"[AnalyzeMarkets] Starting analysis with BetBCK data keys: {list(bet_data_copy.keys())}")
-        logger.info(f"[AnalyzeMarkets] BetBCK data: {bet_data_copy}")
-        
         pin_data = pinnacle_data_copy['data']
         periods = pin_data.get('periods', {})
         # Try both 'num_0' and '0' for period data
@@ -313,20 +310,14 @@ def analyze_markets_for_ev(bet_data: Dict, pinnacle_data: Dict) -> List[Dict]:
             logger.error(f"[AnalyzeMarkets] No 'num_0' or '0' period found in periods: {periods}")
             return []
         
-        logger.info(f"[AnalyzeMarkets] Pinnacle periods keys: {list(periods.keys())}")
-        logger.info(f"[AnalyzeMarkets] Full game keys: {list(full_game.keys())}")
-
         # --- Moneyline ---
         ml = full_game.get('money_line', {})
-        logger.info(f"[AnalyzeMarkets] Money line data: {ml}")
         
         if bet_data_copy.get('home_moneyline_american') and ml.get('nvp_american_home'):
             bet_odds = american_to_decimal(bet_data_copy['home_moneyline_american'])
             true_odds = ml.get('nvp_home')
-            logger.info(f"[AnalyzeMarkets] Home ML - BetBCK: {bet_data_copy['home_moneyline_american']} -> {bet_odds}, Pinnacle NVP: {ml.get('nvp_american_home')} -> {true_odds}")
             if bet_odds and true_odds:
                 ev = calculate_ev(bet_odds, true_odds)
-                logger.info(f"[AnalyzeMarkets] Home ML EV: {ev}")
                 potential_bets.append({
                     'market': 'Moneyline',
                     'selection': 'Home',
@@ -335,16 +326,12 @@ def analyze_markets_for_ev(bet_data: Dict, pinnacle_data: Dict) -> List[Dict]:
                     'betbck_odds': bet_data_copy['home_moneyline_american'],
                     'ev': f"{ev*100:.2f}%" if ev is not None else 'N/A'
                 })
-        else:
-            logger.info(f"[AnalyzeMarkets] Home ML - Missing BetBCK: {bet_data_copy.get('home_moneyline_american')}, Missing Pinnacle: {ml.get('nvp_american_home')}")
             
         if bet_data_copy.get('away_moneyline_american') and ml.get('nvp_american_away'):
             bet_odds = american_to_decimal(bet_data_copy['away_moneyline_american'])
             true_odds = ml.get('nvp_away')
-            logger.info(f"[AnalyzeMarkets] Away ML - BetBCK: {bet_data_copy['away_moneyline_american']} -> {bet_odds}, Pinnacle NVP: {ml.get('nvp_american_away')} -> {true_odds}")
             if bet_odds and true_odds:
                 ev = calculate_ev(bet_odds, true_odds)
-                logger.info(f"[AnalyzeMarkets] Away ML EV: {ev}")
                 potential_bets.append({
                     'market': 'Moneyline',
                     'selection': 'Away',
@@ -353,16 +340,12 @@ def analyze_markets_for_ev(bet_data: Dict, pinnacle_data: Dict) -> List[Dict]:
                     'betbck_odds': bet_data_copy['away_moneyline_american'],
                     'ev': f"{ev*100:.2f}%" if ev is not None else 'N/A'
                 })
-        else:
-            logger.info(f"[AnalyzeMarkets] Away ML - Missing BetBCK: {bet_data_copy.get('away_moneyline_american')}, Missing Pinnacle: {ml.get('nvp_american_away')}")
             
         if bet_data_copy.get('draw_moneyline_american') and ml.get('nvp_american_draw'):
             bet_odds = american_to_decimal(bet_data_copy['draw_moneyline_american'])
             true_odds = ml.get('nvp_draw')
-            logger.info(f"[AnalyzeMarkets] Draw ML - BetBCK: {bet_data_copy['draw_moneyline_american']} -> {bet_odds}, Pinnacle NVP: {ml.get('nvp_american_draw')} -> {true_odds}")
             if bet_odds and true_odds:
                 ev = calculate_ev(bet_odds, true_odds)
-                logger.info(f"[AnalyzeMarkets] Draw ML EV: {ev}")
                 potential_bets.append({
                     'market': 'Moneyline',
                     'selection': 'Draw',
@@ -371,21 +354,14 @@ def analyze_markets_for_ev(bet_data: Dict, pinnacle_data: Dict) -> List[Dict]:
                     'betbck_odds': bet_data_copy['draw_moneyline_american'],
                     'ev': f"{ev*100:.2f}%" if ev is not None else 'N/A'
                 })
-        else:
-            logger.info(f"[AnalyzeMarkets] Draw ML - Missing BetBCK: {bet_data_copy.get('draw_moneyline_american')}, Missing Pinnacle: {ml.get('nvp_american_draw')}")
 
         # --- Spreads ---
         pin_spreads = full_game.get('spreads')
         if not isinstance(pin_spreads, dict):
-            logger.info(f"[AnalyzeMarkets] No spreads dict for event. Skipping spreads for this event.")
             pin_spreads = {}
-        logger.info(f"[AnalyzeMarkets] Pinnacle spreads: {pin_spreads}")
-        logger.info(f"[AnalyzeMarkets] BetBCK home spreads: {bet_data_copy.get('home_spreads')}")
-        logger.info(f"[AnalyzeMarkets] BetBCK away spreads: {bet_data_copy.get('away_spreads')}")
         
         for spread_key, pin_spread in pin_spreads.items():
             line = pin_spread.get('hdp')
-            logger.info(f"[AnalyzeMarkets] Processing spread line: {line}")
             
             # Home
             for s in bet_data_copy.get('home_spreads', []):
@@ -394,10 +370,8 @@ def analyze_markets_for_ev(bet_data: Dict, pinnacle_data: Dict) -> List[Dict]:
                     if bet_line is not None and line is not None and math.isclose(float(bet_line), float(line), abs_tol=0.01) and pin_spread.get('nvp_american_home'):
                         bet_odds = american_to_decimal(s.get('odds'))
                         true_odds = pin_spread.get('nvp_home')
-                        logger.info(f"[AnalyzeMarkets] Home spread match! BetBCK: {s.get('odds')} -> {bet_odds}, Pinnacle NVP: {pin_spread.get('nvp_american_home')} -> {true_odds}")
                         if bet_odds and true_odds:
                             ev = calculate_ev(bet_odds, true_odds)
-                            logger.info(f"[AnalyzeMarkets] Home spread EV: {ev}")
                             potential_bets.append({
                                 'market': 'Spread',
                                 'selection': 'Home',
@@ -406,10 +380,8 @@ def analyze_markets_for_ev(bet_data: Dict, pinnacle_data: Dict) -> List[Dict]:
                                 'betbck_odds': s.get('odds'),
                                 'ev': f"{ev*100:.2f}%" if ev is not None else 'N/A'
                             })
-                    else:
-                        logger.info(f"[AnalyzeMarkets] Home spread no match - line mismatch or missing NVP")
                 except Exception as e:
-                    logger.info(f"[AnalyzeMarkets] Home spread exception: {e}")
+                    continue
             
             # Away
             for s in bet_data_copy.get('away_spreads', []):
@@ -418,10 +390,8 @@ def analyze_markets_for_ev(bet_data: Dict, pinnacle_data: Dict) -> List[Dict]:
                     if bet_line is not None and line is not None and math.isclose(float(bet_line), -float(line), abs_tol=0.01) and pin_spread.get('nvp_american_away'):
                         bet_odds = american_to_decimal(s.get('odds'))
                         true_odds = pin_spread.get('nvp_away')
-                        logger.info(f"[AnalyzeMarkets] Away spread match! BetBCK: {s.get('odds')} -> {bet_odds}, Pinnacle NVP: {pin_spread.get('nvp_american_away')} -> {true_odds}")
                         if bet_odds and true_odds:
                             ev = calculate_ev(bet_odds, true_odds)
-                            logger.info(f"[AnalyzeMarkets] Away spread EV: {ev}")
                             potential_bets.append({
                                 'market': 'Spread',
                                 'selection': 'Away',
@@ -430,17 +400,14 @@ def analyze_markets_for_ev(bet_data: Dict, pinnacle_data: Dict) -> List[Dict]:
                                 'betbck_odds': s.get('odds'),
                                 'ev': f"{ev*100:.2f}%" if ev is not None else 'N/A'
                             })
-                    else:
-                        logger.info(f"[AnalyzeMarkets] Away spread no match - line mismatch or missing NVP")
                 except Exception as e:
-                    logger.info(f"[AnalyzeMarkets] Away spread exception: {e}")
+                    continue
 
         # --- Totals ---
         pin_totals = full_game.get('totals')
         if not isinstance(pin_totals, dict):
-            logger.info(f"[AnalyzeMarkets] No totals dict for event. Skipping totals for this event.")
             pin_totals = {}
-        logger.info(f"[AnalyzeMarkets] Pinnacle totals: {pin_totals}")
+        
         # Gather all BetBCK total lines/odds
         betbck_totals = []
         if bet_data_copy.get('game_total_line') is not None:
@@ -449,14 +416,7 @@ def analyze_markets_for_ev(bet_data: Dict, pinnacle_data: Dict) -> List[Dict]:
                 'over_odds': bet_data_copy.get('game_total_over_odds'),
                 'under_odds': bet_data_copy.get('game_total_under_odds')
             })
-        # Optionally add home/away team totals if you want to support them
-        # for k in ['home_team_total_over_line', 'away_team_total_over_line']:
-        #     if bet_data_copy.get(k) is not None:
-        #         betbck_totals.append({
-        #             'line': normalize_total_line(bet_data_copy.get(k)),
-        #             'over_odds': bet_data_copy.get(k.replace('_line', '_odds')),
-        #             'under_odds': bet_data_copy.get(k.replace('over', 'under').replace('_line', '_odds'))
-        #         })
+        
         best_over = None
         best_under = None
         for bck_total in betbck_totals:
@@ -468,10 +428,8 @@ def analyze_markets_for_ev(bet_data: Dict, pinnacle_data: Dict) -> List[Dict]:
                     if bck_total['over_odds'] and pin_total.get('nvp_american_over'):
                         bet_odds = american_to_decimal(bck_total['over_odds'])
                         true_odds = pin_total.get('nvp_over')
-                        logger.info(f"[AnalyzeMarkets] Total over match! BetBCK: {bck_total['over_odds']} -> {bet_odds}, Pinnacle NVP: {pin_total.get('nvp_american_over')} -> {true_odds}")
                         if bet_odds and true_odds:
                             ev = calculate_ev(bet_odds, true_odds)
-                            logger.info(f"[AnalyzeMarkets] Total over EV: {ev}")
                             if best_over is None or (ev is not None and ev > best_over['ev_val']):
                                 best_over = {
                                     'market': 'Total',
@@ -486,10 +444,8 @@ def analyze_markets_for_ev(bet_data: Dict, pinnacle_data: Dict) -> List[Dict]:
                     if bck_total['under_odds'] and pin_total.get('nvp_american_under'):
                         bet_odds = american_to_decimal(bck_total['under_odds'])
                         true_odds = pin_total.get('nvp_under')
-                        logger.info(f"[AnalyzeMarkets] Total under match! BetBCK: {bck_total['under_odds']} -> {bet_odds}, Pinnacle NVP: {pin_total.get('nvp_american_under')} -> {true_odds}")
                         if bet_odds and true_odds:
                             ev = calculate_ev(bet_odds, true_odds)
-                            logger.info(f"[AnalyzeMarkets] Total under EV: {ev}")
                             if best_under is None or (ev is not None and ev > best_under['ev_val']):
                                 best_under = {
                                     'market': 'Total',
@@ -500,29 +456,19 @@ def analyze_markets_for_ev(bet_data: Dict, pinnacle_data: Dict) -> List[Dict]:
                                     'ev': f"{ev*100:.2f}%" if ev is not None else 'N/A',
                                     'ev_val': ev
                                 }
+        # Add best totals to potential bets
         if best_over:
-            best_over.pop('ev_val', None)
+            del best_over['ev_val']
             potential_bets.append(best_over)
         if best_under:
-            best_under.pop('ev_val', None)
+            del best_under['ev_val']
             potential_bets.append(best_under)
         
-        logger.info(f"[AnalyzeMarkets] Found {len(potential_bets)} potential bets: {potential_bets}")
-        # Filter out markets with EV > 20% or EV < -20%
-        filtered_bets = []
-        for bet in potential_bets:
-            try:
-                ev_val = float(bet['ev'].replace('%',''))
-                if -20.0 <= ev_val <= 20.0:
-                    filtered_bets.append(bet)
-            except Exception:
-                filtered_bets.append(bet)  # If parsing fails, include for safety
-        return filtered_bets
+        return potential_bets
+    
     except Exception as e:
-        logger.error(f"Error analyzing markets: {str(e)}")
-        import traceback
-        logger.error(traceback.format_exc())
-        return [] 
+        logger.error(f"[AnalyzeMarkets] Error analyzing markets: {e}")
+        return []
 
 skip_indicators = ["1H", "1st Half", "First Half", "1st 5 Innings", "First Five Innings", "1st Period", "2nd Period", "3rd Period", "hits+runs+errors", "h+r+e", "hre", "corners", "series"]
 prop_keywords = ['(Corners)', '(Bookings)', '(Hits+Runs+Errors)']
@@ -542,7 +488,32 @@ def fuzzy_team_match(team1, team2):
     t1 = normalize_team_name_for_matching(team1)
     t2 = normalize_team_name_for_matching(team2)
     score = fuzz.token_set_ratio(t1, t2)
-    return score >= FUZZY_MATCH_THRESHOLD 
+    return score >= FUZZY_MATCH_THRESHOLD
+
+def calculate_name_similarity(team1, team2):
+    """Calculate similarity score between two team names (0-1)."""
+    if not fuzz:
+        # Fallback to exact match if fuzzywuzzy is not available
+        return 1.0 if normalize_team_name_for_matching(team1) == normalize_team_name_for_matching(team2) else 0.0
+    t1 = normalize_team_name_for_matching(team1)
+    t2 = normalize_team_name_for_matching(team2)
+    score = fuzz.token_set_ratio(t1, t2)
+    return score / 100.0  # Convert to 0-1 scale
+
+def get_team_aliases(team_name):
+    """Get aliases for a team name."""
+    normalized_name = normalize_team_name_for_matching(team_name).lower()
+    
+    # Check if the team name is in our aliases dictionary
+    if normalized_name in TEAM_ALIASES:
+        return TEAM_ALIASES[normalized_name]
+    
+    # Check if the team name is an alias of another team
+    for main_name, aliases in TEAM_ALIASES.items():
+        if normalized_name in [alias.lower() for alias in aliases]:
+            return [main_name] + aliases
+    
+    return [team_name]  # Return the original name if no aliases found 
 
 def determine_betbck_search_term(pod_home_team_raw, pod_away_team_raw):
     pod_home_clean = normalize_team_name_for_matching(pod_home_team_raw)

@@ -12,6 +12,7 @@ import PODAlerts from "./components/PODAlerts";
 import EVCalculator from "./components/EVCalculator";
 import PropBuilder from "./components/PropBuilder";
 import BuckeyeScraper from './components/BuckeyeScraper';
+import BetBCKStatusPopup from './components/BetBCKStatusPopup';
 
 // Modern dark theme inspired by Onlook
 const modernTheme = createTheme({
@@ -389,6 +390,9 @@ function App() {
             </Grid>
           </Container>
         </Box>
+        
+        {/* BetBCK Status Popup - appears only when needed */}
+        <BetBCKStatusPopup />
       </ThemeProvider>
     </BetbckTabContext.Provider>
   );

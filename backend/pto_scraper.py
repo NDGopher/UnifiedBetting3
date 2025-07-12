@@ -418,47 +418,47 @@ class PTOScraper:
             if is_new or not message_id:
                 # Send new alert
                 message_id = self.telegram.send_alert(alert_text)
-                logger.info(f"📱 Sent Telegram alert for new prop: {prop.get('propDesc','')}")
+                logger.info(f"[TELEGRAM] Sent Telegram alert for new prop: {prop.get('propDesc','')}")
                 return message_id
             else:
                 # Edit existing alert
                 success = self.telegram.edit_message(message_id, alert_text)
                 if success:
-                    logger.info(f"✏️ Edited Telegram alert for updated prop: {prop.get('propDesc','')}")
+                    logger.info(f"[TELEGRAM] Edited Telegram alert for updated prop: {prop.get('propDesc','')}")
                     return message_id
                 else:
-                    logger.warning(f"⚠️ Failed to edit Telegram alert, sending new one instead.")
+                    logger.warning(f"[TELEGRAM] Failed to edit Telegram alert, sending new one instead.")
                     message_id = self.telegram.send_alert(alert_text)
                     return message_id
         except Exception as e:
-            logger.error(f"❌ Failed to send/edit Telegram alert: {e}")
+            logger.error(f"[TELEGRAM] Failed to send/edit Telegram alert: {e}")
             return None
 
     def switch_to_prop_builder(self, driver, timeout=20):
         """Switch to the Prop Builder tab"""
         wait = WebDriverWait(driver, timeout)
         try:
-            logger.info("🔄 Attempting to switch to Prop Builder tab (old logic)")
+            logger.info("[PROP-BUILDER] Attempting to switch to Prop Builder tab (old logic)")
             # Click the dropdown button (the one with the current tab name)
             dropdown_btn = wait.until(EC.element_to_be_clickable(
                 (By.XPATH, "//button[.//p[contains(text(), 'Default')] or .//p[contains(text(), 'Prop Builder')] or .//p[contains(text(), 'EV LIVE')] or .//p[contains(text(), 'LIVE PROPS')]]")
             ))
-            logger.info("✅ Found dropdown button, clicking...")
+            logger.info("[PROP-BUILDER] Found dropdown button, clicking...")
             dropdown_btn.click()
             # Click the 'Prop Builder' option in the dropdown
             prop_builder_option = wait.until(EC.element_to_be_clickable(
                 (By.XPATH, "//li[.//p[contains(text(), 'Prop Builder')]]")
             ))
-            logger.info("✅ Found Prop Builder option, clicking...")
+            logger.info("[PROP-BUILDER] Found Prop Builder option, clicking...")
             prop_builder_option.click()
             # Wait for the Prop Builder tab to load (adjust selector as needed)
             wait.until(EC.visibility_of_element_located(
                 (By.XPATH, "//p[contains(text(), 'Prop Builder')]")
             ))
-            logger.info("✅ Successfully switched to Prop Builder tab")
+            logger.info("[PROP-BUILDER] Successfully switched to Prop Builder tab")
             return True
         except Exception as e:
-            logger.warning(f"⚠️ Could not switch to Prop Builder tab, but will continue scraping anyway: {e}")
+            logger.warning(f"[PROP-BUILDER] Could not switch to Prop Builder tab, but will continue scraping anyway: {e}")
             return False
 
     def start_scraping(self):
@@ -520,7 +520,7 @@ class PTOScraper:
         miss_threshold = 1  # Used to be 3; changed to 1 for faster removal of missing props
         while self.is_running and retry_count < self.max_retries:
             try:
-                logger.info(f"🔄 Starting scraping session (attempt {retry_count + 1})")
+                logger.info(f"[SCRAPING] Starting scraping session (attempt {retry_count + 1})")
                 self.driver = self.get_driver()
                 logger.info(f"[DEBUG] Using Chrome profile at: {self.chrome_user_data_dir}/{self.chrome_profile_dir}")
                 logger.info(f"[DEBUG] Attempting to load URL: {self.pto_url}")
@@ -538,7 +538,7 @@ class PTOScraper:
                 # Only switch to Prop Builder if not already selected (startup)
                 if not self.is_on_prop_builder(self.driver):
                     self.switch_to_prop_builder(self.driver)  # Try once, but always continue
-                logger.info("✅ PTO setup complete, starting prop monitoring...")
+                logger.info("[SCRAPING] PTO setup complete, starting prop monitoring...")
                 retry_count = 0  # Reset retry count on success
                 initial_login_complete = True
                 while self.is_running:
@@ -557,7 +557,7 @@ class PTOScraper:
                         # If redirected to account/user-control-panel, PAUSE and LOG a critical error (never try to recover)
                         current_url = self.driver.current_url
                         if initial_login_complete and ("user-control-panel" in current_url or "account" in current_url):
-                            logger.critical(f"❌ Redirected to account page after initial login: {current_url}. Pausing scraper. Manual intervention required.")
+                            logger.critical(f"[CRITICAL] Redirected to account page after initial login: {current_url}. Pausing scraper. Manual intervention required.")
                             while self.is_running:
                                 time.sleep(30)
                             return
@@ -566,7 +566,7 @@ class PTOScraper:
                         # Find all prop cards
                         prop_cards = self.driver.find_elements(By.CSS_SELECTOR, "div[data-testid='prop-card']")
                         if len(prop_cards) > 0:
-                            self.logger.info(f"Selenium found prop cards: {len(prop_cards)}")
+                            logger.info(f"Selenium found prop cards: {len(prop_cards)}")
                         current_props = {}
                         now = datetime.now()
                         for i, card_element in enumerate(elements):

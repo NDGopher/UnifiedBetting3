@@ -1,6 +1,7 @@
 fastapi
 uvicorn[standard]
 pydantic
+pydantic-settings
 python-dotenv
 aiohttp
 requests
@@ -19,4 +20,5 @@ fuzzywuzzy
 python-Levenshtein  # Optional but recommended for better performance
 selenium
 psutil  # For process management and cleanup
-pywin32  # For Windows signal handling and process management 
+pywin32  # For Windows signal handling and process management
+numpy  # For numerical operations 
