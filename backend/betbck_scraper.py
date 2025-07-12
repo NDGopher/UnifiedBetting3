@@ -443,7 +443,8 @@ def parse_specific_game_from_search_html(html_content, target_home_team_pod, tar
             tds_draw = data_rows[2].find_all('td',class_=lambda x:x and 'tbl_betAmount_td' in x)
             if len(tds_draw)>1: output_data["draw_moneyline_american"]=extract_american_odds_from_text(tds_draw[1])
         
-        return output_data
+        if matched:
+            return output_data
     print(f"[BetbckParser] No game matching POD teams found after all wrappers. (Event ID: {event_id})"); return None
 
 def parse_game_data_from_html(search_results_html, search_term):

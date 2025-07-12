@@ -221,6 +221,8 @@ class BetBCKRequestManager:
         """Process a single BetBCK request"""
         search_term = request_data['search_term']
         event_id = request_data['event_id']
+        pod_home_team = request_data.get('pod_home_team')
+        pod_away_team = request_data.get('pod_away_team')
         future = request_data['future']
         
         try:
@@ -248,8 +250,14 @@ class BetBCKRequestManager:
                 self._handle_rate_limit_detected(search_term, future)
                 return
             
-            # Parse game data
-            game_data = parse_game_data_from_html(search_results_html, search_term)
+            # Parse game data using correct POD team names
+            if pod_home_team and pod_away_team:
+                # Use the correct parsing function with POD team names
+                from betbck_scraper import parse_specific_game_from_search_html
+                game_data = parse_specific_game_from_search_html(search_results_html, pod_home_team, pod_away_team, event_id)
+            else:
+                # Fallback to wrapper function if POD team names not available
+                game_data = parse_game_data_from_html(search_results_html, search_term)
             
             if game_data:
                 logger.info(f"[BetBCK-Manager] Successfully scraped data for: {search_term}")
@@ -311,13 +319,15 @@ class BetBCKRequestManager:
             "rate_limited": True
         })
     
-    def queue_request(self, search_term: str, event_id: str) -> 'RequestFuture':
+    def queue_request(self, search_term: str, event_id: str, pod_home_team: str = None, pod_away_team: str = None) -> 'RequestFuture':
         """Queue a BetBCK request and return a future"""
         future = RequestFuture()
         
         request_data = {
             'search_term': search_term,
             'event_id': event_id,
+            'pod_home_team': pod_home_team,
+            'pod_away_team': pod_away_team,
             'future': future,
             'timestamp': time.time()
         }
@@ -389,8 +399,8 @@ def scrape_betbck_for_game_queued(pod_home_team, pod_away_team, search_team_name
         pod_home_clean = clean_pod_team_name_for_search(pod_home_team)
         search_term = pod_home_clean if pod_home_clean else pod_home_team
     
-    # Queue the request
-    future = betbck_manager.queue_request(search_term, str(event_id))
+    # Queue the request with POD team names
+    future = betbck_manager.queue_request(search_term, str(event_id), pod_home_team, pod_away_team)
     
     # Wait for result
     result = future.get_result(timeout=45)  # 45 second timeout
