@@ -124,6 +124,59 @@ const BuckeyeScraper: React.FC = () => {
     }
   };
 
+  const handleRunAceCalculations = async () => {
+    setLoading(true);
+    setError(null);
+    setMessage(null);
+    try {
+      console.log('[BuckeyeScraper] Running Ace calculations...');
+      const res = await fetch(`${API_BASE}/ace/run-calculations`, { method: 'POST' });
+      const data = await res.json();
+      console.log('[BuckeyeScraper] Ace calculations response:', data);
+      if (data.status === 'success') {
+        setMessage(data.message || 'Ace calculations completed');
+        // Fetch Ace results after calculations
+        fetchAceEvents();
+      } else {
+        setError(data.message || 'Failed to run Ace calculations');
+        setTopMarkets([]);
+      }
+    } catch (err) {
+      console.error('[BuckeyeScraper] Error running Ace calculations:', err);
+      setError('Failed to run Ace calculations');
+      setTopMarkets([]);
+    } finally {
+      setLoading(false);
+    }
+  };
+
+  const fetchAceEvents = async () => {
+    setLoading(true);
+    setError(null);
+    setMessage(null);
+    try {
+      console.log('[BuckeyeScraper] Fetching Ace results...');
+      const res = await fetch(`${API_BASE}/ace/results`);
+      const data = await res.json();
+      console.log('[BuckeyeScraper] Ace results response:', data);
+      if (data.status === 'success') {
+        setLastUpdate(data.data.last_update || null);
+        const allMarkets = data.data.markets || [];
+        allMarkets.sort((a: any, b: any) => parseFloat(b.ev) - parseFloat(a.ev));
+        setTopMarkets(allMarkets.length > 0 ? allMarkets.slice(0, 10) : []);
+      } else {
+        setError(data.message || 'Failed to fetch Ace results');
+        setTopMarkets([]);
+      }
+    } catch (err) {
+      console.error('[BuckeyeScraper] Error fetching Ace results:', err);
+      setError('Failed to fetch Ace results');
+      setTopMarkets([]);
+    } finally {
+      setLoading(false);
+    }
+  };
+
   return (
     <>
       <Box sx={{ display: 'flex', gap: 2, mb: 2, justifyContent: 'flex-start' }}>
@@ -173,7 +226,31 @@ const BuckeyeScraper: React.FC = () => {
           }}
           onClick={handleRunCalculations}
         >
-          Run Calculations
+          Buckeye
+        </Button>
+        <Button
+          variant="outlined"
+          size="small"
+          sx={{
+            color: '#b0b3b8',
+            borderColor: '#b0b3b8',
+            borderRadius: 2,
+            fontWeight: 600,
+            px: 1,
+            py: 0.25,
+            fontSize: '0.92rem',
+            minWidth: 0,
+            height: 32,
+            textTransform: 'none',
+            lineHeight: 1.2,
+            '&:hover': {
+              bgcolor: '#23272f',
+              borderColor: '#b0b3b8',
+            },
+          }}
+          onClick={handleRunAceCalculations}
+        >
+          Ace
         </Button>
       </Box>
       {lastUpdate && (
@@ -191,7 +268,7 @@ const BuckeyeScraper: React.FC = () => {
               <TableCell sx={{ color: '#b0b3b8', fontWeight: 600, fontSize: '1rem' }}>Matchup</TableCell>
               <TableCell sx={{ color: '#b0b3b8', fontWeight: 600, fontSize: '1rem' }}>League</TableCell>
               <TableCell sx={{ color: '#b0b3b8', fontWeight: 600, fontSize: '1rem' }}>Bet</TableCell>
-              <TableCell align="center" sx={{ color: '#b0b3b8', fontWeight: 600, fontSize: '1rem' }}>BetBCK Odds</TableCell>
+              <TableCell align="center" sx={{ color: '#b0b3b8', fontWeight: 600, fontSize: '1rem' }}>Book Odds</TableCell>
               <TableCell align="center" sx={{ color: '#b0b3b8', fontWeight: 600, fontSize: '1rem' }}>Pinnacle NVP</TableCell>
               <TableCell align="center" sx={{ color: '#b0b3b8', fontWeight: 600, fontSize: '1rem' }}>EV</TableCell>
               <TableCell sx={{ color: '#b0b3b8', fontWeight: 600, fontSize: '1rem' }}>Start Time</TableCell>
@@ -211,7 +288,7 @@ const BuckeyeScraper: React.FC = () => {
                   <TableCell sx={{ color: '#fff', fontWeight: 500 }}>{row.league}</TableCell>
                   <TableCell sx={{ color: '#fff', fontWeight: 500 }}>{row.bet}</TableCell>
                   <TableCell align="center">
-                    {row.betbck_odds}
+                    {row.betbck_odds || row.ace_odds || 'N/A'}
                   </TableCell>
                   <TableCell align="center">
                     {row.pinnacle_nvp}

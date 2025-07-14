@@ -42,6 +42,11 @@
     "page_refresh_interval_hours": 2.5,
     "enable_auto_scraping": true
   },
+  "ace": {
+    "enabled": true,
+    "min_ev_threshold": 3.0,
+    "scraping_interval_seconds": 30
+  },
   "telegram_bot_token": "7978883144:AAGb9JWenYu13NsKm6iYjcv9RF35yw1UvM4",
   "telegram_chat_id": -1002743026179,
   "telegram_admin_user_id": 5765308683

@@ -351,7 +351,7 @@ function App() {
                       variant="h6"
                       sx={{ color: '#fff', fontWeight: 700 }}
                     >
-                      BuckeyeScraper EV
+                      EV Bets
                     </Typography>
                   </Box>
                   <BuckeyeScraper />

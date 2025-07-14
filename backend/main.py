@@ -27,6 +27,7 @@ import os
 import collections
 # from betbck_async_scraper import get_all_betbck_games  # Removed - use async version instead
 from betbck_request_manager import betbck_manager
+from ace_scraper import AceScraper
 
 # Configure logging
 logging.basicConfig(
@@ -73,6 +74,7 @@ with open('config.json', 'r') as f:
 
 pod_event_manager = PodEventManager()
 pto_scraper = PTOScraper(config.get("pto", {}))
+ace_scraper = AceScraper(config.get("ace", {}))
 
 threading.Thread(target=pod_event_manager.background_event_refresher, daemon=True).start()
 
@@ -1064,6 +1066,50 @@ async def get_betbck_status():
             "status": "error",
             "message": str(e)
         }, status_code=500)
+
+@app.post("/ace/run-calculations")
+def run_ace_calculations():
+    """Run Ace calculations"""
+    try:
+        logger.info("=== Ace: Running Calculations ===")
+        
+        results = ace_scraper.run_ace_calculations()
+        
+        if results["status"] == "success":
+            logger.info(f"Ace calculations completed: {results['message']}")
+            return JSONResponse(content=results)
+        else:
+            logger.error(f"Ace calculations failed: {results['message']}")
+            return JSONResponse(
+                status_code=500,
+                content={"status": "error", "message": results["message"]}
+            )
+    except Exception as e:
+        logger.error(f"Error running Ace calculations: {e}")
+        return JSONResponse(
+            status_code=500,
+            content={"status": "error", "message": f"Failed to run Ace calculations: {str(e)}"}
+        )
+
+@app.get("/ace/results")
+def get_ace_results():
+    """Get Ace results"""
+    try:
+        results = ace_scraper.get_ace_results()
+        
+        if results["status"] == "success":
+            return JSONResponse(content=results)
+        else:
+            return JSONResponse(
+                status_code=404,
+                content={"status": "error", "message": results["message"]}
+            )
+    except Exception as e:
+        logger.error(f"Error getting Ace results: {e}")
+        return JSONResponse(
+            status_code=500,
+            content={"status": "error", "message": f"Failed to get Ace results: {str(e)}"}
+        )
 
 if __name__ == "__main__":
     import uvicorn
