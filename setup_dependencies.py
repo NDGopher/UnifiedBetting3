@@ -56,16 +56,49 @@ def setup_backend():
         print_status("Backend directory not found!", "ERROR")
         return False
     
-    # Create virtual environment if it doesn't exist
+    # Remove and recreate virtual environment if it's missing or broken
     venv_path = backend_dir / "venv"
+    recreate_venv = False
+    python_exe = None
     if not venv_path.exists():
-        print_status("Creating virtual environment...", "INFO")
+        recreate_venv = True
+        print_status("Virtual environment does not exist. Will create a new one.", "INFO")
+    else:
+        # Check if venv is broken (missing python executable)
+        if platform.system() == "Windows":
+            python_exe = venv_path / "Scripts" / "python.exe"
+        else:
+            python_exe = venv_path / "bin" / "python"
+        print_status(f"Checking venv Python executable: {python_exe}", "INFO")
+        if not python_exe.exists():
+            print_status(f"Virtual environment is broken or references missing Python: {python_exe}", "WARNING")
+            recreate_venv = True
+        else:
+            # Try to run the venv python and check version
+            try:
+                result = subprocess.run([str(python_exe), "--version"], capture_output=True, text=True, timeout=10)
+                if result.returncode != 0:
+                    print_status(f"Venv python failed to run: {result.stderr}", "WARNING")
+                    recreate_venv = True
+                else:
+                    print_status(f"Venv python version: {result.stdout.strip()}", "INFO")
+            except Exception as e:
+                print_status(f"Error running venv python: {e}", "WARNING")
+                recreate_venv = True
+    if recreate_venv:
+        print_status("Deleting and recreating virtual environment...", "INFO")
+        if venv_path.exists():
+            import shutil
+            shutil.rmtree(venv_path)
+        # Print system python path
+        sys_python = sys.executable
+        print_status(f"System Python being used to create venv: {sys_python}", "INFO")
         if not run_command("python -m venv venv", cwd=backend_dir):
             print_status("Failed to create virtual environment", "ERROR")
             return False
         print_status("Virtual environment created successfully", "SUCCESS")
     else:
-        print_status("Virtual environment already exists", "SUCCESS")
+        print_status("Virtual environment already exists and is valid", "SUCCESS")
     
     # Determine Python command based on platform
     if platform.system() == "Windows":
@@ -74,6 +107,7 @@ def setup_backend():
     else:
         python_cmd = "venv/bin/python"
         pip_cmd = "venv/bin/pip"
+    print_status(f"Using venv python: {python_cmd}", "INFO")
     
     # Check if requirements.txt exists
     requirements_file = backend_dir / "requirements.txt"
@@ -81,40 +115,16 @@ def setup_backend():
         print_status("requirements.txt not found in backend directory", "WARNING")
         return True
     
-    # Check if dependencies are already installed
-    print_status("Checking if dependencies are installed...", "INFO")
-    try:
-        result = subprocess.run(
-            f'"{python_cmd}" -c "import uvicorn, fastapi, selenium, requests; print(\'deps_installed\')"',
-            shell=True,
-            cwd=backend_dir,
-            capture_output=True,
-            text=True,
-            timeout=10
-        )
-        deps_installed = "deps_installed" in result.stdout
-    except:
-        deps_installed = False
-    
-    if deps_installed:
-        print_status("Backend dependencies already installed", "SUCCESS")
-        return True
-    
-    # Install dependencies
-    print_status("Installing backend dependencies...", "INFO")
-    print_status("This may take a few minutes...", "INFO")
-    
-    # Try to upgrade pip first (but don't fail if it doesn't work)
+    # Always try to upgrade pip
     print_status("Upgrading pip...", "INFO")
     run_command(f"{python_cmd} -m pip install --upgrade pip", cwd=backend_dir, check=False)
     
-    # Install requirements
-    print_status("Installing Python packages...", "INFO")
-    if not run_command(f"{python_cmd} -m pip install -r requirements.txt", cwd=backend_dir):
+    # Always force reinstall requirements
+    print_status("Installing backend dependencies (force reinstall)...", "INFO")
+    if not run_command(f"{python_cmd} -m pip install --upgrade --force-reinstall -r requirements.txt", cwd=backend_dir):
         print_status("Failed to install backend requirements", "ERROR")
         print_status("Try running: pip install -r requirements.txt --no-cache-dir", "INFO")
         return False
-    
     print_status("Backend dependencies installed successfully", "SUCCESS")
     return True
 
@@ -132,24 +142,13 @@ def setup_frontend():
         print_status("package.json not found in frontend directory", "WARNING")
         return True
     
-    # Check if node_modules already exists and key dependencies are installed
-    node_modules_exists = (frontend_dir / "node_modules").exists()
-    dayjs_exists = (frontend_dir / "node_modules" / "dayjs").exists() if node_modules_exists else False
-    
-    if node_modules_exists and dayjs_exists:
-        print_status("Frontend dependencies already installed", "SUCCESS")
-        return True
-    
-    # Install dependencies
-    print_status("Installing frontend dependencies...", "INFO")
-    print_status("This may take a few minutes...", "INFO")
-    
-    # Force clean install to ensure all dependencies are properly installed
-    if node_modules_exists:
+    # Always remove node_modules for a clean install
+    node_modules_path = frontend_dir / "node_modules"
+    if node_modules_path.exists():
         print_status("Cleaning existing node_modules for fresh install...", "INFO")
         import shutil
         try:
-            shutil.rmtree(frontend_dir / "node_modules")
+            shutil.rmtree(node_modules_path)
             print_status("Cleaned existing node_modules", "SUCCESS")
         except Exception as e:
             print_status(f"Warning: Could not clean node_modules: {e}", "WARNING")
@@ -164,18 +163,11 @@ def setup_frontend():
         except Exception as e:
             print_status(f"Warning: Could not remove bun.lock: {e}", "WARNING")
     
-    # Install dependencies with PowerShell execution policy bypass
+    # Always run npm install
+    print_status("Installing frontend dependencies (npm install)...", "INFO")
     if not run_command("powershell -ExecutionPolicy Bypass -Command \"npm install\"", cwd=frontend_dir):
         print_status("Failed to install frontend dependencies", "ERROR")
         return False
-    
-    # Verify key dependencies are installed
-    if not (frontend_dir / "node_modules" / "dayjs").exists():
-        print_status("dayjs not found after install, trying to install it specifically...", "WARNING")
-        if not run_command("powershell -ExecutionPolicy Bypass -Command \"npm install dayjs\"", cwd=frontend_dir):
-            print_status("Failed to install dayjs dependency", "ERROR")
-            return False
-    
     print_status("Frontend dependencies installed successfully", "SUCCESS")
     return True
 

@@ -1072,20 +1072,25 @@ def run_ace_calculations():
     """Run Ace calculations"""
     try:
         logger.info("=== Ace: Running Calculations ===")
+        logger.info("Starting Ace calculations...")
         
         results = ace_scraper.run_ace_calculations()
+        logger.info(f"Ace calculations returned: {results}")
         
-        if results["status"] == "success":
-            logger.info(f"Ace calculations completed: {results['message']}")
+        if results.get("status") == "success":
+            logger.info(f"Ace calculations completed: {results.get('message', 'Success')}")
             return JSONResponse(content=results)
         else:
-            logger.error(f"Ace calculations failed: {results['message']}")
+            error_msg = results.get("message") or results.get("error") or "Unknown error"
+            logger.error(f"Ace calculations failed: {error_msg}")
             return JSONResponse(
                 status_code=500,
-                content={"status": "error", "message": results["message"]}
+                content={"status": "error", "message": error_msg}
             )
     except Exception as e:
         logger.error(f"Error running Ace calculations: {e}")
+        import traceback
+        logger.error(f"Ace calculations traceback: {traceback.format_exc()}")
         return JSONResponse(
             status_code=500,
             content={"status": "error", "message": f"Failed to run Ace calculations: {str(e)}"}

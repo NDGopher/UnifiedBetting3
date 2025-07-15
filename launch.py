@@ -905,6 +905,10 @@ def launch_application():
                         print(f"{Colors.GREEN}✅ PTO successfully monitoring props{Colors.RESET}")
                         # Set flag when PTO is actually monitoring
                         pto_monitoring_ready.set()
+                    elif '[SCRAPING] PTO setup complete, starting prop monitoring' in output:
+                        print(f"{Colors.GREEN}✅ PTO successfully monitoring props{Colors.RESET}")
+                        # Set flag when PTO is actually monitoring
+                        pto_monitoring_ready.set()
                     elif 'Could not switch to Prop Builder tab' in output:
                         # This is often a false positive - PTO usually works anyway
                         print(f"{Colors.YELLOW}⚠️ Prop Builder tab warning (usually works anyway){Colors.RESET}")
@@ -1056,10 +1060,11 @@ def launch_application():
         if not frontend_ready_flag.wait(timeout=120):  # Wait up to 120 seconds for compilation
             print_status("Frontend compilation timeout - but server might still be working", "WARNING", Colors.YELLOW)
         
-        # Wait for PTO to actually be monitoring props
+        # Wait for PTO to actually be monitoring props (reduced timeout)
         print_status("⏳ Waiting for PTO to start monitoring...", "INFO", Colors.YELLOW)
-        if not pto_monitoring_ready.wait(timeout=120):  # Wait up to 2 minutes for PTO monitoring
-            print_status("PTO monitoring timeout", "WARNING", Colors.YELLOW)
+        if not pto_monitoring_ready.wait(timeout=30):  # Reduced to 30 seconds
+            print_status("PTO monitoring timeout - continuing anyway", "WARNING", Colors.YELLOW)
+            print_status("💡 PTO may still be working, check manually at https://picktheodds.app", "INFO", Colors.CYAN)
         
         # Print success banner with next steps (only after everything is truly ready)
         success_banner = f"""
@@ -1070,6 +1075,7 @@ def launch_application():
 {Colors.CYAN}📊 Frontend:{Colors.RESET} http://localhost:{frontend_port}
 {Colors.CYAN}🔧 Backend API:{Colors.RESET} http://localhost:5001
 {Colors.CYAN}📈 Pinnacle Odds Dropper:{Colors.RESET} https://pinnacleoddsdropper.com
+{Colors.CYAN}🎯 PickTheOdds:{Colors.RESET} https://picktheodds.app
 {Colors.CYAN}✅ PTO Scraper:{Colors.RESET} Active and monitoring
 
 {Colors.YELLOW}{Colors.BOLD}📋 NEXT STEPS:{Colors.RESET}

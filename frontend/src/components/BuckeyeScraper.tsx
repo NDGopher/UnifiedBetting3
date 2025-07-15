@@ -1,4 +1,4 @@
-import React, { useState } from 'react';
+import React, { useState, useEffect, useRef } from 'react';
 import { Box, Button, Typography, Paper, Table, TableBody, TableCell, TableContainer, TableHead, TableRow, CircularProgress, Alert } from '@mui/material';
 import MatchingStats from './MatchingStats';
 import dayjs from 'dayjs';
@@ -37,6 +37,24 @@ const BuckeyeScraper: React.FC = () => {
   const [topMarkets, setTopMarkets] = useState<any[]>([]);
   const [stats, setStats] = useState({ pinnacleEvents: 0, betbckMatches: 0, matchRate: 0 });
   const [lastUpdate, setLastUpdate] = useState<string | null>(null);
+
+  const pollingRef = useRef<NodeJS.Timeout | null>(null);
+  const isPolling = useRef(false);
+
+  const startPolling = () => {
+    if (pollingRef.current) clearInterval(pollingRef.current);
+    pollingRef.current = setInterval(() => {
+      if (!isPolling.current && !loading) {
+        isPolling.current = true;
+        fetchAceEvents().finally(() => { isPolling.current = false; });
+      }
+    }, 3000);
+  };
+
+  const stopPolling = () => {
+    if (pollingRef.current) clearInterval(pollingRef.current);
+    pollingRef.current = null;
+  };
 
   const fetchEvents = async () => {
     setLoading(true);
@@ -128,23 +146,42 @@ const BuckeyeScraper: React.FC = () => {
     setLoading(true);
     setError(null);
     setMessage(null);
+    startPolling(); // Start polling when calculation starts
     try {
       console.log('[BuckeyeScraper] Running Ace calculations...');
       const res = await fetch(`${API_BASE}/ace/run-calculations`, { method: 'POST' });
       const data = await res.json();
       console.log('[BuckeyeScraper] Ace calculations response:', data);
+      
+      // Handle the new response format with status field
       if (data.status === 'success') {
-        setMessage(data.message || 'Ace calculations completed');
+        setMessage(data.message || 'Ace calculations completed successfully');
         // Fetch Ace results after calculations
         fetchAceEvents();
-      } else {
-        setError(data.message || 'Failed to run Ace calculations');
+      } else if (data.status === 'partial_success') {
+        setMessage(data.message || 'Ace calculations partially completed');
+        // Still fetch results even if partial success
+        fetchAceEvents();
+      } else if (data.status === 'error') {
+        setError(data.message || data.error || 'Failed to run Ace calculations');
         setTopMarkets([]);
+        stopPolling(); // Stop polling on error
+      } else {
+        // Handle old format for backward compatibility
+        if (data.message) {
+          setMessage(data.message);
+          fetchAceEvents();
+        } else {
+          setError('Failed to run Ace calculations - unexpected response format');
+          setTopMarkets([]);
+          stopPolling();
+        }
       }
     } catch (err) {
       console.error('[BuckeyeScraper] Error running Ace calculations:', err);
-      setError('Failed to run Ace calculations');
+      setError('Failed to run Ace calculations - network error');
       setTopMarkets([]);
+      stopPolling(); // Stop polling on error
     } finally {
       setLoading(false);
     }
@@ -159,19 +196,44 @@ const BuckeyeScraper: React.FC = () => {
       const res = await fetch(`${API_BASE}/ace/results`);
       const data = await res.json();
       console.log('[BuckeyeScraper] Ace results response:', data);
+      
+      // Handle the new response format with status field
       if (data.status === 'success') {
-        setLastUpdate(data.data.last_update || null);
-        const allMarkets = data.data.markets || [];
+        setLastUpdate(data.last_update || null);
+        const allMarkets = data.markets || [];
         allMarkets.sort((a: any, b: any) => parseFloat(b.ev) - parseFloat(a.ev));
         setTopMarkets(allMarkets.length > 0 ? allMarkets.slice(0, 10) : []);
-      } else {
-        setError(data.message || 'Failed to fetch Ace results');
+        stopPolling(); // Stop polling when results are loaded
+      } else if (data.status === 'partial_success') {
+        setLastUpdate(data.last_update || null);
+        const allMarkets = data.markets || [];
+        allMarkets.sort((a: any, b: any) => parseFloat(b.ev) - parseFloat(a.ev));
+        setTopMarkets(allMarkets.length > 0 ? allMarkets.slice(0, 10) : []);
+        setMessage(data.message || 'Partial results loaded');
+        stopPolling(); // Stop polling when results are loaded
+      } else if (data.status === 'error') {
+        setError(data.message || data.error || 'Failed to fetch Ace results');
         setTopMarkets([]);
+        stopPolling(); // Stop polling on error
+      } else {
+        // Handle old format for backward compatibility
+        if (data.data && data.data.markets) {
+          setLastUpdate(data.data.last_update || null);
+          const allMarkets = data.data.markets || [];
+          allMarkets.sort((a: any, b: any) => parseFloat(b.ev) - parseFloat(a.ev));
+          setTopMarkets(allMarkets.length > 0 ? allMarkets.slice(0, 10) : []);
+          stopPolling(); // Stop polling when results are loaded
+        } else {
+          setError('Failed to fetch Ace results - unexpected response format');
+          setTopMarkets([]);
+          stopPolling(); // Stop polling on error
+        }
       }
     } catch (err) {
       console.error('[BuckeyeScraper] Error fetching Ace results:', err);
-      setError('Failed to fetch Ace results');
+      setError('Failed to fetch Ace results - network error');
       setTopMarkets([]);
+      stopPolling(); // Stop polling on error
     } finally {
       setLoading(false);
     }

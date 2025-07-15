@@ -6,7 +6,7 @@ import logging
 from datetime import datetime, timedelta
 from typing import List, Dict, Any, Optional
 from pathlib import Path
-from backend.utils.pod_utils import normalize_team_name_for_matching, analyze_markets_for_ev, clean_pod_team_name_for_search, determine_betbck_search_term
+from utils.pod_utils import normalize_team_name_for_matching, analyze_markets_for_ev, clean_pod_team_name_for_search, determine_betbck_search_term
 
 # Use the specialized buckeye logger
 logger = logging.getLogger("buckeye")
@@ -20,14 +20,17 @@ EXCLUDED_SPORTS = [
     "Handball", "E Sports", "Darts", "Tennis"
 ]
 
+BASE_DIR = Path(__file__).resolve().parent
+
 class BuckeyeScraper:
     def __init__(self, config: Dict[str, Any]):
         self.config = config
-        self.event_ids_file = Path("backend/data/buckeye_event_ids.json")
-        self.results_file = Path("backend/data/buckeye_results.json")
+        self.event_ids_file = BASE_DIR / "data" / "buckeye_event_ids.json"
+        self.results_file = BASE_DIR / "data" / "buckeye_results.json"
         
         # Ensure data directory exists
         self.event_ids_file.parent.mkdir(parents=True, exist_ok=True)
+        self.results_file.parent.mkdir(parents=True, exist_ok=True)
         
         logger.info("BuckeyeScraper initialized")
     
@@ -303,10 +306,10 @@ class BuckeyeScraper:
                     # Check if we have proper team names
                     if home_team and home_team != "Unknown" and away_team and away_team != "Unknown":
                         events_with_team_names += 1
-                        logger.debug(f"[EVENT-EXTRACT] ✓ Event {event_id}: '{home_team}' vs '{away_team}'")
+                        logger.debug(f"[EVENT-EXTRACT] [OK] Event {event_id}: '{home_team}' vs '{away_team}'")
                     else:
                         events_with_unknown_teams += 1
-                        logger.warning(f"[EVENT-EXTRACT] ✗ Event {event_id}: Missing team names - home='{home_team}', away='{away_team}'")
+                        logger.warning(f"[EVENT-EXTRACT] [ERROR] Event {event_id}: Missing team names - home='{home_team}', away='{away_team}'")
                     
                     event_dicts.append({
                         "event_id": event_id,

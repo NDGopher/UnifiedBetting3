@@ -1,6 +1,9 @@
 {
   "markets": [],
-  "last_update": "2025-07-14T17:53:26.236032",
-  "total_games": 625,
-  "games_with_ev": 0
+  "last_update": "2025-07-14T23:45:07.415949",
+  "total_processed": 0,
+  "total_matched": 0,
+  "total_with_ev": 0,
+  "match_rate": 0.0,
+  "ev_rate": 0.0
 }

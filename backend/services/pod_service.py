@@ -10,7 +10,7 @@ import time
 import traceback
 from hashlib import sha256
 
-from backend.utils.pod_utils import (
+from utils.pod_utils import (
     process_event_odds_for_display,
     clean_pod_team_name_for_search,
     american_to_decimal,

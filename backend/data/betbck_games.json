@@ -13,7 +13,7 @@
       "game_total_over_odds": null,
       "game_total_under_odds": null
     },
-    "timestamp": "2025-07-14T17:56:47.898979",
+    "timestamp": "2025-07-14T23:36:52.836839",
     "event_datetime": "2025-07-15T19:00"
   },
   {
@@ -42,7 +42,7 @@
       "game_total_over_odds": "+115",
       "game_total_under_odds": "-155"
     },
-    "timestamp": "2025-07-14T17:56:47.951224",
+    "timestamp": "2025-07-14T23:36:52.843596",
     "event_datetime": "2025-07-16T14:00"
   },
   {
@@ -51,7 +51,7 @@
     "betbck_site_away_team": "225206Sweden W",
     "betbck_site_odds": {
       "site_top_team_moneyline_american": "+105",
-      "site_bottom_team_moneyline_american": "+255",
+      "site_bottom_team_moneyline_american": "+265",
       "draw_moneyline_american": null,
       "site_top_team_spreads": [
         {
@@ -71,7 +71,7 @@
       "game_total_over_odds": "+105",
       "game_total_under_odds": "-145"
     },
-    "timestamp": "2025-07-14T17:56:47.953223",
+    "timestamp": "2025-07-14T23:36:52.843873",
     "event_datetime": "2025-07-17T14:00"
   },
   {
@@ -79,7 +79,7 @@
     "betbck_site_home_team": "224257Olimpija",
     "betbck_site_away_team": "224258Kairat",
     "betbck_site_odds": {
-      "site_top_team_moneyline_american": "+185",
+      "site_top_team_moneyline_american": "+190",
       "site_bottom_team_moneyline_american": "+130",
       "draw_moneyline_american": null,
       "site_top_team_spreads": [
@@ -100,7 +100,7 @@
       "game_total_over_odds": "+100",
       "game_total_under_odds": "-140"
     },
-    "timestamp": "2025-07-14T17:56:48.102784",
+    "timestamp": "2025-07-14T23:36:52.865006",
     "event_datetime": "2025-07-15T10:00"
   },
   {
@@ -108,20 +108,20 @@
     "betbck_site_home_team": "224261Vikingur",
     "betbck_site_away_team": "224262Lincoln Red Imps",
     "betbck_site_odds": {
-      "site_top_team_moneyline_american": "+230",
+      "site_top_team_moneyline_american": "+235",
       "site_bottom_team_moneyline_american": "-105",
       "draw_moneyline_american": null,
       "site_top_team_spreads": [
         {
           "line": 0.5,
-          "odds": "-135",
+          "odds": "-130",
           "raw": "+½"
         }
       ],
       "site_bottom_team_spreads": [
         {
           "line": -0.5,
-          "odds": "+105",
+          "odds": "+100",
           "raw": "-½"
         }
       ],
@@ -129,7 +129,7 @@
       "game_total_over_odds": "-130",
       "game_total_under_odds": "-110"
     },
-    "timestamp": "2025-07-14T17:56:48.104783",
+    "timestamp": "2025-07-14T23:36:52.865313",
     "event_datetime": "2025-07-15T10:30"
   },
   {
@@ -146,7 +146,7 @@
       "game_total_over_odds": null,
       "game_total_under_odds": null
     },
-    "timestamp": "2025-07-14T17:56:48.109077",
+    "timestamp": "2025-07-14T23:36:52.865582",
     "event_datetime": "2025-07-15T12:00"
   },
   {
@@ -155,7 +155,7 @@
     "betbck_site_away_team": "224274Milsami",
     "betbck_site_odds": {
       "site_top_team_moneyline_american": "+125",
-      "site_bottom_team_moneyline_american": "+195",
+      "site_bottom_team_moneyline_american": "+200",
       "draw_moneyline_american": null,
       "site_top_team_spreads": [
         {
@@ -175,7 +175,7 @@
       "game_total_over_odds": "-110",
       "game_total_under_odds": "-130"
     },
-    "timestamp": "2025-07-14T17:56:48.112090",
+    "timestamp": "2025-07-14T23:36:52.865856",
     "event_datetime": "2025-07-15T12:00"
   },
   {
@@ -183,7 +183,7 @@
     "betbck_site_home_team": "224281Drita",
     "betbck_site_away_team": "224282Differdange 03",
     "betbck_site_odds": {
-      "site_top_team_moneyline_american": "+180",
+      "site_top_team_moneyline_american": "+185",
       "site_bottom_team_moneyline_american": "+145",
       "draw_moneyline_american": null,
       "site_top_team_spreads": [
@@ -204,7 +204,7 @@
       "game_total_over_odds": "-145",
       "game_total_under_odds": "+105"
     },
-    "timestamp": "2025-07-14T17:56:48.115097",
+    "timestamp": "2025-07-14T23:36:52.866435",
     "event_datetime": "2025-07-15T13:00"
   },
   {
@@ -213,27 +213,27 @@
     "betbck_site_away_team": "224286Shkendija",
     "betbck_site_odds": {
       "site_top_team_moneyline_american": "+335",
-      "site_bottom_team_moneyline_american": "-125",
+      "site_bottom_team_moneyline_american": "-130",
       "draw_moneyline_american": null,
       "site_top_team_spreads": [
         {
-          "line": 0.5,
-          "odds": "+105",
-          "raw": "+½"
+          "line": 0.75,
+          "odds": "-135",
+          "raw": "+½,+1"
         }
       ],
       "site_bottom_team_spreads": [
         {
-          "line": -0.5,
-          "odds": "-135",
-          "raw": "-½"
+          "line": -0.75,
+          "odds": "+105",
+          "raw": "-½,-1"
         }
       ],
-      "game_total_line": 2.25,
-      "game_total_over_odds": "-140",
-      "game_total_under_odds": "+100"
+      "game_total_line": 2.5,
+      "game_total_over_odds": "+100",
+      "game_total_under_odds": "-140"
     },
-    "timestamp": "2025-07-14T17:56:48.118108",
+    "timestamp": "2025-07-14T23:36:52.867476",
     "event_datetime": "2025-07-15T13:00"
   },
   {
@@ -241,8 +241,8 @@
     "betbck_site_home_team": "224289Steaua Bucuresti",
     "betbck_site_away_team": "224290Inter Club dEscaldes",
     "betbck_site_odds": {
-      "site_top_team_moneyline_american": "-265",
-      "site_bottom_team_moneyline_american": "+530",
+      "site_top_team_moneyline_american": "-270",
+      "site_bottom_team_moneyline_american": "+540",
       "draw_moneyline_american": null,
       "site_top_team_spreads": [],
       "site_bottom_team_spreads": [],
@@ -250,7 +250,7 @@
       "game_total_over_odds": null,
       "game_total_under_odds": null
     },
-    "timestamp": "2025-07-14T17:56:48.120091",
+    "timestamp": "2025-07-14T23:36:52.867842",
     "event_datetime": "2025-07-15T13:30"
   },
   {
@@ -267,7 +267,7 @@
       "game_total_over_odds": null,
       "game_total_under_odds": null
     },
-    "timestamp": "2025-07-14T17:56:48.126614",
+    "timestamp": "2025-07-14T23:36:52.868650",
     "event_datetime": "2025-07-15T14:00"
   },
   {
@@ -275,20 +275,20 @@
     "betbck_site_home_team": "224297Egnatia Rrogozhine",
     "betbck_site_away_team": "224298Breidablik",
     "betbck_site_odds": {
-      "site_top_team_moneyline_american": "+325",
-      "site_bottom_team_moneyline_american": "-130",
+      "site_top_team_moneyline_american": "+315",
+      "site_bottom_team_moneyline_american": "-125",
       "draw_moneyline_american": null,
       "site_top_team_spreads": [
         {
           "line": 0.75,
-          "odds": "-130",
+          "odds": "-135",
           "raw": "+½,+1"
         }
       ],
       "site_bottom_team_spreads": [
         {
           "line": -0.75,
-          "odds": "+100",
+          "odds": "+105",
           "raw": "-½,-1"
         }
       ],
@@ -296,7 +296,7 @@
       "game_total_over_odds": "-110",
       "game_total_under_odds": "-130"
     },
-    "timestamp": "2025-07-14T17:56:48.128738",
+    "timestamp": "2025-07-14T23:36:52.868969",
     "event_datetime": "2025-07-15T14:00"
   },
   {
@@ -325,7 +325,7 @@
       "game_total_over_odds": "-110",
       "game_total_under_odds": "-130"
     },
-    "timestamp": "2025-07-14T17:56:48.132033",
+    "timestamp": "2025-07-14T23:36:52.869257",
     "event_datetime": "2025-07-16T13:45"
   },
   {
@@ -354,7 +354,7 @@
       "game_total_over_odds": "-130",
       "game_total_under_odds": "-110"
     },
-    "timestamp": "2025-07-14T17:56:48.189025",
+    "timestamp": "2025-07-14T23:36:52.907192",
     "event_datetime": "2025-07-17T11:00"
   },
   {
@@ -383,7 +383,7 @@
       "game_total_over_odds": "-145",
       "game_total_under_odds": "+105"
     },
-    "timestamp": "2025-07-14T17:56:48.190024",
+    "timestamp": "2025-07-14T23:36:52.907715",
     "event_datetime": "2025-07-17T11:00"
   },
   {
@@ -412,7 +412,7 @@
       "game_total_over_odds": "-115",
       "game_total_under_odds": "-125"
     },
-    "timestamp": "2025-07-14T17:56:48.191025",
+    "timestamp": "2025-07-14T23:36:52.908216",
     "event_datetime": "2025-07-17T12:00"
   },
   {
@@ -441,7 +441,7 @@
       "game_total_over_odds": "-155",
       "game_total_under_odds": "+115"
     },
-    "timestamp": "2025-07-14T17:56:48.192024",
+    "timestamp": "2025-07-14T23:36:52.908701",
     "event_datetime": "2025-07-17T12:00"
   },
   {
@@ -470,7 +470,7 @@
       "game_total_over_odds": "+110",
       "game_total_under_odds": "-150"
     },
-    "timestamp": "2025-07-14T17:56:48.192024",
+    "timestamp": "2025-07-14T23:36:52.909283",
     "event_datetime": "2025-07-17T12:30"
   },
   {
@@ -499,7 +499,7 @@
       "game_total_over_odds": "+100",
       "game_total_under_odds": "-140"
     },
-    "timestamp": "2025-07-14T17:56:48.193024",
+    "timestamp": "2025-07-14T23:36:52.910353",
     "event_datetime": "2025-07-17T13:00"
   },
   {
@@ -528,7 +528,7 @@
       "game_total_over_odds": "-110",
       "game_total_under_odds": "-130"
     },
-    "timestamp": "2025-07-14T17:56:48.194023",
+    "timestamp": "2025-07-14T23:36:52.910878",
     "event_datetime": "2025-07-17T13:00"
   },
   {
@@ -557,7 +557,7 @@
       "game_total_over_odds": "-105",
       "game_total_under_odds": "-135"
     },
-    "timestamp": "2025-07-14T17:56:48.195027",
+    "timestamp": "2025-07-14T23:36:52.911380",
     "event_datetime": "2025-07-17T13:45"
   },
   {
@@ -586,7 +586,7 @@
       "game_total_over_odds": "-115",
       "game_total_under_odds": "-125"
     },
-    "timestamp": "2025-07-14T17:56:48.196024",
+    "timestamp": "2025-07-14T23:36:52.911868",
     "event_datetime": "2025-07-17T14:00"
   },
   {
@@ -595,7 +595,7 @@
     "betbck_site_away_team": "209234Club America",
     "betbck_site_odds": {
       "site_top_team_moneyline_american": "+595",
-      "site_bottom_team_moneyline_american": "-250",
+      "site_bottom_team_moneyline_american": "-255",
       "draw_moneyline_american": null,
       "site_top_team_spreads": [
         {
@@ -615,7 +615,7 @@
       "game_total_over_odds": "-130",
       "game_total_under_odds": "-110"
     },
-    "timestamp": "2025-07-14T17:56:48.245452",
+    "timestamp": "2025-07-14T23:36:52.941288",
     "event_datetime": "2025-07-16T20:00"
   },
   {
@@ -624,7 +624,7 @@
     "betbck_site_away_team": "209238Santos Laguna",
     "betbck_site_odds": {
       "site_top_team_moneyline_american": "-145",
-      "site_bottom_team_moneyline_american": "+355",
+      "site_bottom_team_moneyline_american": "+360",
       "draw_moneyline_american": null,
       "site_top_team_spreads": [
         {
@@ -644,7 +644,7 @@
       "game_total_over_odds": "+100",
       "game_total_under_odds": "-140"
     },
-    "timestamp": "2025-07-14T17:56:48.246451",
+    "timestamp": "2025-07-14T23:36:52.941781",
     "event_datetime": "2025-07-16T22:05"
   },
   {
@@ -673,7 +673,7 @@
       "game_total_over_odds": "+100",
       "game_total_under_odds": "-140"
     },
-    "timestamp": "2025-07-14T17:56:48.248452",
+    "timestamp": "2025-07-14T23:36:52.942668",
     "event_datetime": "2025-07-18T20:00"
   },
   {
@@ -702,7 +702,7 @@
       "game_total_over_odds": "+110",
       "game_total_under_odds": "-150"
     },
-    "timestamp": "2025-07-14T17:56:48.249449",
+    "timestamp": "2025-07-14T23:36:52.943449",
     "event_datetime": "2025-07-18T22:00"
   },
   {
@@ -731,7 +731,7 @@
       "game_total_over_odds": "+115",
       "game_total_under_odds": "-155"
     },
-    "timestamp": "2025-07-14T17:56:48.252207",
+    "timestamp": "2025-07-14T23:36:52.943969",
     "event_datetime": "2025-07-18T22:05"
   },
   {
@@ -739,7 +739,7 @@
     "betbck_site_home_team": "210089CF Montreal",
     "betbck_site_away_team": "210090Philadelphia Union",
     "betbck_site_odds": {
-      "site_top_team_moneyline_american": "+530",
+      "site_top_team_moneyline_american": "+535",
       "site_bottom_team_moneyline_american": "-215",
       "draw_moneyline_american": null,
       "site_top_team_spreads": [
@@ -760,7 +760,7 @@
       "game_total_over_odds": "-115",
       "game_total_under_odds": "-125"
     },
-    "timestamp": "2025-07-14T17:56:48.332598",
+    "timestamp": "2025-07-14T23:36:52.998801",
     "event_datetime": "2025-07-16T18:30"
   },
   {
@@ -789,7 +789,7 @@
       "game_total_over_odds": "-130",
       "game_total_under_odds": "-110"
     },
-    "timestamp": "2025-07-14T17:56:48.333600",
+    "timestamp": "2025-07-14T23:36:52.999313",
     "event_datetime": "2025-07-16T18:30"
   },
   {
@@ -818,7 +818,7 @@
       "game_total_over_odds": "-110",
       "game_total_under_odds": "-130"
     },
-    "timestamp": "2025-07-14T17:56:48.334600",
+    "timestamp": "2025-07-14T23:36:52.999835",
     "event_datetime": "2025-07-16T18:30"
   },
   {
@@ -826,7 +826,7 @@
     "betbck_site_home_team": "210101Inter Miami",
     "betbck_site_away_team": "210102FC Cincinnati",
     "betbck_site_odds": {
-      "site_top_team_moneyline_american": "+185",
+      "site_top_team_moneyline_american": "+180",
       "site_bottom_team_moneyline_american": "+125",
       "draw_moneyline_american": null,
       "site_top_team_spreads": [
@@ -847,7 +847,7 @@
       "game_total_over_odds": "-115",
       "game_total_under_odds": "-125"
     },
-    "timestamp": "2025-07-14T17:56:48.335599",
+    "timestamp": "2025-07-14T23:36:53.000336",
     "event_datetime": "2025-07-16T18:30"
   },
   {
@@ -856,7 +856,7 @@
     "betbck_site_away_team": "210106Orlando City SC",
     "betbck_site_odds": {
       "site_top_team_moneyline_american": "+370",
-      "site_bottom_team_moneyline_american": "-140",
+      "site_bottom_team_moneyline_american": "-145",
       "draw_moneyline_american": null,
       "site_top_team_spreads": [
         {
@@ -876,7 +876,7 @@
       "game_total_over_odds": "-110",
       "game_total_under_odds": "-130"
     },
-    "timestamp": "2025-07-14T17:56:48.336599",
+    "timestamp": "2025-07-14T23:36:53.000994",
     "event_datetime": "2025-07-16T18:30"
   },
   {
@@ -905,7 +905,7 @@
       "game_total_over_odds": "-110",
       "game_total_under_odds": "-130"
     },
-    "timestamp": "2025-07-14T17:56:48.336599",
+    "timestamp": "2025-07-14T23:36:53.002471",
     "event_datetime": "2025-07-16T18:30"
   },
   {
@@ -934,7 +934,7 @@
       "game_total_over_odds": "-110",
       "game_total_under_odds": "-130"
     },
-    "timestamp": "2025-07-14T17:56:48.337599",
+    "timestamp": "2025-07-14T23:36:53.003330",
     "event_datetime": "2025-07-16T19:30"
   },
   {
@@ -963,7 +963,7 @@
       "game_total_over_odds": "-130",
       "game_total_under_odds": "-110"
     },
-    "timestamp": "2025-07-14T17:56:48.339600",
+    "timestamp": "2025-07-14T23:36:53.003844",
     "event_datetime": "2025-07-16T19:30"
   },
   {
@@ -992,7 +992,7 @@
       "game_total_over_odds": "-130",
       "game_total_under_odds": "-110"
     },
-    "timestamp": "2025-07-14T17:56:48.340600",
+    "timestamp": "2025-07-14T23:36:53.004335",
     "event_datetime": "2025-07-16T21:00"
   },
   {
@@ -1021,7 +1021,7 @@
       "game_total_over_odds": "-115",
       "game_total_under_odds": "-125"
     },
-    "timestamp": "2025-07-14T17:56:48.341602",
+    "timestamp": "2025-07-14T23:36:53.004941",
     "event_datetime": "2025-07-16T21:30"
   },
   {
@@ -1029,7 +1029,7 @@
     "betbck_site_home_team": "210129Toronto FC",
     "betbck_site_away_team": "210130San Diego",
     "betbck_site_odds": {
-      "site_top_team_moneyline_american": "+710",
+      "site_top_team_moneyline_american": "+715",
       "site_bottom_team_moneyline_american": "-295",
       "draw_moneyline_american": null,
       "site_top_team_spreads": [
@@ -1050,7 +1050,7 @@
       "game_total_over_odds": "-135",
       "game_total_under_odds": "-105"
     },
-    "timestamp": "2025-07-14T17:56:48.342600",
+    "timestamp": "2025-07-14T23:36:53.005702",
     "event_datetime": "2025-07-16T21:30"
   },
   {
@@ -1079,7 +1079,7 @@
       "game_total_over_odds": "-135",
       "game_total_under_odds": "-105"
     },
-    "timestamp": "2025-07-14T17:56:48.343601",
+    "timestamp": "2025-07-14T23:36:53.006664",
     "event_datetime": "2025-07-16T21:30"
   },
   {
@@ -1088,7 +1088,7 @@
     "betbck_site_away_team": "210138Los Angeles Galaxy",
     "betbck_site_odds": {
       "site_top_team_moneyline_american": "+260",
-      "site_bottom_team_moneyline_american": "+100",
+      "site_bottom_team_moneyline_american": "-105",
       "draw_moneyline_american": null,
       "site_top_team_spreads": [
         {
@@ -1108,7 +1108,7 @@
       "game_total_over_odds": "-110",
       "game_total_under_odds": "-130"
     },
-    "timestamp": "2025-07-14T17:56:48.344603",
+    "timestamp": "2025-07-14T23:36:53.007700",
     "event_datetime": "2025-07-16T21:30"
   },
   {
@@ -1116,28 +1116,28 @@
     "betbck_site_home_team": "224809America de Cali",
     "betbck_site_away_team": "224810Bahia",
     "betbck_site_odds": {
-      "site_top_team_moneyline_american": "+495",
-      "site_bottom_team_moneyline_american": "-185",
+      "site_top_team_moneyline_american": "+480",
+      "site_bottom_team_moneyline_american": "-180",
       "draw_moneyline_american": null,
       "site_top_team_spreads": [
         {
           "line": 1.0,
-          "odds": "-120",
+          "odds": "-125",
           "raw": "+1"
         }
       ],
       "site_bottom_team_spreads": [
         {
           "line": -1.0,
-          "odds": "-110",
+          "odds": "-105",
           "raw": "-1"
         }
       ],
       "game_total_line": 2.5,
-      "game_total_over_odds": "-115",
-      "game_total_under_odds": "-125"
+      "game_total_over_odds": "-110",
+      "game_total_under_odds": "-130"
     },
-    "timestamp": "2025-07-14T17:56:48.382059",
+    "timestamp": "2025-07-14T23:36:53.043351",
     "event_datetime": "2025-07-15T19:30"
   },
   {
@@ -1151,22 +1151,22 @@
       "site_top_team_spreads": [
         {
           "line": 1.75,
-          "odds": "-120",
+          "odds": "-110",
           "raw": "+1½,+2"
         }
       ],
       "site_bottom_team_spreads": [
         {
           "line": -1.75,
-          "odds": "-110",
+          "odds": "-120",
           "raw": "-1½,-2"
         }
       ],
-      "game_total_line": 3.0,
-      "game_total_over_odds": "-155",
-      "game_total_under_odds": "+115"
+      "game_total_line": 3.5,
+      "game_total_over_odds": "+115",
+      "game_total_under_odds": "-155"
     },
-    "timestamp": "2025-07-14T17:56:48.383062",
+    "timestamp": "2025-07-14T23:36:53.043836",
     "event_datetime": "2025-07-16T17:00"
   },
   {
@@ -1195,7 +1195,7 @@
       "game_total_over_odds": "-115",
       "game_total_under_odds": "-125"
     },
-    "timestamp": "2025-07-14T17:56:48.384061",
+    "timestamp": "2025-07-14T23:36:53.044602",
     "event_datetime": "2025-07-16T19:30"
   },
   {
@@ -1203,20 +1203,20 @@
     "betbck_site_home_team": "224821Club Guarani",
     "betbck_site_away_team": "224822Universidad Chile",
     "betbck_site_odds": {
-      "site_top_team_moneyline_american": "+345",
-      "site_bottom_team_moneyline_american": "-135",
+      "site_top_team_moneyline_american": "+375",
+      "site_bottom_team_moneyline_american": "-145",
       "draw_moneyline_american": null,
       "site_top_team_spreads": [
         {
           "line": 0.75,
-          "odds": "-120",
+          "odds": "-110",
           "raw": "+½,+1"
         }
       ],
       "site_bottom_team_spreads": [
         {
           "line": -0.75,
-          "odds": "-110",
+          "odds": "-120",
           "raw": "-½,-1"
         }
       ],
@@ -1224,7 +1224,7 @@
       "game_total_over_odds": "-135",
       "game_total_under_odds": "-105"
     },
-    "timestamp": "2025-07-14T17:56:48.385061",
+    "timestamp": "2025-07-14T23:36:53.045095",
     "event_datetime": "2025-07-17T17:00"
   },
   {
@@ -1233,7 +1233,7 @@
     "betbck_site_away_team": "224826Atletico Bucaramanga",
     "betbck_site_odds": {
       "site_top_team_moneyline_american": "+105",
-      "site_bottom_team_moneyline_american": "+295",
+      "site_bottom_team_moneyline_american": "+290",
       "draw_moneyline_american": null,
       "site_top_team_spreads": [
         {
@@ -1253,7 +1253,7 @@
       "game_total_over_odds": "-145",
       "game_total_under_odds": "+105"
     },
-    "timestamp": "2025-07-14T17:56:48.386061",
+    "timestamp": "2025-07-14T23:36:53.045582",
     "event_datetime": "2025-07-17T19:30"
   },
   {
@@ -1270,44 +1270,15 @@
       "game_total_over_odds": null,
       "game_total_under_odds": null
     },
-    "timestamp": "2025-07-14T17:56:48.419096",
+    "timestamp": "2025-07-14T23:36:53.057814",
     "event_datetime": "2025-07-16T11:00"
-  },
-  {
-    "betbck_game_id": "c0ec5216",
-    "betbck_site_home_team": "208285Sport Recife",
-    "betbck_site_away_team": "208286Juventude",
-    "betbck_site_odds": {
-      "site_top_team_moneyline_american": "+175",
-      "site_bottom_team_moneyline_american": "+180",
-      "draw_moneyline_american": null,
-      "site_top_team_spreads": [
-        {
-          "line": 0.0,
-          "odds": "+105",
-          "raw": "pk"
-        }
-      ],
-      "site_bottom_team_spreads": [
-        {
-          "line": 0.0,
-          "odds": "-135",
-          "raw": "pk"
-        }
-      ],
-      "game_total_line": 2.0,
-      "game_total_over_odds": "-130",
-      "game_total_under_odds": "-110"
-    },
-    "timestamp": "2025-07-14T17:56:48.486668",
-    "event_datetime": "2025-07-14T18:00"
   },
   {
     "betbck_game_id": "39c92e71",
     "betbck_site_home_team": "208325Vitoria",
     "betbck_site_away_team": "208326Botafogo",
     "betbck_site_odds": {
-      "site_top_team_moneyline_american": "+615",
+      "site_top_team_moneyline_american": "+610",
       "site_bottom_team_moneyline_american": "-210",
       "draw_moneyline_american": null,
       "site_top_team_spreads": [
@@ -1328,7 +1299,7 @@
       "game_total_over_odds": "-125",
       "game_total_under_odds": "-115"
     },
-    "timestamp": "2025-07-14T17:56:48.489662",
+    "timestamp": "2025-07-14T23:36:53.077202",
     "event_datetime": "2025-07-16T07:00"
   },
   {
@@ -1337,7 +1308,7 @@
     "betbck_site_away_team": "208338Santos",
     "betbck_site_odds": {
       "site_top_team_moneyline_american": "-105",
-      "site_bottom_team_moneyline_american": "+305",
+      "site_bottom_team_moneyline_american": "+310",
       "draw_moneyline_american": null,
       "site_top_team_spreads": [
         {
@@ -1357,7 +1328,7 @@
       "game_total_over_odds": "-110",
       "game_total_under_odds": "-130"
     },
-    "timestamp": "2025-07-14T17:56:48.494287",
+    "timestamp": "2025-07-14T23:36:53.077754",
     "event_datetime": "2025-07-16T07:00"
   },
   {
@@ -1365,152 +1336,36 @@
     "betbck_site_home_team": "208349Sao Paulo",
     "betbck_site_away_team": "208350RB Bragantino",
     "betbck_site_odds": {
-      "site_top_team_moneyline_american": "+245",
+      "site_top_team_moneyline_american": "+250",
       "site_bottom_team_moneyline_american": "+125",
       "draw_moneyline_american": null,
       "site_top_team_spreads": [
         {
           "line": 0.25,
-          "odds": "-115",
-          "raw": "pk,+½"
-        }
-      ],
-      "site_bottom_team_spreads": [
-        {
-          "line": -0.25,
-          "odds": "-115",
-          "raw": "pk,-½"
-        }
-      ],
-      "game_total_line": 2.0,
-      "game_total_over_odds": "-130",
-      "game_total_under_odds": "-110"
-    },
-    "timestamp": "2025-07-14T17:56:48.496288",
-    "event_datetime": "2025-07-16T07:00"
-  },
-  {
-    "betbck_game_id": "34227101",
-    "betbck_site_home_team": "210453Estudiantes",
-    "betbck_site_away_team": "210454Union de Santa Fe",
-    "betbck_site_odds": {
-      "site_top_team_moneyline_american": "+195",
-      "site_bottom_team_moneyline_american": "+165",
-      "draw_moneyline_american": null,
-      "site_top_team_spreads": [
-        {
-          "line": 0.0,
-          "odds": "+100",
-          "raw": "pk"
-        }
-      ],
-      "site_bottom_team_spreads": [
-        {
-          "line": 0.0,
-          "odds": "-130",
-          "raw": "pk"
-        }
-      ],
-      "game_total_line": 2.0,
-      "game_total_over_odds": "+100",
-      "game_total_under_odds": "-140"
-    },
-    "timestamp": "2025-07-14T17:56:48.544223",
-    "event_datetime": "2025-07-14T19:15"
-  },
-  {
-    "betbck_game_id": "bf9a89d4",
-    "betbck_site_home_team": "210457Tigre",
-    "betbck_site_away_team": "210458Velez Sarsfield",
-    "betbck_site_odds": {
-      "site_top_team_moneyline_american": "+265",
-      "site_bottom_team_moneyline_american": "+135",
-      "draw_moneyline_american": null,
-      "site_top_team_spreads": [
-        {
-          "line": 0.25,
-          "odds": "-120",
-          "raw": "pk,+½"
-        }
-      ],
-      "site_bottom_team_spreads": [
-        {
-          "line": -0.25,
           "odds": "-110",
-          "raw": "pk,-½"
-        }
-      ],
-      "game_total_line": 1.5,
-      "game_total_over_odds": "-135",
-      "game_total_under_odds": "-105"
-    },
-    "timestamp": "2025-07-14T17:56:48.546226",
-    "event_datetime": "2025-07-14T19:15"
-  },
-  {
-    "betbck_game_id": "a388ded3",
-    "betbck_site_home_team": "214229El Nacional",
-    "betbck_site_away_team": "214230Aucas",
-    "betbck_site_odds": {
-      "site_top_team_moneyline_american": "+265",
-      "site_bottom_team_moneyline_american": "-105",
-      "draw_moneyline_american": null,
-      "site_top_team_spreads": [
-        {
-          "line": 0.5,
-          "odds": "-130",
-          "raw": "+½"
-        }
-      ],
-      "site_bottom_team_spreads": [
-        {
-          "line": -0.5,
-          "odds": "+100",
-          "raw": "-½"
-        }
-      ],
-      "game_total_line": 2.5,
-      "game_total_over_odds": "-110",
-      "game_total_under_odds": "-130"
-    },
-    "timestamp": "2025-07-14T17:56:48.592119",
-    "event_datetime": "2025-07-14T19:00"
-  },
-  {
-    "betbck_game_id": "4dc62acb",
-    "betbck_site_home_team": "208417Volta Redonda",
-    "betbck_site_away_team": "208418Botafogo SP",
-    "betbck_site_odds": {
-      "site_top_team_moneyline_american": "+275",
-      "site_bottom_team_moneyline_american": "+110",
-      "draw_moneyline_american": null,
-      "site_top_team_spreads": [
-        {
-          "line": 0.25,
-          "odds": "-105",
           "raw": "pk,+½"
         }
       ],
       "site_bottom_team_spreads": [
         {
           "line": -0.25,
-          "odds": "-125",
+          "odds": "-120",
           "raw": "pk,-½"
         }
       ],
-      "game_total_line": 1.75,
+      "game_total_line": 2.0,
       "game_total_over_odds": "-130",
       "game_total_under_odds": "-110"
     },
-    "timestamp": "2025-07-14T17:56:48.643620",
-    "event_datetime": "2025-07-14T19:30"
+    "timestamp": "2025-07-14T23:36:53.078530",
+    "event_datetime": "2025-07-16T07:00"
   },
   {
     "betbck_game_id": "c07d3ade",
     "betbck_site_home_team": "208429Amazonas",
     "betbck_site_away_team": "208430Cuiaba",
     "betbck_site_odds": {
-      "site_top_team_moneyline_american": "+465",
+      "site_top_team_moneyline_american": "+460",
       "site_bottom_team_moneyline_american": "-160",
       "draw_moneyline_american": null,
       "site_top_team_spreads": [
@@ -1531,7 +1386,7 @@
       "game_total_over_odds": "-115",
       "game_total_under_odds": "-125"
     },
-    "timestamp": "2025-07-14T17:56:48.646452",
+    "timestamp": "2025-07-14T23:36:53.091151",
     "event_datetime": "2025-07-15T17:30"
   },
   {
@@ -1548,7 +1403,7 @@
       "game_total_over_odds": null,
       "game_total_under_odds": null
     },
-    "timestamp": "2025-07-14T17:56:48.741058",
+    "timestamp": "2025-07-14T23:36:53.127251",
     "event_datetime": "2025-07-19T17:00"
   },
   {
@@ -1556,8 +1411,8 @@
     "betbck_site_home_team": "24305Patricio Pitbull",
     "betbck_site_away_team": "24306Dan Ige",
     "betbck_site_odds": {
-      "site_top_team_moneyline_american": "+155",
-      "site_bottom_team_moneyline_american": "-195",
+      "site_top_team_moneyline_american": "+160",
+      "site_bottom_team_moneyline_american": "-200",
       "draw_moneyline_american": null,
       "site_top_team_spreads": [],
       "site_bottom_team_spreads": [],
@@ -1565,7 +1420,7 @@
       "game_total_over_odds": null,
       "game_total_under_odds": null
     },
-    "timestamp": "2025-07-14T17:56:48.742057",
+    "timestamp": "2025-07-14T23:36:53.127770",
     "event_datetime": "2025-07-19T17:00"
   },
   {
@@ -1582,7 +1437,7 @@
       "game_total_over_odds": null,
       "game_total_under_odds": null
     },
-    "timestamp": "2025-07-14T17:56:48.742057",
+    "timestamp": "2025-07-14T23:36:53.128342",
     "event_datetime": "2025-07-19T17:00"
   },
   {
@@ -1599,7 +1454,7 @@
       "game_total_over_odds": null,
       "game_total_under_odds": null
     },
-    "timestamp": "2025-07-14T17:56:48.743057",
+    "timestamp": "2025-07-14T23:36:53.129005",
     "event_datetime": "2025-07-19T17:00"
   },
   {
@@ -1616,7 +1471,7 @@
       "game_total_over_odds": null,
       "game_total_under_odds": null
     },
-    "timestamp": "2025-07-14T17:56:48.744056",
+    "timestamp": "2025-07-14T23:36:53.129509",
     "event_datetime": "2025-07-19T17:00"
   },
   {
@@ -1633,7 +1488,7 @@
       "game_total_over_odds": null,
       "game_total_under_odds": null
     },
-    "timestamp": "2025-07-14T17:56:48.745052",
+    "timestamp": "2025-07-14T23:36:53.130148",
     "event_datetime": "2025-07-19T17:00"
   },
   {
@@ -1650,7 +1505,7 @@
       "game_total_over_odds": null,
       "game_total_under_odds": null
     },
-    "timestamp": "2025-07-14T17:56:48.746055",
+    "timestamp": "2025-07-14T23:36:53.130770",
     "event_datetime": "2025-07-19T17:00"
   },
   {
@@ -1667,7 +1522,7 @@
       "game_total_over_odds": null,
       "game_total_under_odds": null
     },
-    "timestamp": "2025-07-14T17:56:48.747062",
+    "timestamp": "2025-07-14T23:36:53.131439",
     "event_datetime": "2025-07-19T17:00"
   },
   {
@@ -1684,7 +1539,7 @@
       "game_total_over_odds": null,
       "game_total_under_odds": null
     },
-    "timestamp": "2025-07-14T17:56:48.748059",
+    "timestamp": "2025-07-14T23:36:53.131987",
     "event_datetime": "2025-07-19T17:00"
   }
 ]
