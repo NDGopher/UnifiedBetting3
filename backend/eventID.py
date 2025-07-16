@@ -18,6 +18,9 @@ EXCLUDED_SPORTS = [
     "Handball", "E Sports", "Darts", "Tennis"
 ]
 
+BASE_DIR = Path(__file__).resolve().parent
+DATA_DIR = BASE_DIR / "data"
+
 def get_date():
     """Get today's date"""
     today = datetime.now()
@@ -275,10 +278,13 @@ def get_todays_event_ids() -> List[dict]:
     logger.info(f"Total event IDs collected: {len(event_dicts)}")
     return event_dicts
 
-def save_event_ids(event_dicts: List[dict], filename: str = "data/buckeye_event_ids.json") -> bool:
+def save_event_ids(event_dicts: List[dict], filename: str = None) -> bool:
     """Save event dictionaries to file"""
     try:
-        # Ensure directory exists
+        if filename is None:
+            filename = DATA_DIR / "buckeye_event_ids.json"
+        else:
+            filename = DATA_DIR / Path(filename).name
         os.makedirs(os.path.dirname(filename), exist_ok=True)
         
         data = {
@@ -297,9 +303,13 @@ def save_event_ids(event_dicts: List[dict], filename: str = "data/buckeye_event_
         logger.error(f"Error saving event IDs: {e}")
         return False
 
-def load_event_ids(filename: str = "data/buckeye_event_ids.json") -> Optional[List[dict]]:
+def load_event_ids(filename: str = None) -> Optional[List[dict]]:
     """Load event dictionaries from file"""
     try:
+        if filename is None:
+            filename = DATA_DIR / "buckeye_event_ids.json"
+        else:
+            filename = DATA_DIR / Path(filename).name
         if not os.path.exists(filename):
             logger.warning(f"Event IDs file not found: {filename}")
             return None

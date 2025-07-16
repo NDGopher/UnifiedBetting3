@@ -53,6 +53,8 @@ def setup_ace_logging():
             force=True  # Force reconfiguration
         )
         
+
+        
         # Set specific loggers to DEBUG level
         logging.getLogger("ace").setLevel(logging.DEBUG)
         logging.getLogger("buckeye").setLevel(logging.DEBUG)
@@ -77,6 +79,14 @@ ACE_DEBUG_LOG_FILE = setup_ace_logging()
 
 logger = logging.getLogger("ace")
 
+def safe_print(s):
+    try:
+        if isinstance(s, bytes):
+            s = s.decode('utf-8', errors='replace')
+        print(str(s).encode('ascii', 'replace').decode('ascii', 'replace'))
+    except Exception as e:
+        print(f"[PRINT ERROR] {e}")
+
 def clean_fraction_entities(s: str) -> str:
     if not isinstance(s, str):
         return s
@@ -92,259 +102,591 @@ class AceScraper:
     """Scraper for action23.ag sportsbook"""
     
     def __init__(self, config: Dict[str, Any]):
+        """Initialize Ace scraper"""
         self.config = config
-        self.results_file = BASE_DIR / "data" / "ace_results.json"
+        self.debug = config.get("debug", False)
         
-        # Ensure data directory exists
-        self.results_file.parent.mkdir(parents=True, exist_ok=True)
+        # Use the correct Action23 domain
+        self.base_url = "https://backend.action23.ag"  # Correct domain
         
+        # Initialize session
         self.session = requests.Session()
-        self.session.headers.update({
-            'User-Agent': 'Mozilla/5.0 (Windows NT 10.0; Win64; x64) AppleWebKit/537.36 (KHTML, like Gecko) Chrome/91.0.4472.124 Safari/537.36'
-        })
-        self.base_url = "https://backend.action23.ag"
         self.logged_in = False
         
-        # Known league IDs for priority sports
-        self.priority_leagues = {
-            'MLB': '416',
-            'NFL': '1',
-            'NBA': '2',
-            'WNBA': '3',
-            'NCAAF': '4',
-            'NHL': '5',
-            'ESPORTS1': '773',
-            'ESPORTS2': '772',
-            'ESPORTS3': '774',
-            'ATP_TENNIS': '2521',
-            'CANADIAN_FOOTBALL': '446',
+        # Set up basic headers
+        headers = {
+            'User-Agent': 'Mozilla/5.0 (Windows NT 10.0; Win64; x64) AppleWebKit/537.36 (KHTML, like Gecko) Chrome/138.0.0.0 Safari/537.36',
+            'Accept': 'application/json, text/plain, */*',
+            'Accept-Language': 'en-US,en;q=0.9',
+            'Accept-Encoding': 'gzip, deflate, br, zstd',
+            'Connection': 'keep-alive',
+            'DNT': '1',
+            'Sec-Fetch-Dest': 'empty',
+            'Sec-Fetch-Mode': 'cors',
+            'Sec-Fetch-Site': 'same-origin'
         }
+        self.session.headers.update(headers)
         
-        # Exclusion keywords for props/futures - EXACTLY as user provided, easy to update below
-        self.exclusion_keywords = [
-            'PROP', 'FUTURE', 'AWARD', 'WIRE', 'CHANCES', 'STAGE', 'COACH', 'MVP',
-            'DEFENSIVE', '6TH', 'CLUTCH', 'IMPROVED', 'CY', 'RELIEVER', 'MANAGER',
-            'CALDER', 'VEZINA', 'HART', 'NORRIS', 'RICHARD', 'ADAMS', 'EXACT',
-            'ROOKIE', 'RUSHING', 'PASSING', 'RECEIVING', 'TOSS', 'GOLFER', 'ROUND',
-            'RND', 'HOLE', 'BOGEY', 'COMEBACK', 'SPECIALS', 'TEAM TOTALS', 'GOALSCORER',
-            'U.S. OPEN', 'AUSTRALIAN OPEN', 'FRENCH OPEN', 'WIMBLEDON', 'TENNIS SPECIALS'
-        ]
-        # (If you want to update, just edit the above list)
+        # Set up data directory and files
+        BASE_DIR = Path(__file__).resolve().parent
+        self.data_dir = BASE_DIR / "data"
+        self.data_dir.mkdir(parents=True, exist_ok=True)
+        self.results_file = self.data_dir / "ace_results.json"
         
-        # Add to __init__ after self.exclusion_keywords
+        # Exclusion patterns for filtering out props, futures, etc.
         self.exclusion_patterns = [
-            # Periods and halves
-            r"1ST HALF", r"2ND HALF", r"HALF TIME", r"1H", r"2H", r"Q1", r"Q2", r"Q3", r"Q4", r"QUARTER", r"PERIOD", r"OT", r"OVERTIME", r"EXTRA", r"EXTRA TIME",
-            
-            # Props and futures
-            r"PROP", r"FUTURE", r"AWARD", r"PLAYER", r"TEAM TOTAL", r"GOALSCORER", r"SPECIAL", r"SPECIALS", r"TO WIN", r"TO ADVANCE", r"TO QUALIFY", r"TOURNAMENT", r"ROUND ROBIN", r"GROUP WINNER", r"STAGE WINNER", r"SERIES WINNER", r"DIVISION WINNER", r"CONFERENCE WINNER", r"CHAMPION", r"MAKE PLAYOFFS", r"YES NO", r"REGULAR SEASON", r"SEASON SPECIAL", r"SEASON AWARD", r"SEASON FUTURE", r"SEASON PROPS", r"PLAYER SPECIAL", r"PLAYER FUTURE", r"PLAYER PROP", r"TEAM PROP", r"TEAM FUTURE", r"TEAM SPECIAL", r"MATCHUP", r"HEAD TO HEAD", r"VS", r"AGAINST",
-            
-            # Tennis and sets
-            r"SET", r"1ST SET", r"2ND SET", r"3RD SET", r"4TH SET", r"5TH SET", r"SETS", r"GAME", r"GAMES",
-            
-            # Esports and gaming
-            r"ESPORTS", r"ESPORT", r"LOL", r"LEAGUE OF LEGENDS", r"CS2", r"COUNTER STRIKE", r"DOTA", r"VALORANT", r"ROCKET LEAGUE", r"FIFA", r"FORTNITE", r"PUBG", r"OVERWATCH", r"STARCRAFT", r"WARCRAFT", r"HEARTHSTONE", r"SMITE", r"PALADINS", r"RAINBOW SIX", r"APEX LEGENDS", r"CALL OF DUTY", r"BATTLEFIELD", r"WORLD OF WARCRAFT", r"FINAL FANTASY", r"STREET FIGHTER", r"MORTAL KOMBAT", r"TEKKEN", r"SUPER SMASH", r"MELEE", r"ULTIMATE",
-            
-            # Racing and motorsports
-            r"RACE", r"RACES", r"HEAT", r"HEATS", r"ROUND", r"ROUNDS", r"STAGE", r"STAGES", r"LEG", r"LEGS", r"QUALIFYING", r"QUALIFICATION", r"TIME TRIAL", r"SPRINT", r"FEATURE", r"MAIN EVENT",
-            
-            # Baseball specific
-            r"INNING", r"INNINGS", r"HITS\+RUNS\+ERRORS", r"H\+R\+E", r"HRE", r"PITCHER", r"BATTER", r"STRIKEOUT", r"HOME RUN", r"RBI", r"ERA", r"WHIP", r"SAVE", r"HOLD", r"BLOWN SAVE",
-            
-            # Boxing and MMA
-            r"ROUND", r"ROUNDS", r"FIGHT", r"FIGHTS", r"MATCH", r"MATCHES", r"BOUT", r"BOUTS", r"KNOCKOUT", r"KO", r"TKO", r"DECISION", r"SUBMISSION", r"CHOKE", r"ARM BAR", r"LEG LOCK",
-            
-            # Golf
-            r"HOLE", r"HOLES", r"ROUND", r"ROUNDS", r"BOGEY", r"PAR", r"BIRDIE", r"EAGLE", r"ALBATROSS", r"PUTT", r"DRIVE", r"FAIRWAY", r"GREEN", r"SAND", r"ROUGH", r"WATER",
-            
-            # Other sports
-            r"POINT", r"POINTS", r"GOAL", r"GOALS", r"ASSIST", r"ASSISTS", r"REBOUND", r"REBOUNDS", r"STEAL", r"STEALS", r"BLOCK", r"BLOCKS", r"TACKLE", r"TACKLES", r"YARD", r"YARDS", r"TOUCHDOWN", r"FIELD GOAL", r"EXTRA POINT", r"SAFETY", r"PUNT", r"KICKOFF",
-            
-            # Common suffixes that indicate props
-            r"TOTAL", r"TOTALS", r"OVER", r"UNDER", r"SPREAD", r"SPREADS", r"MONEYLINE", r"MONEYLINES", r"ODDS", r"ODD", r"EVEN", r"EVENS", r"YES", r"NO", r"WIN", r"WINS", r"LOSE", r"LOSES", r"LOSS", r"LOSSES", r"DRAW", r"DRAWS", r"TIE", r"TIES"
+            r'\b(?:ESPORTS?|ESPORT)\b',
+            r'\b(?:LOL|LEAGUE OF LEGENDS|CS2|COUNTER STRIKE|DOTA|VALORANT)\b',
+            r'\b(?:ROCKET LEAGUE|FIFA|FORTNITE|PUBG|OVERWATCH)\b',
+            r'\b(?:STARCRAFT|WARCRAFT|ESPORTS)\b',
+            r'\b(?:MAKE PLAYOFFS|YES MAKE PLAYOFFS|NO MAKE PLAYOFFS)\b',
+            r'\b(?:TO WIN|TO ADVANCE|PLAYER PROP|TEAM PROP)\b',
+            r'\b(?:SEASON FUTURE|AWARD|MVP|ROOKIE)\b',
+            r'\b(?:1ST HALF|2ND HALF|HALF TIME|1H|2H|Q1|Q2|Q3|Q4)\b',
+            r'\b(?:QUARTER|PERIOD|OT|OVERTIME|EXTRA TIME)\b',
+            r'\b(?:SET|1ST SET|2ND SET|3RD SET|4TH SET|5TH SET)\b',
+            r'\b(?:HITS\+RUNS\+ERRORS|H\+R\+E|HRE|PITCHER|BATTER)\b',
+            r'\b(?:STRIKEOUT|HOME RUN|RBI|ERA|WHIP|SAVE|HOLD)\b',
+            r'\b(?:FIGHT|MATCH|BOUT|KNOCKOUT|KO|TKO|DECISION)\b',
+            r'\b(?:SUBMISSION|CHOKE|ARM BAR|LEG LOCK)\b',
+            r'\b(?:HOLE|ROUND|BOGEY|PAR|BIRDIE|EAGLE|PUTT|DRIVE)\b'
         ]
         
-        logger.info("AceScraper initialized")
+        safe_print(f"[ACE DEBUG] Initialized Ace scraper with base URL: {self.base_url}")
+        safe_print(f"[ACE DEBUG] Data directory: {self.data_dir}")
+        safe_print(f"[ACE DEBUG] Results file: {self.results_file}")
+    
+    def _validate_session(self) -> bool:
+        """Validate if the current session is still active"""
+        try:
+            safe_print("[ACE DEBUG] Validating session...")
+            
+            # Try to access a protected page to check if we're still logged in
+            test_url = f"{self.base_url}/wager/Welcome.aspx?login=1"
+            safe_print(f"[ACE DEBUG] Testing session with URL: {test_url}")
+            
+            response = self.session.get(test_url, timeout=10, allow_redirects=False)
+            safe_print(f"[ACE DEBUG] Session test response status: {response.status_code}")
+            safe_print(f"[ACE DEBUG] Session test response URL: {response.url}")
+            
+            # If we get redirected to login, session is invalid
+            if response.status_code == 302 and 'login' in response.headers.get('Location', '').lower():
+                safe_print("[ACE DEBUG] Session validation failed - redirected to login")
+                return False
+            
+            # If we get a 200 response, we're likely still logged in
+            if response.status_code == 200:
+                safe_print("[ACE DEBUG] Session validation successful - got 200 response")
+                return True
+            else:
+                safe_print(f"[ACE DEBUG] Session validation failed - got status {response.status_code}")
+                return False
+            
+        except Exception as e:
+            safe_print(f"[ACE DEBUG] Session validation failed: {e}")
+            return False
     
     def login(self, username: str = "STEPHENFAR", password: str = "football") -> bool:
-        """Login to action23.ag"""
+        """Login to action23.ag using the correct workflow"""
         try:
-            # Get login page to extract viewstate
-            login_url = f"{self.base_url}/wager/CreateSports.aspx?WT=0"
-            response = self.session.get(login_url)
+            safe_print("[ACE DEBUG] Starting login process...")
+            
+            # Step 1: Get login page to extract form fields
+            login_url = f"{self.base_url}/Login.aspx"
+            safe_print(f"[ACE DEBUG] Fetching login page: {login_url}")
+            response = self.session.get(login_url, allow_redirects=False)
             response.raise_for_status()
+            
+            safe_print(f"[ACE DEBUG] Login page response status: {response.status_code}")
+            safe_print(f"[ACE DEBUG] Login page URL: {response.url}")
             
             soup = BeautifulSoup(response.text, 'html.parser')
             
-            # Extract ASP.NET viewstate fields
+            # Log the form structure
+            form = soup.find('form')
+            if form:
+                form_action = form.get('action', 'NO_ACTION')
+                form_method = form.get('method', 'NO_METHOD')
+                safe_print(f"[ACE DEBUG] Form action: {form_action}")
+                safe_print(f"[ACE DEBUG] Form method: {form_method}")
+            else:
+                safe_print("[ACE DEBUG] No form found on login page!")
+                safe_print(f"[ACE DEBUG] Login page content preview: {response.text[:200]}")
+                return False
+            
+            # Log all form fields found
+            all_inputs = soup.find_all('input')
+            safe_print(f"[ACE DEBUG] Found {len(all_inputs)} input fields on login page:")
+            for inp in all_inputs:
+                name = inp.get('name', 'NO_NAME')
+                value = inp.get('value', 'NO_VALUE')
+                input_type = inp.get('type', 'NO_TYPE')
+                safe_print(f"[ACE DEBUG] Input: name='{name}', type='{input_type}', value='{value[:50]}...' if len(value) > 50 else value")
+            
+            # Extract ASP.NET form fields
             viewstate = soup.find('input', {'name': '__VIEWSTATE'})
             viewstate_generator = soup.find('input', {'name': '__VIEWSTATEGENERATOR'})
             event_validation = soup.find('input', {'name': '__EVENTVALIDATION'})
             
-            if not viewstate:
-                logging.error("Could not find __VIEWSTATE field")
-                return False
-            
             # Prepare login data
             login_data = {
-                '__VIEWSTATE': viewstate.get('value', ''),
-                '__VIEWSTATEGENERATOR': viewstate_generator.get('value', '') if viewstate_generator else '',
                 'Account': username,
                 'Password': password,
-                'BtnSubmit': 'Sign in'
+                'BtnSubmit': 'Login'
             }
             
-            # Submit login - use root URL as form action is "./"
-            root_url = "https://backend.action23.ag/"
-            response = self.session.post(root_url, data=login_data)
-            response.raise_for_status()
+            # Add ASP.NET fields if they exist
+            if viewstate:
+                login_data['__VIEWSTATE'] = viewstate.get('value', '')
+                safe_print(f"[ACE DEBUG] Added __VIEWSTATE: {viewstate.get('value', '')[:50]}...")
             
-            # Check if login was successful
-            if "Please sign in" in response.text:
-                logging.error("Login failed - credentials rejected")
+            if viewstate_generator:
+                login_data['__VIEWSTATEGENERATOR'] = viewstate_generator.get('value', '')
+                safe_print(f"[ACE DEBUG] Added __VIEWSTATEGENERATOR: {viewstate_generator.get('value', '')[:50]}...")
+            
+            if event_validation:
+                login_data['__EVENTVALIDATION'] = event_validation.get('value', '')
+                safe_print(f"[ACE DEBUG] Added __EVENTVALIDATION: {event_validation.get('value', '')[:50]}...")
+            
+            safe_print(f"[ACE DEBUG] Login data prepared: {list(login_data.keys())}")
+            
+            # Step 2: Submit login form
+            safe_print("[ACE DEBUG] Submitting login form...")
+            login_response = self.session.post(login_url, data=login_data, allow_redirects=False)
+            safe_print(f"[ACE DEBUG] Login response status: {login_response.status_code}")
+            safe_print(f"[ACE DEBUG] Login response URL: {login_response.url}")
+            safe_print(f"[ACE DEBUG] Login response headers: {dict(login_response.headers)}")
+            
+            # Check for successful login (302 redirect is expected)
+            if login_response.status_code == 302:
+                location = login_response.headers.get('Location', '')
+                safe_print(f"[ACE DEBUG] Login redirect location: {location}")
+                
+                # Follow the redirect to complete login
+                if location:
+                    safe_print(f"[ACE DEBUG] Following redirect to: {location}")
+                    final_response = self.session.get(f"{self.base_url}{location}", allow_redirects=False)
+                    safe_print(f"[ACE DEBUG] Final response status: {final_response.status_code}")
+                    safe_print(f"[ACE DEBUG] Final response URL: {final_response.url}")
+                    
+                    # Check if we're now on a protected page
+                    if 'Welcome.aspx' in final_response.url or 'CreateSports.aspx' in final_response.url:
+                        safe_print("[ACE DEBUG] Login successful - reached protected page")
+                        self.logged_in = True
+                        return True
+                    else:
+                        safe_print("[ACE DEBUG] Login failed - not on protected page")
+                        return False
+                else:
+                    safe_print("[ACE DEBUG] Login failed - no redirect location")
+                    return False
+            else:
+                safe_print(f"[ACE DEBUG] Login failed - unexpected status code: {login_response.status_code}")
+                safe_print(f"[ACE DEBUG] Login response content preview: {login_response.text[:200]}")
                 return False
             
-            # Successful login redirects to Welcome.aspx
-            if "Welcome.aspx" in response.url or "Welcome" in response.text:
-                logging.info("Successfully logged in to action23.ag")
-                self.logged_in = True
-                return True
-            
-            logging.error("Login failed - unexpected response")
-            return False
-            
         except Exception as e:
-            logging.error(f"Login error: {e}")
+            safe_print(f"[ACE DEBUG] Login failed: {e}")
+            import traceback
+            safe_print(f"[ACE DEBUG] Login traceback: {traceback.format_exc()}")
             return False
     
     def _is_excluded_league_or_desc(self, text: str) -> bool:
         """Return True if text matches any exclusion pattern."""
         text = text.upper()
+        
         for pat in self.exclusion_patterns:
             if re.search(pat, text):
                 return True
+        
         return False
 
     def get_active_league_ids(self) -> str:
         """Dynamically fetch active league IDs from Action23.ag and filter out props/futures"""
         try:
-            if not self.logged_in:
-                logger.error("Not logged in to fetch active leagues")
+            safe_print("=" * 80)
+            safe_print("[ACE DEBUG] ===== STARTING ACTIVE LEAGUES FETCH =====")
+            safe_print(f"[ACE DEBUG] Base URL: {self.base_url}")
+            safe_print(f"[ACE DEBUG] Logged in status: {self.logged_in}")
+            try:
+                safe_print(f"[ACE DEBUG] Session cookies: {dict(self.session.cookies)}")
+            except Exception as e:
+                safe_print(f"[ACE DEBUG] Could not log cookies: {e}")
+            
+            # Validate session before fetching
+            safe_print("[ACE DEBUG] Step 1: Validating session...")
+            session_valid = self._validate_session()
+            safe_print(f"[ACE DEBUG] Session validation result: {session_valid}")
+            
+            if not session_valid:
+                safe_print("[ACE DEBUG] Session expired, attempting to re-login...")
+                login_success = self.login()
+                safe_print(f"[ACE DEBUG] Re-login result: {login_success}")
+                if not login_success:
+                    safe_print("[ACE DEBUG] Failed to re-login, aborting")
+                    return ""
+            
+            # Step 1: Navigate to CreateSports.aspx first (as per workflow)
+            safe_print("[ACE DEBUG] Step 1: Navigating to CreateSports.aspx...")
+            create_sports_url = f"{self.base_url}/wager/CreateSports.aspx?WT=0"
+            create_response = self.session.get(create_sports_url, allow_redirects=False)
+            safe_print(f"[ACE DEBUG] CreateSports response status: {create_response.status_code}")
+            safe_print(f"[ACE DEBUG] CreateSports response URL: {create_response.url}")
+            
+            # Check if we got redirected to login
+            if create_response.status_code == 302 and 'login' in create_response.headers.get('Location', '').lower():
+                safe_print("[ACE DEBUG] Got redirected to login from CreateSports.aspx")
                 return ""
             
-            # Fetch active leagues from ActiveLeaguesHelper.aspx
+            # Check if we got HTML login page
+            if '<html' in create_response.text.lower() and 'login' in create_response.text.lower():
+                safe_print("[ACE DEBUG] Got HTML login page from CreateSports.aspx")
+                return ""
+
+            # Step 2: Construct the correct leagues URL
             leagues_url = f"{self.base_url}/wager/ActiveLeaguesHelper.aspx"
             params = {'WT': '0'}
-            
-            logger.info("[ACE DEBUG] Fetching active leagues from ActiveLeaguesHelper.aspx")
-            response = self.session.get(leagues_url, params=params)
-            response.raise_for_status()
-            
-            # Debug the response
-            logger.info(f"[ACE DEBUG] Response status: {response.status_code}")
-            logger.info(f"[ACE DEBUG] Response headers: {dict(response.headers)}")
-            logger.info(f"[ACE DEBUG] Response length: {len(response.text)}")
-            logger.info(f"[ACE DEBUG] Response preview (first 1000 chars): {response.text[:1000]}")
-            
-            # Parse JSON response
+            safe_print(f"[ACE DEBUG] Step 2: Fetching from URL: {leagues_url} with params: {params}")
+            safe_print(f"[ACE DEBUG] Request headers: {dict(self.session.headers)}")
             try:
-                leagues_data = response.json()
-                if isinstance(leagues_data, dict) and "result" in leagues_data:
-                    leagues_data = leagues_data["result"]
-                logger.info(f"[ACE DEBUG] Successfully parsed JSON, found {len(leagues_data)} total leagues")
-                logger.info(f"[ACE DEBUG] JSON structure type: {type(leagues_data)}")
-                if isinstance(leagues_data, list) and len(leagues_data) > 0:
-                    logger.info(f"[ACE DEBUG] Sample league data: {leagues_data[0]}")
-                elif isinstance(leagues_data, dict):
-                    logger.info(f"[ACE DEBUG] JSON keys: {list(leagues_data.keys())}")
+                safe_print(f"[ACE DEBUG] Session cookies: {dict(self.session.cookies)}")
+            except Exception as e:
+                safe_print(f"[ACE DEBUG] Could not log cookies: {e}")
+
+            # Make the request
+            safe_print("[ACE DEBUG] Making HTTP request...")
+            response = self.session.get(leagues_url, params=params)
+            safe_print(f"[ACE DEBUG] Response status code: {response.status_code}")
+            safe_print(f"[ACE DEBUG] Response URL (after redirects): {response.url}")
+
+            # Check for errors
+            if response.status_code != 200:
+                safe_print(f"[ACE DEBUG] HTTP error: {response.status_code}")
+                safe_print(f"[ACE DEBUG] Response text: {response.text[:200]}")
+                return ""
+
+            # Check if response is HTML login page instead of JSON
+            response_text = response.text
+            safe_print(f"[ACE DEBUG] Response length: {len(response_text)} characters")
+            safe_print(f"[ACE DEBUG] Response starts with: {response_text[:200]}")
+
+            if '<html' in response_text.lower() or 'login' in response_text.lower():
+                safe_print("[ACE DEBUG] Received HTML login page, session expired or not authenticated!")
+                safe_print(f"[ACE DEBUG] HTML content preview: {response_text[:200]}")
+                return ""
+
+            safe_print(f"[ACE DEBUG] Final response status: {response.status_code}")
+            safe_print(f"[ACE DEBUG] Final response preview (first 200 chars): {response_text[:200]}")
+
+            safe_print("[ACE DEBUG] Step 3: Parsing JSON response...")
+            try:
+                data = response.json()
+                safe_print(f"[ACE DEBUG] JSON parsing successful")
+                safe_print(f"[ACE DEBUG] JSON structure keys: {list(data.keys())}")
             except json.JSONDecodeError as e:
-                logger.error(f"[ACE DEBUG] Failed to parse JSON response: {e}")
-                logger.error(f"[ACE DEBUG] Response preview: {response.text[:500]}")
-            return ""
-            
+                safe_print(f"[ACE DEBUG] JSON parsing failed: {e}")
+                try:
+                    safe_print(f"[ACE DEBUG] Raw response preview: {response_text[:200]}")
+                except UnicodeEncodeError:
+                    safe_print("[ACE DEBUG] Raw response contains Unicode characters that can't be logged")
+                return ""
+
+            result = data.get('result', [])
+            safe_print(f"[ACE DEBUG] Found 'result' key with {len(result)} items")
+            safe_print(f"[ACE DEBUG] Result type: {type(result)}")
+
+            if not result:
+                safe_print("[ACE DEBUG] No leagues found in response")
+                safe_print(f"[ACE DEBUG] Full data structure: {data}")
+                return ""
+
+            safe_print(f"[ACE DEBUG] Successfully parsed {len(result)} leagues from response")
+
+            safe_print("[ACE DEBUG] Step 4: Filtering leagues...")
+            safe_print(f"[ACE DEBUG] Total leagues to filter: {len(result)}")
+
             # Filter leagues to exclude props/futures
-            game_leagues = []
+            filtered_league_ids = []
             excluded_count = 0
-            
-            for league in leagues_data:
-                if not isinstance(league, dict):
-                    continue
-                if not league.get('Active', True):
-                    continue
+
+            safe_print("[ACE DEBUG] Starting league filtering process...")
+            for i, league in enumerate(result):
                 description = league.get('Description', '').upper()
                 index_name = league.get('IndexName', '').upper()
-                # Exclude if matches exclusion patterns
-                if self._is_excluded_league_or_desc(description) or self._is_excluded_league_or_desc(index_name):
-                    excluded_count += 1
-                    logger.info(f"[ACE FILTER] Excluded league: {description}")
-                    continue
                 league_id = league.get('IdLeague')
+
+                # Only log first 5 leagues to avoid spam
+                if i < 5:
+                    safe_print(f"[ACE DEBUG] League {i+1}/{len(result)}: '{description}' (ID: {league_id})")
+
+                # Check exclusion patterns
+                desc_excluded = self._is_excluded_league_or_desc(description)
+                index_excluded = self._is_excluded_league_or_desc(index_name)
+
+                if desc_excluded or index_excluded:
+                    excluded_count += 1
+                    if i < 10:  # Only log first 10 exclusions
+                        safe_print(f"[ACE FILTER] EXCLUDED: {description}")
+                    continue
+
                 if league_id:
-                    game_leagues.append(str(league_id))
-                    logger.info(f"[ACE FILTER] Included league: {description} (ID: {league_id})")
-            
-            # Convert to comma-separated string
-            league_ids_str = ','.join(game_leagues)
-            logger.info(f"[ACE DEBUG] Filtered {len(game_leagues)} game leagues from {len(leagues_data)} total leagues")
-            logger.info(f"[ACE DEBUG] Excluded {excluded_count} prop/future leagues")
-            logger.info(f"[ACE DEBUG] Using league IDs: {league_ids_str}")
-            
+                    filtered_league_ids.append(str(league_id))
+                    if i < 10:  # Only log first 10 inclusions
+                        safe_print(f"[ACE FILTER] INCLUDED: {description} (ID: {league_id})")
+                else:
+                    safe_print(f"[ACE DEBUG] League has no ID: {description}")
+
+            safe_print(f"[ACE DEBUG] Filtering complete: {len(filtered_league_ids)} included, {excluded_count} excluded")
+
+            safe_print(f"[ACE DEBUG] Filtered {len(filtered_league_ids)} game leagues from {len(result)} total (excluded {excluded_count})")
+
+            if not filtered_league_ids:
+                safe_print("[ACE DEBUG] ===== CRITICAL ERROR: NO LEAGUES PASSED FILTERING =====")
+                safe_print("[ACE DEBUG] This means the exclusion patterns are too aggressive.")
+                safe_print("[ACE DEBUG] All leagues were filtered out.")
+                safe_print("=" * 80)
+                return ""
+
+            league_ids_str = ','.join(filtered_league_ids)
+            safe_print(f"[ACE DEBUG] Final league IDs string: {league_ids_str}")
+            safe_print("[ACE DEBUG] ===== ACTIVE LEAGUES FETCH COMPLETE =====")
+            safe_print("=" * 80)
             return league_ids_str
-            
-        except Exception as e:
-            logger.error(f"Failed to fetch active leagues: {e}")
-            import traceback
-            logger.error(f"Traceback: {traceback.format_exc()}")
-            
-            # Use a minimal set of known working leagues as fallback
-            fallback_leagues = [
-                # Major US Sports - Game Lines Only
-                "544",  # NFL - GAME LINES
-                "535",  # NBA - GAME LINES
-                "416",  # MLB - GAME LINES
-                "537",  # UEFA - CHAMPIONS LEAGUE
-                "497",  # BOXING
-                "2798", # UFC
-            ]
-            logger.info(f"[ACE DEBUG] Using fallback leagues: {','.join(fallback_leagues)}")
-            return ','.join(fallback_leagues)
+        except requests.RequestException as e:
+            safe_print(f"[ACE DEBUG] Failed to fetch active leagues: {e}")
+            return ""
+        except json.JSONDecodeError as e:
+            safe_print(f"[ACE DEBUG] Failed to parse JSON response: {e}")
+            safe_print(f"[ACE DEBUG] Response preview: {response.text[:200]}")
+            return ""
 
     def get_combined_league_ids(self) -> str:
         """Get combined league IDs - now uses dynamic active leagues"""
         return self.get_active_league_ids()
     
     def fetch_odds_data(self, league_ids: str = None) -> str:
-        """Fetch odds data from NewScheduleHelper.aspx"""
-        try:
-            if not self.logged_in:
-                logging.error("Not logged in")
-                return ""
-            
-            if not league_ids:
-                league_ids = self.get_combined_league_ids()
-            
-            # Fetch odds data
-            odds_url = f"{self.base_url}/wager/NewScheduleHelper.aspx"
-            params = {
-                'WT': '0',
-                'lg': league_ids
-            }
-            
-            response = self.session.get(odds_url, params=params)
-            response.raise_for_status()
-            
-            logging.info(f"Successfully fetched odds data ({len(response.text)} chars)")
-            # DEBUG: Log first 500 chars of response
-            logging.debug(f"First 500 chars of odds data: {response.text[:500]}")
-            return response.text
-            
-        except Exception as e:
-            logging.error(f"Error fetching odds data: {e}")
-            return ""
+        """Fetch odds data from NewScheduleHelper.aspx with retry logic"""
+        max_retries = 3
+        retry_delay = 2
+        
+        for attempt in range(max_retries):
+            try:
+                if not self.logged_in:
+                    safe_print("[ACE DEBUG] Not logged in")
+                    return ""
+
+                if not league_ids:
+                    league_ids = self.get_combined_league_ids()
+
+                # Validate session before fetching
+                if not self._validate_session():
+                    safe_print("[ACE DEBUG] Session expired, attempting to re-login")
+                    if not self.login():
+                        safe_print("[ACE DEBUG] Failed to re-login")
+                        return ""
+
+                # Step 1: Navigate to CreateSports.aspx first (as per workflow)
+                safe_print("[ACE DEBUG] Step 1: Navigating to CreateSports.aspx...")
+                create_sports_url = f"{self.base_url}/wager/CreateSports.aspx?WT=0"
+                create_response = self.session.get(create_sports_url, allow_redirects=False)
+                safe_print(f"[ACE DEBUG] CreateSports response status: {create_response.status_code}")
+                safe_print(f"[ACE DEBUG] CreateSports response URL: {create_response.url}")
+                
+                # Check if we got redirected to login
+                if create_response.status_code == 302 and 'login' in create_response.headers.get('Location', '').lower():
+                    safe_print("[ACE DEBUG] Got redirected to login from CreateSports.aspx")
+                    if attempt < max_retries - 1:
+                        safe_print("[ACE DEBUG] Re-logging in and retrying...")
+                        if self.login():
+                            time.sleep(retry_delay)
+                            continue
+                        else:
+                            return ""
+                    else:
+                        return ""
+                
+                # Check if we got HTML login page
+                if '<html' in create_response.text.lower() and 'login' in create_response.text.lower():
+                    safe_print("[ACE DEBUG] Got HTML login page from CreateSports.aspx")
+                    if attempt < max_retries - 1:
+                        safe_print("[ACE DEBUG] Re-logging in and retrying...")
+                        if self.login():
+                            time.sleep(retry_delay)
+                            continue
+                        else:
+                            return ""
+                    else:
+                        return ""
+
+                # Step 2: Fetch odds data from correct URL
+                odds_url = f"{self.base_url}/wager/NewScheduleHelper.aspx"
+                params = {
+                    'WT': '0',
+                    'lg': league_ids
+                }
+                safe_print(f"[ACE DEBUG] Step 2: Fetching odds from: {odds_url} with params: {params} (attempt {attempt + 1}/{max_retries})")
+                
+                # Add better headers to look more like a real browser
+                headers = {
+                    'User-Agent': 'Mozilla/5.0 (Windows NT 10.0; Win64; x64) AppleWebKit/537.36 (KHTML, like Gecko) Chrome/138.0.0.0 Safari/537.36',
+                    'Accept': 'application/json, text/plain, */*',
+                    'Accept-Language': 'en-US,en;q=0.9',
+                    'Accept-Encoding': 'gzip, deflate, br, zstd',
+                    'Connection': 'keep-alive',
+                    'DNT': '1',
+                    'Sec-Fetch-Dest': 'empty',
+                    'Sec-Fetch-Mode': 'cors',
+                    'Sec-Fetch-Site': 'same-origin',
+                    'Referer': f'{self.base_url}/wager/CreateSports.aspx?WT=0'
+                }
+                
+                # Update session headers
+                self.session.headers.update(headers)
+                
+                safe_print(f"[ACE DEBUG] Request headers: {dict(self.session.headers)}")
+                try:
+                    safe_print(f"[ACE DEBUG] Session cookies: {dict(self.session.cookies)}")
+                except Exception as e:
+                    safe_print(f"[ACE DEBUG] Could not log cookies: {e}")
+
+                response = self.session.get(odds_url, params=params, timeout=30)
+                safe_print(f"[ACE DEBUG] Odds response status: {response.status_code}")
+                safe_print(f"[ACE DEBUG] Odds response URL: {response.url}")
+                safe_print(f"[ACE DEBUG] Odds response headers: {dict(response.headers)}")
+                
+                # Check for compression and handle properly
+                content_encoding = response.headers.get('content-encoding', '').lower()
+                safe_print(f"[ACE DEBUG] Content encoding: {content_encoding}")
+                
+                # Get the response content properly
+                if content_encoding == 'gzip':
+                    safe_print("[ACE DEBUG] Response is gzipped, decompressing...")
+                    try:
+                        import gzip
+                        import io
+                        # Use response.content (raw bytes) for decompression
+                        decompressed_bytes = gzip.decompress(response.content)
+                        content = decompressed_bytes.decode('utf-8', errors='ignore')
+                        safe_print(f"[ACE DEBUG] Successfully decompressed {len(response.content)} bytes to {len(content)} characters")
+                    except Exception as e:
+                        safe_print(f"[ACE DEBUG] Failed to decompress gzip: {e}")
+                        safe_print(f"[ACE DEBUG] Trying alternative decompression...")
+                        try:
+                            # Try using requests' built-in decompression
+                            response.raw.decode_content = True
+                            content = response.text
+                            safe_print(f"[ACE DEBUG] Used requests built-in decompression: {len(content)} characters")
+                        except Exception as e2:
+                            safe_print(f"[ACE DEBUG] Alternative decompression also failed: {e2}")
+                            content = response.text
+                elif content_encoding == 'deflate':
+                    safe_print("[ACE DEBUG] Response is deflated, decompressing...")
+                    try:
+                        import zlib
+                        decompressed_bytes = zlib.decompress(response.content)
+                        content = decompressed_bytes.decode('utf-8', errors='ignore')
+                        safe_print(f"[ACE DEBUG] Successfully decompressed deflate: {len(content)} characters")
+                    except Exception as e:
+                        safe_print(f"[ACE DEBUG] Failed to decompress deflate: {e}")
+                        content = response.text
+                else:
+                    content = response.text
+                    safe_print(f"[ACE DEBUG] No compression detected, using response.text: {len(content)} characters")
+                
+                safe_print(f"[ACE DEBUG] Odds response length: {len(content)}")
+
+                # Check for errors
+                if response.status_code != 200:
+                    safe_print(f"[ACE DEBUG] Odds HTTP error: {response.status_code}")
+                    safe_print(f"[ACE DEBUG] Odds response text: {content[:200]}")
+                    if attempt < max_retries - 1:
+                        time.sleep(retry_delay)
+                        retry_delay *= 2
+                        continue
+                    else:
+                        return ""
+
+                # Check if response is HTML login page instead of JSON
+                if '<html' in content.lower() or 'login' in content.lower():
+                    safe_print("[ACE DEBUG] Received HTML login page, session expired or not authenticated!")
+                    safe_print(f"[ACE DEBUG] HTML content preview: {content[:200]}")
+                    if attempt < max_retries - 1:
+                        safe_print(f"[ACE DEBUG] Re-logging in and retrying...")
+                        if self.login():
+                            time.sleep(retry_delay)
+                            continue
+                        else:
+                            return ""
+                    else:
+                        return ""
+
+                # Check if response is too short (might be error page)
+                if len(content) < 100:
+                    safe_print(f"[ACE DEBUG] Response too short ({len(content)} chars), might be error page")
+                    if attempt < max_retries - 1:
+                        time.sleep(retry_delay)
+                        continue
+                    else:
+                        return ""
+
+                safe_print(f"[ACE DEBUG] Successfully fetched odds data ({len(content)} chars)")
+                
+                # Debug: Print the first 200 characters of the response (safe for Unicode)
+                try:
+                    safe_preview = content[:200].encode('ascii', 'ignore').decode('ascii')
+                    safe_print(f"[ACE DEBUG] Response preview: {safe_preview}")
+                    
+                    # Check if it looks like JSON
+                    if content.strip().startswith('{') or content.strip().startswith('['):
+                        safe_print("[ACE DEBUG] Response appears to be JSON")
+                    elif '<html' in content.lower():
+                        safe_print("[ACE DEBUG] Response appears to be HTML")
+                        # Save HTML response for debugging
+                        try:
+                            with open(BASE_DIR / "data" / "last_html_response.txt", "w", encoding="utf-8") as f:
+                                f.write(content)
+                            safe_print(f"[ACE DEBUG] Saved HTML response to {BASE_DIR / 'data' / 'last_html_response.txt'}")
+                        except Exception as save_error:
+                            safe_print(f"[ACE DEBUG] Could not save HTML response: {save_error}")
+                    elif 'error' in content.lower():
+                        safe_print("[ACE DEBUG] Response appears to be an error page")
+                    else:
+                        safe_print("[ACE DEBUG] Response format unclear")
+                        
+                except Exception as preview_error:
+                    safe_print(f"[ACE DEBUG] Could not create response preview: {preview_error}")
+                    safe_print("[ACE DEBUG] Response preview: <Unicode content>")
+                
+                return content
+
+            except requests.exceptions.ConnectionError as e:
+                safe_print(f"[ACE DEBUG] Connection error on attempt {attempt + 1}: {e}")
+                if attempt < max_retries - 1:
+                    safe_print(f"[ACE DEBUG] Waiting {retry_delay}s before retry...")
+                    time.sleep(retry_delay)
+                    retry_delay *= 2
+                else:
+                    safe_print(f"[ACE DEBUG] All connection attempts failed")
+                    return ""
+                    
+            except Exception as e:
+                safe_print(f"[ACE DEBUG] Error fetching odds data on attempt {attempt + 1}: {e}")
+                if attempt < max_retries - 1:
+                    time.sleep(retry_delay)
+                else:
+                    return ""
+        
+        return ""
     
     def parse_odds_html(self, html_content: str) -> List[Dict]:
         """Parse odds HTML and return a list of games with cleaned, split odds fields."""
         try:
+            # Check if content looks like HTML login page
+            if '<html' in html_content.lower() or 'login' in html_content.lower():
+                logging.error("[ACE DEBUG] Received HTML login page instead of odds data")
+                logging.error(f"[ACE DEBUG] Response preview: {html_content[:200]}")
+                return []
+            
             # Try to parse as JSON first
             if html_content.strip().startswith('{'):
                 games = self._parse_json_response(html_content)
@@ -383,40 +725,74 @@ class AceScraper:
             return []
     
     def _parse_json_response(self, json_content: str) -> List[Dict]:
-        """Parse JSON response from NewScheduleHelper.aspx"""
+        """Parse JSON response from NewScheduleHelper.aspx with robust error handling"""
         try:
+            # First, validate the response content
+            if not json_content or not json_content.strip():
+                safe_print("[ACE DEBUG] Empty response received")
+                return []
+            
+            # Check if response is actually JSON
+            if not json_content.strip().startswith('{') and not json_content.strip().startswith('['):
+                safe_print("[ACE DEBUG] Response is not JSON - likely HTML or error page")
+                # Save the response for debugging
+                try:
+                    with open(BASE_DIR / "data" / "last_bad_response.txt", "w", encoding="utf-8") as f:
+                        f.write(json_content)
+                    safe_print(f"[ACE DEBUG] Saved non-JSON response to {BASE_DIR / 'data' / 'last_bad_response.txt'}")
+                except Exception as save_error:
+                    safe_print(f"[ACE DEBUG] Could not save response: {save_error}")
+                return []
+            
+            # Try to parse JSON
             data = json.loads(json_content)
             games = []
             
-            # Navigate JSON structure
+            # Navigate JSON structure safely
             result = data.get('result', {})
             list_leagues = result.get('listLeagues', [])
+            
+            if not isinstance(list_leagues, list):
+                safe_print(f"[ACE DEBUG] listLeagues is not a list: {type(list_leagues)}")
+                return []
             
             for league_group in list_leagues:
                 if not isinstance(league_group, list):
                     continue
                     
                 for league in league_group:
+                    if not isinstance(league, dict):
+                        continue
+                        
                     league_desc = league.get('Description', '')
                     league_games = league.get('Games', [])
                     
+                    if not isinstance(league_games, list):
+                        continue
+                    
                     for game in league_games:
+                        if not isinstance(game, dict):
+                            continue
+                            
                         game_data = self._extract_game_from_json(game, league_desc)
                         if game_data:
                             games.append(game_data)
             
-            logging.info(f"[ACE DEBUG] _parse_json_response: {len(games)} games parsed.")
-            if games:
-                logging.info(f"[ACE DEBUG] Sample parsed game: {json.dumps(games[0], indent=2) if len(games) > 0 else 'None'}")
+            safe_print(f"[ACE DEBUG] _parse_json_response: {len(games)} games parsed successfully")
             return games
             
         except json.JSONDecodeError as e:
-            logging.error(f"Failed to parse JSON response: {e}")
-            logging.error(f"[ACE DEBUG] Raw JSON (first 500 chars): {json_content[:500]}")
+            safe_print(f"[ACE DEBUG] JSON decode error: {e}")
+            # Save the problematic response for debugging
+            try:
+                with open(BASE_DIR / "data" / "last_json_error.txt", "w", encoding="utf-8") as f:
+                    f.write(json_content)
+                safe_print(f"[ACE DEBUG] Saved problematic response to {BASE_DIR / 'data' / 'last_json_error.txt'}")
+            except Exception as save_error:
+                safe_print(f"[ACE DEBUG] Could not save response: {save_error}")
             return []
         except Exception as e:
-            logging.error(f"Error parsing JSON response: {e}")
-            logging.error(f"[ACE DEBUG] Raw JSON (first 500 chars): {json_content[:500]}")
+            safe_print(f"[ACE DEBUG] Unexpected error parsing JSON: {e}")
             return []
     
     def _extract_game_from_json(self, game_json: Dict, league_desc: str) -> Optional[Dict]:
@@ -733,31 +1109,76 @@ class AceScraper:
             return 'unknown'
     
     def scrape_games(self, league_ids: str = None) -> List[Dict]:
-        """Main method to scrape games"""
+        """Scrape games from Ace with session validation"""
         try:
-            if not self.logged_in:
-                if not self.login():
-                    return []
+            # Check if we're still logged in by making a test request
+            safe_print("[ACE DEBUG] Checking session validity...")
+            test_response = self.session.get(f"{self.base_url}/wager/CreateSports.aspx?WT=0")
             
-            # Fetch odds data
-            html_content = self.fetch_odds_data(league_ids)
-            if not html_content:
+            # If we get redirected to login page, session has expired
+            if "Please sign in" in test_response.text or test_response.status_code == 302:
+                safe_print("[ACE DEBUG] Session expired, re-logging in...")
+                if not self.login():
+                    safe_print("[ACE DEBUG] Failed to re-login")
+                    return []
+                safe_print("[ACE DEBUG] Successfully re-logged in")
+            else:
+                safe_print("[ACE DEBUG] Session is still valid")
+            
+            # Now proceed with scraping
+            safe_print("[ACE DEBUG] Starting game scraping...")
+            
+            # Get league IDs if not provided
+            if not league_ids:
+                safe_print("[ACE DEBUG] No league IDs provided, getting combined league IDs...")
+                league_ids = self.get_combined_league_ids()
+            
+            if not league_ids:
+                safe_print("[ACE DEBUG] No valid leagues to scrape, aborting.")
                 return []
             
-            # Parse games from HTML
-            games = self.parse_odds_html(html_content)
+            safe_print(f"[ACE DEBUG] Using league IDs: {league_ids}")
             
-            # Filter out excluded games
+            # Fetch odds data
+            safe_print("[ACE DEBUG] Fetching odds data...")
+            odds_data = self.fetch_odds_data(league_ids)
+            
+            if not odds_data:
+                safe_print("[ACE DEBUG] No odds data received")
+                return []
+            
+            safe_print(f"[ACE DEBUG] Received odds data length: {len(odds_data) if odds_data else 0}")
+            
+            # Parse the odds data
+            safe_print("[ACE DEBUG] Parsing JSON response...")
+            games = self._parse_json_response(odds_data)
+            
+            if not games:
+                safe_print("[ACE DEBUG] No games parsed from odds data")
+                return []
+            
+            safe_print(f"[ACE DEBUG] Parsed {len(games)} games from odds data")
+            
+            # Filter games
+            safe_print("[ACE DEBUG] Filtering games...")
             filtered_games = []
-            for game in games:
+            for i, game in enumerate(games):
+                if i < 5:  # Log first 5 games for debugging
+                    safe_print(f"[ACE DEBUG] Checking game {i+1}: {game.get('away_team', '')} vs {game.get('home_team', '')}")
+                
                 if self._should_include_game(game):
                     filtered_games.append(game)
+                    if len(filtered_games) <= 5:  # Log first 5 included games
+                        safe_print(f"[ACE DEBUG] Included game {len(filtered_games)}: {game.get('away_team', '')} vs {game.get('home_team', '')}")
             
-            logging.info(f"Scraped {len(filtered_games)} games (filtered from {len(games)} total)")
+            safe_print(f"[ACE DEBUG] Filtered {len(games)} games down to {len(filtered_games)} valid games")
+            
             return filtered_games
             
         except Exception as e:
-            logging.error(f"Error scraping games: {e}")
+            safe_print(f"[ACE DEBUG] Error in scrape_games: {e}")
+            import traceback
+            safe_print(f"[ACE DEBUG] Traceback: {traceback.format_exc()}")
             return []
     
     def _should_include_game(self, game: Dict) -> bool:
@@ -775,7 +1196,7 @@ class AceScraper:
             # Check for exclusion patterns
             for pattern in self.exclusion_patterns:
                 if re.search(pattern, all_text, re.IGNORECASE):
-                    logger.info(f"[ACE GAME FILTER] Excluded game due to pattern '{pattern}': {away_team} vs {home_team}")
+                    safe_print(f"[ACE GAME FILTER] Excluded game due to pattern '{pattern}': {away_team} vs {home_team}")
                     return False
             
             # Additional specific checks
@@ -813,12 +1234,12 @@ class AceScraper:
             
             for term in exclusion_terms:
                 if term in all_text:
-                    logger.info(f"[ACE GAME FILTER] Excluded game due to term '{term}': {away_team} vs {home_team}")
+                    safe_print(f"[ACE GAME FILTER] Excluded game due to term '{term}': {away_team} vs {home_team}")
                     return False
             
             # Check for valid team names (must have at least 2 characters)
             if len(away_team.strip()) < 2 or len(home_team.strip()) < 2:
-                logger.info(f"[ACE GAME FILTER] Excluded game due to short team names: {away_team} vs {home_team}")
+                safe_print(f"[ACE GAME FILTER] Excluded game due to short team names: {away_team} vs {home_team}")
                 return False
             
             # Check for date filtering (only include games within next 7 days)
@@ -827,96 +1248,162 @@ class AceScraper:
                 try:
                     # Parse the date and check if it's within next 7 days
                     from datetime import datetime, timedelta
-                    game_dt = datetime.fromisoformat(game_date.replace('Z', '+00:00'))
+                    
+                    # Handle different date formats
+                    if ' ' in game_date and len(game_date.split(' ')) == 2:
+                        # Format: '07/15 20:00' - convert to proper datetime
+                        date_part, time_part = game_date.split(' ')
+                        # Add current year if not present
+                        if '/' in date_part and len(date_part.split('/')) == 2:
+                            month, day = date_part.split('/')
+                            current_year = datetime.now().year
+                            date_part = f"{current_year}/{month}/{day}"
+                        
+                        # Parse the date
+                        try:
+                            game_dt = datetime.strptime(f"{date_part} {time_part}", "%Y/%m/%d %H:%M")
+                        except ValueError:
+                            # Try alternative format
+                            game_dt = datetime.strptime(f"{date_part} {time_part}", "%m/%d %H:%M")
+                            # Add current year
+                            game_dt = game_dt.replace(year=datetime.now().year)
+                    else:
+                        # Try ISO format
+                        game_dt = datetime.fromisoformat(game_date.replace('Z', '+00:00'))
+                    
                     now = datetime.now()
                     if game_dt > now + timedelta(days=7):
-                        logger.info(f"[ACE GAME FILTER] Excluded game due to future date: {away_team} vs {home_team} ({game_date})")
+                        safe_print(f"[ACE GAME FILTER] Excluded game due to future date: {away_team} vs {home_team} ({game_date})")
                         return False
-        except Exception as e:
-                    logger.warning(f"[ACE GAME FILTER] Could not parse date {game_date}: {e}")
+                except Exception as e:
+                    safe_print(f"[ACE GAME FILTER] Could not parse date {game_date}: {e}")
             
-            logger.info(f"[ACE GAME FILTER] Included game: {away_team} vs {home_team}")
+            safe_print(f"[ACE GAME FILTER] Included game: {away_team} vs {home_team}")
             return True
     
         except Exception as e:
-            logger.error(f"[ACE GAME FILTER] Error checking game: {e}")
+            safe_print(f"[ACE GAME FILTER] Error checking game: {e}")
             return False
     
     def run_ace_calculations(self) -> Dict[str, Any]:
-        """Run Ace calculations using Buckeye's proven approach"""
+        """Run Ace calculations - scrape Ace games and match to Pinnacle events"""
         try:
-            logger.info("[ACE] Starting calculations using Buckeye's proven approach...")
-            print("[ACE] Starting calculations using Buckeye's proven approach...")  # Console output
+            safe_print("[ACE] Starting Ace calculations - scraping Ace games and matching to Pinnacle...")
             
-            # Step 1: Get Pinnacle event IDs (same as Buckeye)
+            # Step 1: Scrape Ace games
+            safe_print("[ACE] Step 1: Scraping Ace games...")
+            ace_games = self.scrape_games()
+            
+            if not ace_games:
+                safe_print("[ACE] No Ace games scraped")
+                return {"error": "No Ace games found", "status": "error"}
+            
+            safe_print(f"[ACE] Scraped {len(ace_games)} Ace games")
+            
+            # Show sample of scraped games
+            if ace_games:
+                safe_print("[ACE] Sample of scraped games:")
+                for i, game in enumerate(ace_games[:3]):
+                    safe_print(f"[ACE]   {i+1}. {game.get('away_team', '')} vs {game.get('home_team', '')} ({game.get('league', '')})")
+            
+            # Step 2: Get Pinnacle event IDs for matching
+            safe_print("[ACE] Step 2: Fetching Pinnacle event IDs...")
             event_ids = self._fetch_pinnacle_event_ids()
+            
             if not event_ids:
-                logger.error("[ACE] No event IDs fetched from Pinnacle")
-                print("[ACE] No event IDs fetched from Pinnacle")  # Console output
-                return {"error": "No event IDs available", "status": "error"}
+                safe_print("[ACE] No Pinnacle event IDs available")
+                return {"error": "No Pinnacle event IDs available", "status": "error"}
             
-            logger.info(f"[ACE] Fetched {len(event_ids)} event IDs from Pinnacle")
-            print(f"[ACE] Fetched {len(event_ids)} event IDs from Pinnacle")  # Console output
+            safe_print(f"[ACE] Fetched {len(event_ids)} Pinnacle event IDs")
             
-            # Step 2: Use Buckeye's exact same calculation logic
-            from buckeye_scraper import BuckeyeScraper
+            # Step 3: Create hash maps for optimized matching
+            safe_print("[ACE] Step 3: Creating hash maps for optimized matching...")
+            event_hash_maps = self._create_event_hash_map(event_ids)
             
-            # Create Buckeye instance with minimal config
-            config = {"debug": True}
-            buckeye = BuckeyeScraper(config)
+            # Step 4: Match Ace games to Pinnacle events and calculate EV
+            safe_print("[ACE] Step 4: Matching Ace games to Pinnacle events...")
+            matched_markets = []
+            total_matched = 0
+            total_with_ev = 0
             
-            # Extract just the event ID strings for Buckeye's method
-            event_id_strings = [event.get('event_id') for event in event_ids if event.get('event_id')]
+            safe_print(f"[ACE] Attempting to match {len(ace_games)} Ace games to Pinnacle events...")
             
-            logger.info(f"[ACE] Running Buckeye's calculation logic on {len(event_id_strings)} events...")
-            print(f"[ACE] Running Buckeye's calculation logic on {len(event_id_strings)} events...")  # Console output
+            for i, game in enumerate(ace_games):
+                if i < 5:  # Log first 5 matching attempts
+                    safe_print(f"[ACE] Matching game {i+1}: {game.get('away_team', '')} vs {game.get('home_team', '')}")
+                
+                try:
+                    matched_event_id = self._match_game_to_event_optimized(game, event_hash_maps)
+                    if matched_event_id:
+                        total_matched += 1
+                        if i < 5:  # Log first 5 successful matches
+                            safe_print(f"[ACE] ✓ Matched game {i+1} to event ID: {matched_event_id}")
+                        
+                        # Get Pinnacle odds for this event
+                        pinnacle_data = self._get_pinnacle_odds(matched_event_id)
+                        if pinnacle_data:
+                            # Calculate EV for each market
+                            markets = self._calculate_ev_for_game(game, pinnacle_data)
+                            for market in markets:
+                                matched_markets.append(market)
+                                if float(market.get('ev', '0').replace('%', '')) > 0:
+                                    total_with_ev += 1
+                                    if total_with_ev <= 3:  # Log first 3 positive EV markets
+                                        safe_print(f"[ACE] ✓ Found positive EV market: {market.get('market', '')} EV: {market.get('ev', '')}")
+                    elif i < 5:  # Log first 5 failed matches
+                        safe_print(f"[ACE] ✗ No match found for game {i+1}")
+                except Exception as match_error:
+                    safe_print(f"[ACE] Error matching game {i+1}: {match_error}")
+                    continue
             
-            # Use Buckeye's proven calculation method
-            results = buckeye.run_main_calculation(event_id_strings)
+            # Calculate statistics
+            match_rate = (total_matched / len(ace_games) * 100) if ace_games else 0
+            ev_rate = (total_with_ev / total_matched * 100) if total_matched > 0 else 0
             
-            logger.info(f"[ACE] Buckeye calculation completed: {results}")
-            print(f"[ACE] Buckeye calculation completed: {results}")  # Console output
+            safe_print(f"[ACE] Matching complete: {total_matched}/{len(ace_games)} games matched ({match_rate:.1f}%)")
+            safe_print(f"[ACE] EV calculation complete: {total_with_ev} markets with positive EV ({ev_rate:.1f}%)")
             
-            # Save results to file for get_ace_results() to find
+            # Sort markets by EV (highest first)
+            matched_markets.sort(key=lambda x: float(x.get('ev', '0').replace('%', '')), reverse=True)
+            
+            # Save results
             ace_results = {
-                "markets": results.get("events", []),
-                "last_update": results.get("timestamp", ""),
-                "total_processed": results.get("total_processed", 0),
-                "total_matched": results.get("total_matched", 0),
-                "total_with_ev": results.get("total_with_ev", 0),
-                "match_rate": results.get("match_rate", 0),
-                "ev_rate": results.get("ev_rate", 0)
+                "markets": matched_markets,
+                "last_update": datetime.now().isoformat(),
+                "total_processed": len(ace_games),
+                "total_matched": total_matched,
+                "total_with_ev": total_with_ev,
+                "match_rate": match_rate,
+                "ev_rate": ev_rate
             }
             
-            # Save to file
             with open(self.results_file, 'w') as f:
                 json.dump(ace_results, f, indent=2)
             
-            logger.info(f"[ACE] Saved {len(ace_results['markets'])} results to {self.results_file}")
+            safe_print(f"[ACE] Saved {len(matched_markets)} markets to {self.results_file}")
             
-            # Return results in Ace's expected format
             return {
                 "status": "success",
-                "message": f"Processed {len(event_id_strings)} events using Buckeye logic",
-                "results": results.get("events", []),
-                "total_processed": results.get("total_processed", 0),
-                "total_matched": results.get("total_matched", 0),
-                "total_with_ev": results.get("total_with_ev", 0),
-                "match_rate": results.get("match_rate", 0),
-                "ev_rate": results.get("ev_rate", 0),
-                "timestamp": results.get("timestamp", "")
+                "message": f"Processed {len(ace_games)} Ace games, matched {total_matched}, found {total_with_ev} with EV",
+                "results": matched_markets,
+                "total_processed": len(ace_games),
+                "total_matched": total_matched,
+                "total_with_ev": total_with_ev,
+                "match_rate": match_rate,
+                "ev_rate": ev_rate,
+                "timestamp": ace_results["last_update"]
             }
             
         except Exception as e:
-            logger.error(f"[ACE] Error in calculations: {e}")
+            safe_print(f"[ACE] Error in calculations: {e}")
             import traceback
-            logger.error(f"[ACE] Traceback: {traceback.format_exc()}")
+            safe_print(f"[ACE] Traceback: {traceback.format_exc()}")
             return {"error": str(e), "status": "error"}
     
     def _fetch_pinnacle_event_ids(self) -> List[Dict]:
         """Fetch event IDs from Pinnacle API using Buckeye's approach"""
         try:
-            logger.info("[ACE DEBUG] Starting to fetch event IDs from Pinnacle API...")
+            safe_print("[ACE DEBUG] Starting to fetch event IDs from Pinnacle API...")
             
             # Use the existing Buckeye logic directly
             from buckeye_scraper import BuckeyeScraper
@@ -928,13 +1415,13 @@ class AceScraper:
             # Get event IDs with team names
             event_dicts = buckeye.get_todays_event_ids()
             
-            logger.info(f"[ACE DEBUG] Fetched {len(event_dicts)} event IDs from Pinnacle API")
+            safe_print(f"[ACE DEBUG] Fetched {len(event_dicts)} event IDs from Pinnacle API")
             
             if event_dicts:
                 # Show sample of what we loaded
-                logger.info(f"[ACE DEBUG] Sample event IDs:")
+                safe_print(f"[ACE DEBUG] Sample event IDs:")
                 for i, event in enumerate(event_dicts[:5]):  # Show first 5
-                    logger.info(f"[ACE DEBUG]   {i+1}. {event.get('away_team', '')} vs {event.get('home_team', '')} (ID: {event.get('event_id', '')})")
+                    safe_print(f"[ACE DEBUG]   {i+1}. {event.get('away_team', '')} vs {event.get('home_team', '')} (ID: {event.get('event_id', '')})")
                 
                 # Count by sport/league for debugging
                 sports_count = {}
@@ -952,16 +1439,16 @@ class AceScraper:
                     
                     sports_count[sport] = sports_count.get(sport, 0) + 1
                 
-                logger.info(f"[ACE DEBUG] Event IDs by sport: {sports_count}")
+                safe_print(f"[ACE DEBUG] Event IDs by sport: {sports_count}")
             else:
-                logger.warning("[ACE DEBUG] No event IDs fetched from Pinnacle API!")
+                safe_print("[ACE DEBUG] No event IDs fetched from Pinnacle API!")
             
             return event_dicts
             
         except Exception as e:
-            logger.error(f"[ACE] Error fetching event IDs: {e}")
+            safe_print(f"[ACE] Error fetching event IDs: {e}")
             import traceback
-            logger.error(f"[ACE] Traceback: {traceback.format_exc()}")
+            safe_print(f"[ACE] Traceback: {traceback.format_exc()}")
             return []
     
     def _fetch_active_leagues(self) -> List[str]:
@@ -979,7 +1466,7 @@ class AceScraper:
                 return league_ids
                 
         except Exception as e:
-            logger.error(f"[ACE] Error fetching active leagues: {e}")
+            safe_print(f"[ACE] Error fetching active leagues: {e}")
             return []
     
     def _filter_games(self, games: List[Dict]) -> List[Dict]:
@@ -992,111 +1479,135 @@ class AceScraper:
                 if self._should_include_game(game):
                     filtered_games.append(game)
             
-            logger.info(f"[ACE] Filtered {len(games)} games down to {len(filtered_games)} valid games")
+            safe_print(f"[ACE] Filtered {len(games)} games down to {len(filtered_games)} valid games")
             return filtered_games
             
         except Exception as e:
-            logger.error(f"[ACE] Error filtering games: {e}")
+            safe_print(f"[ACE] Error filtering games: {e}")
             return []
     
     def _create_event_hash_map(self, event_ids: List[Dict]) -> Dict[str, List[Dict]]:
-        """Create hash maps for fast exact matching"""
-        hash_maps = {
-            'exact_teams': defaultdict(list),
-            'clean_teams': defaultdict(list),
-            'partial_teams': defaultdict(list)
-        }
-        
-        for event in event_ids:
-            home_team = event.get('home_team', '').strip()
-            away_team = event.get('away_team', '').strip()
+        """Create hash maps for fast exact matching with robust error handling"""
+        try:
+            hash_maps = {
+                'exact_teams': {},      # Original team names
+                'clean_teams': {},      # Cleaned team names  
+                'partial_teams': {}     # For partial matching
+            }
             
-            if not home_team or not away_team:
-                continue
+            if not event_ids or not isinstance(event_ids, list):
+                safe_print("[ACE DEBUG] No valid event IDs provided for hash map creation")
+                return hash_maps
+            
+            safe_print(f"[ACE DEBUG] Creating hash maps for {len(event_ids)} events")
+            
+            for event in event_ids:
+                if not isinstance(event, dict):
+                    continue
+                    
+                event_id = event.get('event_id')
+                away_team = event.get('away_team', '').strip()
+                home_team = event.get('home_team', '').strip()
                 
-            # Exact team name matches
-            exact_key = f"{away_team}|{home_team}"
-            hash_maps['exact_teams'][exact_key].append(event)
+                if not event_id or not away_team or not home_team:
+                    continue
+                
+                # Create exact match key
+                exact_key = f"{away_team}|{home_team}"
+                if exact_key not in hash_maps['exact_teams']:
+                    hash_maps['exact_teams'][exact_key] = []
+                hash_maps['exact_teams'][exact_key].append(event)
+                
+                # Create clean match key
+                clean_away = clean_pod_team_name_for_search(away_team)
+                clean_home = clean_pod_team_name_for_search(home_team)
+                clean_key = f"{clean_away}|{clean_home}"
+                
+                if clean_key not in hash_maps['clean_teams']:
+                    hash_maps['clean_teams'][clean_key] = []
+                hash_maps['clean_teams'][clean_key].append(event)
+                
+                # Add to partial matching (by first word of each team) - FIXED: Add bounds checking
+                away_words = clean_away.split()
+                home_words = clean_home.split()
+                
+                # FIX: Check if both teams have at least one word before accessing [0]
+                if away_words and home_words and len(away_words) > 0 and len(home_words) > 0:
+                    partial_key = f"{away_words[0]}|{home_words[0]}"
+                    if partial_key not in hash_maps['partial_teams']:
+                        hash_maps['partial_teams'][partial_key] = []
+                    hash_maps['partial_teams'][partial_key].append(event)
             
-            # Clean team name matches (for fuzzy matching)
-            clean_home = clean_pod_team_name_for_search(home_team)
-            clean_away = clean_pod_team_name_for_search(away_team)
-            clean_key = f"{clean_away}|{clean_home}"
-            hash_maps['clean_teams'][clean_key].append(event)
+            safe_print(f"[ACE DEBUG] Hash maps created: {len(hash_maps['exact_teams'])} exact, {len(hash_maps['clean_teams'])} clean, {len(hash_maps['partial_teams'])} partial")
+            return hash_maps
             
-            # Partial matches (for team name variations)
-            for team in [home_team, away_team]:
-                words = team.split()
-                for word in words:
-                    if len(word) > 2:  # Only meaningful words
-                        hash_maps['partial_teams'][word.lower()].append(event)
-        
-        logger.info(f"[ACE] Created hash maps: {len(hash_maps['exact_teams'])} exact, {len(hash_maps['clean_teams'])} clean, {len(hash_maps['partial_teams'])} partial")
-        return hash_maps
+        except Exception as e:
+            safe_print(f"[ACE DEBUG] Error creating hash maps: {e}")
+            import traceback
+            safe_print(f"[ACE DEBUG] Traceback: {traceback.format_exc()}")
+            return {
+                'exact_teams': {},
+                'clean_teams': {}, 
+                'partial_teams': {}
+            }
     
     def _match_game_to_event_optimized(self, game: Dict, event_hash_maps: Dict) -> Optional[str]:
-        """Optimized matching using hash maps for speed"""
+        """Optimized matching using hash maps for speed with robust error handling"""
         try:
+            # Validate inputs
+            if not isinstance(game, dict) or not isinstance(event_hash_maps, dict):
+                safe_print("[ACE MATCH DEBUG] Invalid input types for matching")
+                return None
+            
             ace_away = game.get('away_team', '').strip()
             ace_home = game.get('home_team', '').strip()
             
-            logger.info(f"[ACE MATCH DEBUG] Attempting to match: '{ace_away}' vs '{ace_home}'")
-            
             if not ace_away or not ace_home:
-                logger.warning(f"[ACE MATCH DEBUG] Missing team names: away='{ace_away}', home='{ace_home}'")
+                safe_print(f"[ACE MATCH DEBUG] Missing team names: away='{ace_away}', home='{ace_home}'")
                 return None
             
             # Clean team names for matching
             clean_ace_away = clean_pod_team_name_for_search(ace_away)
             clean_ace_home = clean_pod_team_name_for_search(ace_home)
             
-            logger.info(f"[ACE MATCH DEBUG] Cleaned names: '{clean_ace_away}' vs '{clean_ace_home}'")
-            
-            # Log hash map sizes for debugging
-            logger.info(f"[ACE MATCH DEBUG] Hash maps: exact={len(event_hash_maps['exact_teams'])}, clean={len(event_hash_maps['clean_teams'])}, partial={len(event_hash_maps['partial_teams'])}")
-            
             # Try exact match first (with original names)
             exact_key = f"{ace_away}|{ace_home}"
-            logger.info(f"[ACE MATCH DEBUG] Trying exact key: '{exact_key}'")
-            if exact_key in event_hash_maps['exact_teams']:
-                event = event_hash_maps['exact_teams'][exact_key][0]
-                logger.info(f"[ACE MATCH DEBUG] Exact match found! Event ID: {event.get('event_id')}")
-                return event.get('event_id')
-            else:
-                logger.info(f"[ACE MATCH DEBUG] No exact match found")
+            if exact_key in event_hash_maps.get('exact_teams', {}):
+                events_list = event_hash_maps['exact_teams'][exact_key]
+                if isinstance(events_list, list) and len(events_list) > 0:
+                    event = events_list[0]
+                    if isinstance(event, dict):
+                        safe_print(f"[ACE MATCH] Exact match found: {ace_away} vs {ace_home} -> Event ID: {event.get('event_id')}")
+                        return event.get('event_id')
             
             # Try clean team name match
             clean_key = f"{clean_ace_away}|{clean_ace_home}"
-            logger.info(f"[ACE MATCH DEBUG] Trying clean key: '{clean_key}'")
-            
-            if clean_key in event_hash_maps['clean_teams']:
-                event = event_hash_maps['clean_teams'][clean_key][0]
-                logger.info(f"[ACE MATCH DEBUG] Clean match found! Event ID: {event.get('event_id')}")
-                return event.get('event_id')
-            else:
-                logger.info(f"[ACE MATCH DEBUG] No clean match found")
+            if clean_key in event_hash_maps.get('clean_teams', {}):
+                events_list = event_hash_maps['clean_teams'][clean_key]
+                if isinstance(events_list, list) and len(events_list) > 0:
+                    event = events_list[0]
+                    if isinstance(event, dict):
+                        safe_print(f"[ACE MATCH] Clean match found: {ace_away} vs {ace_home} -> Event ID: {event.get('event_id')}")
+                        return event.get('event_id')
             
             # Try partial matching with cleaned names
-            logger.info(f"[ACE MATCH DEBUG] Trying partial matching with cleaned names...")
             best_match = None
             best_score = 0
             
-            # Sample some events for debugging
-            sample_events = []
-            for events in event_hash_maps['partial_teams'].values():
-                for event in events[:3]:  # Take first 3 from each group
-                    sample_events.append(event)
-                    if len(sample_events) >= 10:  # Limit to 10 samples
-                        break
-                if len(sample_events) >= 10:
-                    break
+            # Iterate through all events in partial_teams safely
+            partial_teams = event_hash_maps.get('partial_teams', {})
+            if not isinstance(partial_teams, dict):
+                safe_print("[ACE MATCH DEBUG] partial_teams is not a dictionary")
+                return None
             
-            logger.info(f"[ACE MATCH DEBUG] Sample events available:")
-            for i, event in enumerate(sample_events):
-                logger.info(f"[ACE MATCH DEBUG]   {i+1}. {event.get('away_team', '')} vs {event.get('home_team', '')} (ID: {event.get('event_id', '')})")
-            
-            for event in event_hash_maps['partial_teams'].values():
-                for single_event in event:
+            for events_list in partial_teams.values():
+                if not isinstance(events_list, list):
+                    continue
+                    
+                for single_event in events_list:
+                    if not isinstance(single_event, dict):
+                        continue
+                        
                     pinnacle_away = single_event.get('away_team', '').strip()
                     pinnacle_home = single_event.get('home_team', '').strip()
                     
@@ -1117,19 +1628,18 @@ class AceScraper:
                     if match_score > best_score and match_score >= 70:  # 70% threshold
                         best_score = match_score
                         best_match = single_event
-                        logger.info(f"[ACE MATCH DEBUG] New best match: {clean_pinnacle_away} vs {clean_pinnacle_home} (score: {match_score:.1f})")
             
-            if best_match:
-                logger.info(f"[ACE MATCH DEBUG] Partial match found with {best_score:.1f}% similarity")
+            if best_match and isinstance(best_match, dict):
+                safe_print(f"[ACE MATCH] Partial match found: {ace_away} vs {ace_home} -> {best_match.get('away_team', '')} vs {best_match.get('home_team', '')} (score: {best_score:.1f}%)")
                 return best_match.get('event_id')
             
-            logger.warning(f"[ACE MATCH DEBUG] No match found for {clean_ace_away} vs {clean_ace_home}")
+            safe_print(f"[ACE MATCH] No match found for {ace_away} vs {ace_home}")
             return None
             
         except Exception as e:
-            logger.error(f"[ACE MATCH] Error in optimized matching: {e}")
+            safe_print(f"[ACE MATCH] Error in optimized matching: {e}")
             import traceback
-            logger.error(f"[ACE MATCH] Traceback: {traceback.format_exc()}")
+            safe_print(f"[ACE MATCH] Traceback: {traceback.format_exc()}")
             return None
 
     def _calculate_team_similarity(self, team1: str, team2: str) -> float:
@@ -1173,7 +1683,7 @@ class AceScraper:
     def _get_pinnacle_odds(self, event_id: str) -> Optional[Dict]:
         """Get Pinnacle odds for an event ID using the same logic as Buckeye"""
         try:
-            logger.info(f"[ACE EV] Attempting to fetch Pinnacle odds for event ID: {event_id}")
+            safe_print(f"[ACE EV] Attempting to fetch Pinnacle odds for event ID: {event_id}")
             
             # Add timeout protection using threading (Windows compatible)
             import threading
@@ -1182,8 +1692,8 @@ class AceScraper:
             result_queue = queue.Queue()
             
             def fetch_with_timeout():
-        try:
-            pinnacle_result = fetch_live_pinnacle_event_odds(event_id)
+                try:
+                    pinnacle_result = fetch_live_pinnacle_event_odds(event_id)
                     result_queue.put(("success", pinnacle_result))
                 except Exception as e:
                     result_queue.put(("error", e))
@@ -1203,21 +1713,21 @@ class AceScraper:
                 pinnacle_result = result_data
                 
             except queue.Empty:
-                logger.warning(f"[ACE EV] Timeout fetching Pinnacle odds for event {event_id}")
+                safe_print(f"[ACE EV] Timeout fetching Pinnacle odds for event {event_id}")
                 return None
             
-            logger.info(f"[ACE EV] Pinnacle result: {pinnacle_result}")
+            safe_print(f"[ACE EV] Pinnacle result: {pinnacle_result}")
             
             if pinnacle_result and pinnacle_result.get('success') == True:
                 processed_data = process_event_odds_for_display(pinnacle_result.get('data'))
-                logger.info(f"[ACE EV] Processed Pinnacle data: {processed_data}")
+                safe_print(f"[ACE EV] Processed Pinnacle data: {processed_data}")
                 return processed_data
             else:
-                logger.warning(f"[ACE EV] Pinnacle fetch failed or returned no data for event {event_id}")
+                safe_print(f"[ACE EV] Pinnacle fetch failed or returned no data for event {event_id}")
             return None
             
         except Exception as e:
-            logger.error(f"[ACE EV] Error fetching Pinnacle odds for event {event_id}: {e}")
+            safe_print(f"[ACE EV] Error fetching Pinnacle odds for event {event_id}: {e}")
             return None
     
     def _match_ace_to_pinnacle(self, ace_game: Dict, pinnacle_data: Dict) -> Optional[Dict]:

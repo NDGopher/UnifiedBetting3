@@ -4,6 +4,7 @@ import requests
 from typing import List, Dict, Any, Optional
 from datetime import datetime
 from utils.pod_utils import analyze_markets_for_ev, process_event_odds_for_display, american_to_decimal, decimal_to_american
+from pathlib import Path
 
 logger = logging.getLogger(__name__)
 
@@ -414,9 +415,13 @@ def calculate_ev_table(matched_games: List[Dict[str, Any]]) -> List[Dict[str, An
     all_bets_with_ev.sort(key=lambda x: x.get('ev_val', 0), reverse=True)
     return all_bets_with_ev
 
-def save_ev_table(ev_table: List[Dict[str, Any]], filename: str = "data/ev_table.json") -> bool:
+def save_ev_table(ev_table: List[Dict[str, Any]], filename: str = None) -> bool:
     """Save EV table to file (flat list of bets/markets)"""
     try:
+        if filename is None:
+            filename = DATA_DIR / "ev_table.json"
+        else:
+            filename = DATA_DIR / Path(filename).name
         import os
         os.makedirs(os.path.dirname(filename), exist_ok=True)
         data = {

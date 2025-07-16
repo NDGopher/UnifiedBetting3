@@ -164,13 +164,19 @@ class BetBCKRequestManager:
     
     def _is_rate_limited_response(self, response_text: str, status_code: int) -> bool:
         """Check if response indicates rate limiting"""
+        # True rate limiting - immediate pause of all processing
         if status_code in [403, 429, 503]:
+            logger.error(f"[BetBCK-Manager] [TRUE-RATE-LIMIT] HTTP {status_code} - Cloudflare rate limiting detected!")
+            logger.error(f"[BetBCK-Manager] [TRUE-RATE-LIMIT] Full response: {response_text[:1000]}")
             return True
         
+        # Check for rate limiting indicators in response text
         if response_text:
             response_lower = response_text.lower()
             for indicator in self.RATE_LIMIT_INDICATORS:
                 if indicator in response_lower:
+                    logger.error(f"[BetBCK-Manager] [TRUE-RATE-LIMIT] Rate limit indicator '{indicator}' found in response!")
+                    logger.error(f"[BetBCK-Manager] [TRUE-RATE-LIMIT] Response preview: {response_text[:500]}")
                     return True
         
         return False
@@ -199,66 +205,59 @@ class BetBCKRequestManager:
         return None
     
     def _handle_rate_limited_request(self, request_data):
-        """Handle request when rate limited"""
-        logger.warning(f"[BetBCK-Manager] Skipping request due to rate limiting: {request_data['search_term']}")
+        """Handle request when rate limited - reject immediately"""
+        logger.warning(f"[BetBCK-Manager] [RATE-LIMITED] Rejecting request due to rate limiting: {request_data['search_term']}")
         
         # Return error to the future
         future = request_data['future']
         future.set_result({
             "status": "error",
-            "message": "Rate limited - request skipped",
+            "message": "Rate limited - request rejected (all processing paused)",
             "rate_limited": True
         })
         
         # Check if cooldown period is over
         if (time.time() - self.rate_limit_detected_time) > self.RATE_LIMIT_COOLDOWN:
-            logger.info("[BetBCK-Manager] Rate limit cooldown period over, resuming requests")
+            logger.info("[BetBCK-Manager] [RATE-LIMIT] Cooldown period over, resuming processing")
             self.rate_limited = False
             self.consecutive_failures = 0
-            self._set_frontend_alert("BetBCK rate limit cooldown complete", "success")
-    
+            self._set_frontend_alert("BetBCK rate limit cooldown complete - processing resumed", "success")
+
     def _process_request(self, request_data):
-        """Process a single BetBCK request"""
+        """Process a single BetBCK request with robust session/cookie logging and deduplication cleanup."""
         search_term = request_data['search_term']
         event_id = request_data['event_id']
         pod_home_team = request_data.get('pod_home_team')
         pod_away_team = request_data.get('pod_away_team')
         future = request_data['future']
-        
+
         try:
             logger.info(f"[BetBCK-Manager] Processing request for: {search_term} (Event: {event_id})")
-            
+            try:
+                logger.info(f"[BetBCK-Manager] Session cookies: {dict(self.session.cookies) if self.session else 'No session'}")
+            except Exception as e:
+                logger.info(f"[BetBCK-Manager] Could not log cookies: {e}")
+
             # Get session (always starts from main page)
             session = self._get_or_refresh_session()
-            
+
             # Perform search from clean main page state
             search_results_html = search_team_and_get_results_html(
                 session, search_term, self.inet_wager, self.inet_sport_select
             )
-            
-            if not search_results_html:
-                logger.warning(f"[BetBCK-Manager] No search results for: {search_term}")
-                future.set_result({
-                    "status": "error",
-                    "message": "No search results found",
-                    "rate_limited": False
-                })
-                return
-            
+
             # Check for rate limiting in response
             if self._is_rate_limited_response(search_results_html, 200):
                 self._handle_rate_limit_detected(search_term, future)
                 return
-            
+
             # Parse game data using correct POD team names
             if pod_home_team and pod_away_team:
-                # Use the correct parsing function with POD team names
                 from betbck_scraper import parse_specific_game_from_search_html
                 game_data = parse_specific_game_from_search_html(search_results_html, pod_home_team, pod_away_team, event_id)
             else:
-                # Fallback to wrapper function if POD team names not available
                 game_data = parse_game_data_from_html(search_results_html, search_term)
-            
+
             if game_data:
                 logger.info(f"[BetBCK-Manager] Successfully scraped data for: {search_term}")
                 future.set_result({
@@ -267,11 +266,6 @@ class BetBCKRequestManager:
                     "rate_limited": False
                 })
                 self.consecutive_failures = 0  # Reset failure count on success
-                
-                # Clear any error alerts on success
-                if self.frontend_alert_message and "error" in self.frontend_alert_type:
-                    self.frontend_alert_message = None
-                    
             else:
                 logger.info(f"[BetBCK-Manager] No game data found for: {search_term}")
                 future.set_result({
@@ -279,50 +273,68 @@ class BetBCKRequestManager:
                     "message": "No matching game found",
                     "rate_limited": False
                 })
-                # Don't increment failures for "no match" - this is normal
             
         except Exception as e:
             logger.error(f"[BetBCK-Manager] Error processing request for {search_term}: {e}")
-            
-            # Check if it's a rate limiting error
             if "rate limit" in str(e).lower() or "429" in str(e) or "403" in str(e):
                 self._handle_rate_limit_detected(search_term, future)
             else:
-                # Regular error - increment failures
                 self.consecutive_failures += 1
-                
                 future.set_result({
                     "status": "error",
                     "message": f"Scraping error: {str(e)}",
                     "rate_limited": False
                 })
-                
-                # Check if we've hit max failures
-                if self.consecutive_failures >= self.MAX_FAILURES:
-                    logger.error(f"[BetBCK-Manager] Too many consecutive failures ({self.consecutive_failures})")
-                    self._set_frontend_alert(f"BetBCK: {self.consecutive_failures} consecutive failures", "warning")
+        finally:
+            # Remove event_id from in-progress set
+            if hasattr(self, '_in_progress_events') and event_id in self._in_progress_events:
+                self._in_progress_events.remove(event_id)
     
     def _handle_rate_limit_detected(self, search_term: str, future):
-        """Handle when rate limiting is detected"""
-        logger.error(f"[BetBCK-Manager] [RATE-LIMIT] RATE LIMITING DETECTED for search: {search_term}")
+        """Handle when rate limiting is detected - pause ALL processing"""
+        logger.error(f"[BetBCK-Manager] [TRUE-RATE-LIMIT] RATE LIMITING DETECTED for search: {search_term}")
+        logger.error(f"[BetBCK-Manager] [TRUE-RATE-LIMIT] PAUSING ALL PROCESSING for {self.RATE_LIMIT_COOLDOWN} seconds")
         
         self.rate_limited = True
         self.rate_limit_detected_time = time.time()
         
-        # Set frontend alert instead of Telegram
-        self._set_frontend_alert("[RATE-LIMIT] BetBCK RATE LIMITED - All requests stopped", "critical")
+        # Set prominent frontend alert
+        self._set_frontend_alert(f"[RATE-LIMIT] BetBCK BLOCKED by Cloudflare - All processing paused for {self.RATE_LIMIT_COOLDOWN//60} minutes", "critical")
         
         # Return error to current request
         future.set_result({
             "status": "error",
-            "message": "Rate limiting detected - all requests stopped",
+            "message": "Rate limiting detected - all processing paused",
             "rate_limited": True
         })
     
     def queue_request(self, search_term: str, event_id: str, pod_home_team: str = None, pod_away_team: str = None) -> 'RequestFuture':
-        """Queue a BetBCK request and return a future"""
+        """Queue a BetBCK request and return a future. Deduplicate by event_id. Reject if rate limited."""
         future = RequestFuture()
-        
+
+        # Check if we're rate limited - reject immediately
+        if self.rate_limited:
+            logger.warning(f"[BetBCK-Manager] [RATE-LIMITED] Rejecting request for {search_term} - system is rate limited")
+            future.set_result({
+                "status": "error",
+                "message": "System is rate limited - request rejected",
+                "rate_limited": True
+            })
+            return future
+
+        # Deduplication: Only allow one request per event_id at a time
+        if not hasattr(self, '_in_progress_events'):
+            self._in_progress_events = set()
+        if event_id in self._in_progress_events:
+            logger.info(f"[BetBCK-Manager] Duplicate request for event {event_id} ignored (already in progress)")
+            future.set_result({
+                "status": "error",
+                "message": "Duplicate request for event (already in progress)",
+                "rate_limited": False
+            })
+            return future
+        self._in_progress_events.add(event_id)
+
         request_data = {
             'search_term': search_term,
             'event_id': event_id,
@@ -331,10 +343,10 @@ class BetBCKRequestManager:
             'future': future,
             'timestamp': time.time()
         }
-        
+
         self.queue.put(request_data)
         logger.info(f"[BetBCK-Manager] Queued request for: {search_term} (Queue size: {self.queue.qsize()})")
-        
+
         return future
     
     def get_status(self) -> Dict[str, Any]:
