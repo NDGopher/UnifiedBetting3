@@ -3,7 +3,7 @@ import threading
 import logging
 import copy
 from typing import Dict, Set, Any
-from odds_processing import fetch_live_pinnacle_event_odds
+from pinnacle_fetcher import fetch_live_pinnacle_event_odds
 from utils import process_event_odds_for_display
 from collections import defaultdict
 import asyncio
@@ -164,9 +164,6 @@ class PodEventManager:
                                 # Update the event data with new odds
                                 event_data["pinnacle_data_processed"] = processed_odds
                                 event_data["last_update"] = int(current_time)
-                            else:
-                                print(f"[BackgroundRefresher] ❌ Pinnacle API call failed for {event_id}: {pinnacle_api_result}")
-                                continue
                                 
                                 # Compare new odds/EV with previous
                                 new_markets = processed_odds.get("markets", [])
@@ -204,10 +201,22 @@ class PodEventManager:
                                     sample_market = new_markets[0] if new_markets else {}
                                     print(f"[BackgroundRefresher] Broadcasting update for event {event_id}")
                                     print(f"[BackgroundRefresher] Sample odds: {sample_market.get('market', 'N/A')} {sample_market.get('selection', 'N/A')} NVP: {sample_market.get('pinnacle_nvp', 'N/A')} EV: {sample_market.get('ev', 'N/A')}")
+                                    print(f"[BackgroundRefresher] Total markets to broadcast: {len(new_markets)}")
                                     # Use the broadcast function (which should handle WebSocket broadcasting)
                                     broadcast_function(event_id, event_data)
+                                    print(f"[BackgroundRefresher] SUCCESS: Successfully broadcasted update for event {event_id}")
                                 else:
                                     print(f"[BackgroundRefresher] No broadcast function available for event {event_id}")
+                                
+                                # Also update the event in the manager to ensure data is current
+                                self.update_event_data(event_id, {
+                                    "pinnacle_data_processed": processed_odds,
+                                    "last_update": int(current_time)
+                                })
+                                print(f"[BackgroundRefresher] SUCCESS: Updated event data in manager for event {event_id}")
+                            else:
+                                print(f"[BackgroundRefresher] ❌ Pinnacle API call failed for {event_id}: {pinnacle_api_result}")
+                                continue
                                 
                         except Exception as e:
                             print(f"[BackgroundRefresher] Error processing event {event_id}: {e}")
