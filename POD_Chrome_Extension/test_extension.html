@@ -1,0 +1,30 @@
+<!DOCTYPE html>
+<html>
+<head>
+    <title>POD Extension Test</title>
+</head>
+<body>
+    <h1>POD Chrome Extension Test</h1>
+    <p>This page tests if the POD extension is working correctly.</p>
+    
+    <div id="status">Checking extension status...</div>
+    
+    <script>
+        // Test if extension is loaded
+        if (typeof chrome !== 'undefined' && chrome.runtime) {
+            document.getElementById('status').innerHTML = '✅ Chrome extension API available';
+            
+            // Test communication with background script
+            chrome.runtime.sendMessage({type: "getLatestSniffedEventDetails"}, function(response) {
+                if (chrome.runtime.lastError) {
+                    document.getElementById('status').innerHTML += '<br>❌ Error communicating with background script: ' + chrome.runtime.lastError.message;
+                } else {
+                    document.getElementById('status').innerHTML += '<br>✅ Background script communication working';
+                }
+            });
+        } else {
+            document.getElementById('status').innerHTML = '❌ Chrome extension API not available';
+        }
+    </script>
+</body>
+</html> 

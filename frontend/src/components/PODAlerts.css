@@ -1,0 +1,26 @@
+.nvp-flash {
+  animation: nvpFlash 1.5s;
+  background: #ffe066 !important;
+  transition: background 0.5s;
+}
+
+@keyframes nvpFlash {
+  0% { background: #ffe066; }
+  80% { background: #ffe066; }
+  100% { background: transparent; }
+}
+
+/* Additional styling for better table appearance */
+.event-container {
+  border: 1px solid rgba(255, 255, 255, 0.1);
+}
+
+.event-title {
+  color: #ffffff;
+  font-weight: 600;
+}
+
+.event-meta-info {
+  color: #b0b0b0;
+  font-size: 0.875rem;
+} 

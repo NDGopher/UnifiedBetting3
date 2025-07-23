@@ -1,0 +1,45 @@
+{
+  "manifest_version": 3,
+  "name": "Odds Dropper",
+  "version": "1.2",
+  "description": "Monitors POD for alerts.",
+  "permissions": [
+    "activeTab",
+    "tabs",
+    "webRequest",
+    "cookies",
+    "storage"
+  ],
+  "host_permissions": [
+    "https://www.pinnacleoddsdropper.com/*",
+    "http://localhost:5001/*",
+    "https://swordfish-production.up.railway.app/*"
+  ],
+  "content_scripts": [
+    {
+      "matches": [
+        "https://www.pinnacleoddsdropper.com/",
+        "https://www.pinnacleoddsdropper.com/terminal",
+        "https://www.pinnacleoddsdropper.com/*"
+      ],
+      "js": ["content.js"],
+      "run_at": "document_start"
+    }
+  ],
+  "background": {
+    "service_worker": "background.js"
+  },
+  "icons": {
+    "16": "icon16.png",
+    "32": "icon32.png",
+    "48": "icon48.png"
+  },
+  "action": {
+    "default_icon": {
+      "16": "icon16.png",
+      "32": "icon32.png",
+      "48": "icon48.png"
+    },
+    "default_title": "Odds Dropper"
+  }
+}

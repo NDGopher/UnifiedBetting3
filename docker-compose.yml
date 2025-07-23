@@ -1,0 +1,33 @@
+version: '3.8'
+
+services:
+  unified-betting-app:
+    build: .
+    ports:
+      - "5001:5001"
+    volumes:
+      # Persist database and logs
+      - ./backend/data:/app/backend/data
+      - ./backend/logs:/app/backend/logs
+      # Mount config for easy updates
+      - ./backend/config.json:/app/backend/config.json
+    environment:
+      - PYTHONPATH=/app/backend
+      - PYTHONUNBUFFERED=1
+    restart: unless-stopped
+    healthcheck:
+      test: ["CMD", "curl", "-f", "http://localhost:5001/test"]
+      interval: 30s
+      timeout: 10s
+      retries: 3
+      start_period: 40s
+    networks:
+      - betting-network
+
+networks:
+  betting-network:
+    driver: bridge
+
+volumes:
+  betting-data:
+    driver: local 

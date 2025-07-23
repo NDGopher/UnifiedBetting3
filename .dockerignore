@@ -1,0 +1,52 @@
+# Git
+.git
+.gitignore
+
+# Node modules (will be installed in container)
+frontend/node_modules
+frontend/build
+
+# Python
+backend/venv
+backend/__pycache__
+backend/*.pyc
+backend/*.pyo
+backend/*.pyd
+backend/.Python
+backend/env
+backend/pip-log.txt
+backend/pip-delete-this-directory.txt
+backend/.tox
+backend/.coverage
+backend/.pytest_cache
+backend/.mypy_cache
+backend/.hypothesis
+
+# Logs
+backend/logs/*
+!backend/logs/.gitkeep
+
+# Data (will be mounted as volume)
+backend/data/*
+!backend/data/.gitkeep
+
+# IDE
+.vscode
+.idea
+*.swp
+*.swo
+
+# OS
+.DS_Store
+Thumbs.db
+
+# Chrome extension (not needed in container)
+POD_Chrome_Extension/
+
+# Documentation
+README.md
+*.md
+
+# Temporary files
+*.tmp
+*.temp 
