@@ -28,6 +28,7 @@ class BetBCKRequestManager:
         self.worker_thread = None
         self.is_running = False
         self.consecutive_failures = 0
+        self.consecutive_rate_limit_failures = 0  # Track consecutive rate limit failures
         self.rate_limited = False
         self.rate_limit_detected_time = None
         self.frontend_alert_message = None  # For POD alerts display
@@ -39,16 +40,16 @@ class BetBCKRequestManager:
         self.MAX_FAILURES = 3           # Max consecutive failures before circuit breaker
         self.RATE_LIMIT_COOLDOWN = 300   # 5 minutes cooldown if rate limited
         self.SESSION_REFRESH_INTERVAL = 1500  # 25 minutes (conservative, sessions last 20-30 min)
+        self.RATE_LIMIT_FAILURE_THRESHOLD = 5  # Require 5 consecutive rate limit failures before pausing
         self.last_session_refresh = 0
         
-        # Rate limiting detection patterns
+        # Rate limiting detection patterns (removed "429" to prevent false positives)
         self.RATE_LIMIT_INDICATORS = [
             "too many requests",
             "rate limit", 
             "temporarily blocked",
             "try again later",
             "403",
-            "429", 
             "service unavailable",
             "blocked",
             "suspended"
@@ -170,14 +171,39 @@ class BetBCKRequestManager:
             logger.error(f"[BetBCK-Manager] [TRUE-RATE-LIMIT] Full response: {response_text[:1000]}")
             return True
         
-        # Check for rate limiting indicators in response text
+        # Check for rate limiting indicators in response text (but be more careful about false positives)
         if response_text:
             response_lower = response_text.lower()
-            for indicator in self.RATE_LIMIT_INDICATORS:
-                if indicator in response_lower:
-                    logger.error(f"[BetBCK-Manager] [TRUE-RATE-LIMIT] Rate limit indicator '{indicator}' found in response!")
+            
+            # Only check for actual rate limiting phrases, not just numbers
+            rate_limit_phrases = [
+                "too many requests",
+                "rate limit", 
+                "temporarily blocked",
+                "try again later",
+                "service unavailable",
+                "blocked",
+                "suspended",
+                "access denied",
+                "forbidden"
+            ]
+            
+            for phrase in rate_limit_phrases:
+                if phrase in response_lower:
+                    logger.error(f"[BetBCK-Manager] [TRUE-RATE-LIMIT] Rate limit phrase '{phrase}' found in response!")
                     logger.error(f"[BetBCK-Manager] [TRUE-RATE-LIMIT] Response preview: {response_text[:500]}")
                     return True
+            
+            # Check for HTTP status codes in text more carefully
+            # Only treat as rate limiting if it's clearly an error response
+            if "429" in response_text and ("error" in response_lower or "status" in response_lower):
+                # Additional check: only treat as rate limiting if it's a clear error response
+                if any(error_indicator in response_lower for error_indicator in ["rate limit", "too many requests", "blocked", "suspended"]):
+                    logger.error(f"[BetBCK-Manager] [TRUE-RATE-LIMIT] HTTP 429 error found in response text!")
+                    logger.error(f"[BetBCK-Manager] [TRUE-RATE-LIMIT] Response preview: {response_text[:500]}")
+                    return True
+                else:
+                    logger.warning(f"[BetBCK-Manager] Found '429' in response but not treating as rate limit (no clear error indicators)")
         
         return False
     
@@ -250,6 +276,12 @@ class BetBCKRequestManager:
             if self._is_rate_limited_response(search_results_html, 200):
                 self._handle_rate_limit_detected(search_term, future)
                 return
+            
+            # Debug: Log response preview to understand what's being returned
+            if search_results_html:
+                logger.info(f"[BetBCK-Manager] Response preview (first 200 chars): {search_results_html[:200]}")
+                if "429" in search_results_html:
+                    logger.warning(f"[BetBCK-Manager] Found '429' in response but not treating as rate limit (false positive prevention)")
 
             # Parse game data using correct POD team names
             if pod_home_team and pod_away_team:
@@ -262,6 +294,10 @@ class BetBCKRequestManager:
                 
                 logger.info(f"[BetBCK-Manager] Using cleaned team names: Home='{pod_home_clean}', Away='{pod_away_clean}' (original: Home='{pod_home_team}', Away='{pod_away_team}')")
                 logger.info(f"[BetBCK-Manager] Search term being used: '{search_term}'")
+                
+                # Reset failure counters on successful request
+                self.consecutive_failures = 0
+                self.consecutive_rate_limit_failures = 0
                 logger.info(f"[BetBCK-Manager] About to call parse_specific_game_from_search_html with cleaned names")
                 
                 game_data = parse_specific_game_from_search_html(search_results_html, pod_home_clean, pod_away_clean, event_id)
@@ -276,6 +312,7 @@ class BetBCKRequestManager:
                     "rate_limited": False
                 })
                 self.consecutive_failures = 0  # Reset failure count on success
+                self.consecutive_rate_limit_failures = 0  # Reset rate limit failure count on success
             else:
                 logger.info(f"[BetBCK-Manager] No game data found for: {search_term}")
                 future.set_result({
@@ -289,7 +326,20 @@ class BetBCKRequestManager:
             # Only set rate limited if the error message clearly indicates rate limiting
             error_str = str(e).lower()
             if any(indicator in error_str for indicator in ["rate limit", "429", "403", "503", "too many requests", "blocked", "suspended"]):
-                self._handle_rate_limit_detected(search_term, future)
+                self.consecutive_rate_limit_failures += 1
+                logger.warning(f"[BetBCK-Manager] Rate limit error detected (failure #{self.consecutive_rate_limit_failures}): {e}")
+                
+                # Only pause processing if we have multiple consecutive rate limit failures
+                if self.consecutive_rate_limit_failures >= self.RATE_LIMIT_FAILURE_THRESHOLD:
+                    logger.error(f"[BetBCK-Manager] Too many consecutive rate limit failures ({self.consecutive_rate_limit_failures}), setting rate limited")
+                    self._handle_rate_limit_detected(search_term, future)
+                else:
+                    # Just return error, don't pause processing yet
+                    future.set_result({
+                        "status": "error",
+                        "message": f"Rate limit error (failure #{self.consecutive_rate_limit_failures}/{self.RATE_LIMIT_FAILURE_THRESHOLD}): {str(e)}",
+                        "rate_limited": False
+                    })
             else:
                 # For other errors (timeouts, connection issues, etc.), just increment failure count
                 self.consecutive_failures += 1
@@ -368,6 +418,15 @@ class BetBCKRequestManager:
         logger.info(f"[BetBCK-Manager] Queued request for: {search_term} (Queue size: {self.queue.qsize()})")
 
         return future
+    
+    def reset_rate_limiting(self):
+        """Manually reset rate limiting state - use when you know you're not actually rate limited"""
+        logger.info("[BetBCK-Manager] MANUAL RATE LIMIT RESET - Clearing rate limiting state")
+        self.rate_limited = False
+        self.rate_limit_detected_time = None
+        self.consecutive_failures = 0
+        self.consecutive_rate_limit_failures = 0
+        self._set_frontend_alert("Rate limiting manually reset - processing resumed", "success")
     
     def get_status(self) -> Dict[str, Any]:
         """Get current status of the request manager"""

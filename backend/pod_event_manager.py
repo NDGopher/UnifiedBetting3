@@ -106,6 +106,12 @@ class PodEventManager:
                 
                 for event_id, event_data in active_events.items():
                     try:
+                        # Validate event data structure before processing
+                        if not event_data or "pinnacle_data_processed" not in event_data or event_data["pinnacle_data_processed"] is None:
+                            print(f"[BackgroundRefresher] Event {event_id} has corrupted data structure, removing...")
+                            self.remove_active_event(event_id, broadcast_function)
+                            continue
+                        
                         # Check if event has expired - faster expiration for negative EV alerts
                         alert_age = current_time - event_data.get("alert_arrival_timestamp", 0)
                         
@@ -234,9 +240,23 @@ class PodEventManager:
                                     print(f"[BackgroundRefresher] Broadcasting update for event {event_id}")
                                     print(f"[BackgroundRefresher] Sample odds: {sample_market.get('market', 'N/A')} {sample_market.get('selection', 'N/A')} NVP: {sample_market.get('pinnacle_nvp', 'N/A')} EV: {sample_market.get('ev', 'N/A')}")
                                     print(f"[BackgroundRefresher] Total markets to broadcast: {len(new_markets)}")
-                                    # Use the broadcast function (which should handle WebSocket broadcasting)
-                                    broadcast_function(event_id, event_data)
-                                    print(f"[BackgroundRefresher] SUCCESS: Successfully broadcasted update for event {event_id}")
+                                    
+                                    # IMPORTANT: Use the same build_event_object function as initial alerts
+                                    # This ensures the same data format is sent to frontend
+                                    try:
+                                        from main import build_event_object
+                                        event_obj = build_event_object(event_id, event_data)
+                                        if event_obj:
+                                            print(f"[BackgroundRefresher] Built event object successfully for {event_id}")
+                                            # Use the broadcast function with the processed event object
+                                            broadcast_function(event_id, event_obj)
+                                            print(f"[BackgroundRefresher] SUCCESS: Successfully broadcasted update for event {event_id}")
+                                        else:
+                                            print(f"[BackgroundRefresher] ERROR: build_event_object returned None for {event_id}")
+                                    except Exception as build_error:
+                                        print(f"[BackgroundRefresher] ERROR building event object for {event_id}: {build_error}")
+                                        # Fallback to raw broadcast
+                                        broadcast_function(event_id, event_data)
                                 else:
                                     print(f"[BackgroundRefresher] No broadcast function available for event {event_id}")
                                 

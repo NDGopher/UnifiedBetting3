@@ -156,6 +156,55 @@ def normalize_team_name_for_matching(name):
     if 'uefa' in normalized.lower():
         print(f"[UEFA_DEBUG] WARNING: UEFA still present after all cleanup attempts: '{normalized}'")
 
+    # Additional comprehensive CONMEBOL cleanup for edge cases
+    # Handle cases like "club bolivarconmebol" -> "club bolivar"
+    if 'conmebol' in normalized.lower():
+        print(f"[CONMEBOL_DEBUG] Found CONMEBOL in: '{normalized}'")
+        normalized = re.sub(r'([a-z]+)conmebol', r'\1', normalized, flags=re.IGNORECASE).strip()
+        print(f"[CONMEBOL_DEBUG] After pattern removal: '{normalized}'")
+        # Handle any remaining CONMEBOL
+        normalized = re.sub(r'conmebol', '', normalized, flags=re.IGNORECASE).strip()
+        print(f"[CONMEBOL_DEBUG] After final removal: '{normalized}'")
+    
+    if 'conmebol' in normalized.lower():
+        print(f"[CONMEBOL_DEBUG] WARNING: CONMEBOL still present after all cleanup attempts: '{normalized}'")
+
+    # Additional comprehensive country cleanup for edge cases
+    # Handle cases like "union magdalenacolombia" -> "union magdalena"
+    country_names = ['colombia', 'argentina', 'brazil', 'chile', 'peru', 'uruguay', 'paraguay', 'ecuador', 'bolivia', 'venezuela', 'mexico', 'canada', 'usa', 'england', 'spain', 'france', 'germany', 'italy', 'portugal', 'netherlands', 'belgium', 'switzerland', 'austria', 'poland', 'czech republic', 'slovakia', 'hungary', 'romania', 'bulgaria', 'serbia', 'croatia', 'slovenia', 'ukraine', 'russia', 'turkey', 'greece', 'japan', 'china', 'korea', 'australia', 'new zealand']
+    for country in country_names:
+        if country in normalized.lower():
+            print(f"[COUNTRY_DEBUG] Found {country} in: '{normalized}'")
+            # Handle cases like "union magdalenacolombia" -> "union magdalena"
+            normalized = re.sub(r'([a-z]+)' + country, r'\1', normalized, flags=re.IGNORECASE).strip()
+            print(f"[COUNTRY_DEBUG] After pattern removal: '{normalized}'")
+            # Handle any remaining country name
+            normalized = re.sub(r'\b' + country + r'\b', '', normalized, flags=re.IGNORECASE).strip()
+            print(f"[COUNTRY_DEBUG] After final removal: '{normalized}'")
+    
+    # Check if any country names are still present
+    for country in country_names:
+        if country in normalized.lower():
+            print(f"[COUNTRY_DEBUG] WARNING: {country} still present after all cleanup attempts: '{normalized}'")
+
+    # Additional comprehensive league cleanup for edge cases
+    # Handle cases like "teamnamemls" -> "teamname"
+    league_names = ['mls', 'mlb', 'nba', 'nfl', 'nhl', 'ncaaf', 'ncaab', 'wnba', 'liga', 'serie', 'bundesliga', 'premier', 'epl', 'la liga', 'ligue']
+    for league in league_names:
+        if league in normalized.lower():
+            print(f"[LEAGUE_DEBUG] Found {league} in: '{normalized}'")
+            # Handle cases like "teamnamemls" -> "teamname"
+            normalized = re.sub(r'([a-z]+)' + league, r'\1', normalized, flags=re.IGNORECASE).strip()
+            print(f"[LEAGUE_DEBUG] After pattern removal: '{normalized}'")
+            # Handle any remaining league name
+            normalized = re.sub(r'\b' + league + r'\b', '', normalized, flags=re.IGNORECASE).strip()
+            print(f"[LEAGUE_DEBUG] After final removal: '{normalized}'")
+    
+    # Check if any league names are still present
+    for league in league_names:
+        if league in normalized.lower():
+            print(f"[LEAGUE_DEBUG] WARNING: {league} still present after all cleanup attempts: '{normalized}'")
+
     norm_name = re.sub(r'^[^\w]+|[^\w]+$', '', normalized)
     norm_name = re.sub(r'[^\w\s\.\-\+]', '', norm_name)
     final_normalized_name = " ".join(norm_name.split()).strip()

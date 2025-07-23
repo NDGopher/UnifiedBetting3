@@ -825,7 +825,7 @@ async def run_pipeline():
         logger.info("[STEP] Step 1: Loading event IDs from file...")
         event_ids_path = os.path.join(os.path.dirname(__file__), 'data', 'buckeye_event_ids.json')
         if not os.path.exists(event_ids_path):
-            logger.error(f"❌ Event IDs file does not exist: {event_ids_path}")
+            logger.error(f"[ERROR] Event IDs file does not exist: {event_ids_path}")
             return {
                 "status": "error",
                 "message": f"Event IDs file missing: {event_ids_path}",
@@ -837,7 +837,7 @@ async def run_pipeline():
             event_dicts = events_data.get('event_ids', [])
             logger.info(f"[PIPELINE] Loaded {len(event_dicts)} event IDs from file.")
         except Exception as e:
-            logger.error(f"❌ Failed to load event IDs from file: {e}")
+            logger.error(f"[ERROR] Failed to load event IDs from file: {e}")
             return {
                 "status": "error",
                 "message": f"Failed to load event IDs: {str(e)}",
@@ -854,7 +854,7 @@ async def run_pipeline():
             # Ensure the file was written and is fresh
             betbck_games_path = os.path.join(os.path.dirname(__file__), 'data', 'betbck_games.json')
             if not os.path.exists(betbck_games_path):
-                logger.error(f"❌ BetBCK games file not found after scrape: {betbck_games_path}")
+                logger.error(f"[ERROR] BetBCK games file not found after scrape: {betbck_games_path}")
                 return {
                     "status": "error",
                     "message": f"BetBCK games file not found after scrape: {betbck_games_path}",
@@ -863,7 +863,7 @@ async def run_pipeline():
             file_mtime = os.path.getmtime(betbck_games_path)
             now = time.time()
             if now - file_mtime > 30:
-                logger.error(f"❌ BetBCK games file is stale (last modified {now-file_mtime:.1f}s ago)")
+                logger.error(f"[ERROR] BetBCK games file is stale (last modified {now-file_mtime:.1f}s ago)")
                 return {
                     "status": "error",
                     "message": f"BetBCK games file is stale (last modified {now-file_mtime:.1f}s ago)",
@@ -871,7 +871,7 @@ async def run_pipeline():
                 }
             logger.info(f"[PIPELINE] BetBCK games file is fresh (last modified {now-file_mtime:.1f}s ago)")
         except Exception as e:
-            logger.error(f"❌ Failed to scrape BetBCK data: {e}")
+            logger.error(f"[ERROR] Failed to scrape BetBCK data: {e}")
             return {
                 "status": "error",
                 "message": f"Failed to scrape BetBCK data: {str(e)}",
@@ -884,14 +884,14 @@ async def run_pipeline():
             matched_games = match_pinnacle_to_betbck(event_dicts, {"games": betbck_games})
             logger.info(f"[PIPELINE] Matched {len(matched_games)} games.")
             if not matched_games:
-                logger.error("❌ No games matched successfully")
+                logger.error("[ERROR] No games matched successfully")
                 return {
                     "status": "error",
                     "message": "No games matched successfully",
                     "data": {}
                 }
         except Exception as e:
-            logger.error(f"❌ Failed to match games: {e}")
+            logger.error(f"[ERROR] Failed to match games: {e}")
             return {
                 "status": "error",
                 "message": f"Failed to match games: {str(e)}",
@@ -982,14 +982,14 @@ async def run_pipeline():
                 }
             }
         except Exception as e:
-            logger.error(f"❌ Failed to calculate EV: {e}")
+            logger.error(f"[ERROR] Failed to calculate EV: {e}")
             return {
                 "status": "error",
                 "message": f"Failed to calculate EV: {str(e)}",
                 "data": {}
             }
     except Exception as e:
-        logger.error(f"❌ [API] Pipeline endpoint error: {e}")
+        logger.error(f"[ERROR] [API] Pipeline endpoint error: {e}")
         import traceback
         logger.error(f"[API] Pipeline traceback: {traceback.format_exc()}")
         return {
@@ -1101,19 +1101,32 @@ def build_event_object(event_id, entry):
     current_time_sec = time.time()
     
     # Defensive checks for required fields
-    if "betbck_data" not in entry or entry["betbck_data"] is None:
-        logger.error(f"[BuildEventObject] betbck_data is None for event {event_id}")
+    if "pinnacle_data_processed" not in entry or entry["pinnacle_data_processed"] is None:
+        logger.error(f"[BuildEventObject] pinnacle_data_processed is None for event {event_id} - removing corrupted event")
+        # Remove the corrupted event from active events
+        try:
+            pod_event_manager.remove_active_event(event_id)
+            logger.info(f"[BuildEventObject] Removed corrupted event {event_id} from active events")
+        except Exception as e:
+            logger.error(f"[BuildEventObject] Failed to remove corrupted event {event_id}: {e}")
         return None
     
-    if "pinnacle_data_processed" not in entry or entry["pinnacle_data_processed"] is None:
-        logger.error(f"[BuildEventObject] pinnacle_data_processed is None for event {event_id}")
-        return None
+    # BetBCK data is optional for background refresher updates
+    betbck_data_available = "betbck_data" in entry and entry["betbck_data"] is not None
+    if not betbck_data_available:
+        logger.info(f"[BuildEventObject] betbck_data not available for event {event_id} (background refresh)")
     
     if "original_alert_details" not in entry or entry["original_alert_details"] is None:
-        logger.error(f"[BuildEventObject] original_alert_details is None for event {event_id}")
+        logger.error(f"[BuildEventObject] original_alert_details is None for event {event_id} - removing corrupted event")
+        # Remove the corrupted event from active events
+        try:
+            pod_event_manager.remove_active_event(event_id)
+            logger.info(f"[BuildEventObject] Removed corrupted event {event_id} from active events")
+        except Exception as e:
+            logger.error(f"[BuildEventObject] Failed to remove corrupted event {event_id}: {e}")
         return None
     
-    bet_data = copy.deepcopy(entry["betbck_data"].get("data", {}))
+    bet_data = copy.deepcopy(entry.get("betbck_data", {}).get("data", {})) if betbck_data_available else {}
     pinnacle_data = copy.deepcopy(entry["pinnacle_data_processed"].get("data", {}))
     home_team = normalize_team_name_for_matching(entry.get("cleaned_home_team", ""))
     away_team = normalize_team_name_for_matching(entry.get("cleaned_away_team", ""))
@@ -1138,7 +1151,13 @@ def build_event_object(event_id, entry):
             bet_data["potential_bets_analyzed"] = analyze_markets_for_ev(bet_data, wrapped_pinnacle_data)
         except Exception:
             bet_data["potential_bets_analyzed"] = []
-    potential_bets = bet_data.get("potential_bets_analyzed", [])
+    
+    # For background refresher updates, use the markets directly from pinnacle_data_processed
+    if betbck_data_available:
+        potential_bets = bet_data.get("potential_bets_analyzed", [])
+    else:
+        # Use markets directly from pinnacle_data_processed for background refresher
+        potential_bets = entry["pinnacle_data_processed"].get("markets", [])
     markets = []
     for bet in potential_bets:
         market_type = bet.get("market")
@@ -1238,6 +1257,17 @@ async def async_broadcast_pod_alert(event_id, event_data):
 
 def broadcast_pod_alert_safe(event_id, event_data):
     """Thread-safe broadcast function that can be called from any context"""
+    # Validate event data before attempting to broadcast
+    if not event_data or "pinnacle_data_processed" not in event_data or event_data["pinnacle_data_processed"] is None:
+        logger.error(f"[SafeBroadcast] Cannot broadcast event {event_id} - corrupted event data")
+        # Remove the corrupted event
+        try:
+            pod_event_manager.remove_active_event(event_id)
+            logger.info(f"[SafeBroadcast] Removed corrupted event {event_id}")
+        except Exception as e:
+            logger.error(f"[SafeBroadcast] Failed to remove corrupted event {event_id}: {e}")
+        return
+    
     if main_event_loop and main_event_loop.is_running():
         try:
             asyncio.run_coroutine_threadsafe(
@@ -1327,7 +1357,7 @@ async def debug_matching():
             }
             
     except Exception as e:
-        logger.error(f"❌ [API] Debug matching error: {e}")
+        logger.error(f"[ERROR] [API] Debug matching error: {e}")
         import traceback
         logger.error(f"[API] Debug matching traceback: {traceback.format_exc()}")
         
@@ -1547,6 +1577,30 @@ async def test_remove_alert(event_id: str):
         return {"status": "success", "message": f"Alert {event_id} removed for testing"}
     except Exception as e:
         return {"status": "error", "error": str(e)}
+
+@app.post("/test/cleanup-corrupted-events")
+async def cleanup_corrupted_events():
+    """Clean up any corrupted events that are missing required data"""
+    try:
+        active_events = pod_event_manager.get_active_events()
+        corrupted_events = []
+        
+        for event_id, event_data in active_events.items():
+            if not event_data or "pinnacle_data_processed" not in event_data or event_data["pinnacle_data_processed"] is None:
+                corrupted_events.append(event_id)
+                try:
+                    pod_event_manager.remove_active_event(event_id, broadcast_pod_alert_safe)
+                    logger.info(f"[Cleanup] Removed corrupted event {event_id}")
+                except Exception as e:
+                    logger.error(f"[Cleanup] Failed to remove corrupted event {event_id}: {e}")
+        
+        return {
+            "status": "success", 
+            "message": f"Cleaned up {len(corrupted_events)} corrupted events",
+            "removed_events": corrupted_events
+        }
+    except Exception as e:
+        return {"status": "error", "message": str(e)}
 
 # Global exception handler to prevent crashes
 import sys

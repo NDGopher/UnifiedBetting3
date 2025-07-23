@@ -42,7 +42,7 @@ class PTOScraper:
                 self.telegram = TelegramAlerts()
                 logger.info("Telegram alerts initialized")
             except ImportError:
-                logger.warning("⚠️ Telegram alerts module not found, disabling")
+                logger.warning("[WARNING] Telegram alerts module not found, disabling")
                 self.telegram_enabled = False
                 self.telegram = None
         else:
@@ -80,7 +80,7 @@ class PTOScraper:
             return driver
             
         except Exception as e:
-            logger.error(f"❌ Failed to create Chrome driver (fallback): {e}")
+            logger.error(f"[ERROR] Failed to create Chrome driver (fallback): {e}")
             raise
 
     def get_driver(self):
@@ -129,7 +129,7 @@ class PTOScraper:
             return driver
             
         except Exception as e:
-            logger.error(f"❌ Failed to create Chrome driver: {e}")
+            logger.error(f"[ERROR] Failed to create Chrome driver: {e}")
             logger.error(f"[DEBUG] Profile path: {self.chrome_user_data_dir}")
             logger.error(f"[DEBUG] Profile name: {self.chrome_profile_dir}")
             
@@ -182,7 +182,7 @@ class PTOScraper:
                 
                 # Check if we're still on Cloudflare
                 if "cloudflare" in driver.page_source.lower():
-                    logger.warning("⚠️ Still on Cloudflare page, waiting longer...")
+                    logger.warning("[WARNING] Still on Cloudflare page, waiting longer...")
                     time.sleep(10)
             
             # Check if we're redirected to the target site
@@ -190,14 +190,14 @@ class PTOScraper:
                 logger.info("Successfully passed Cloudflare challenge")
                 return True
             else:
-                logger.warning(f"⚠️ Unexpected URL after Cloudflare: {driver.current_url}")
+                logger.warning(f"[WARNING] Unexpected URL after Cloudflare: {driver.current_url}")
                 return False
                 
         except TimeoutException:
-            logger.error("❌ Timeout waiting for Cloudflare challenge")
+            logger.error("[ERROR] Timeout waiting for Cloudflare challenge")
             return False
         except Exception as e:
-            logger.error(f"❌ Error during Cloudflare wait: {e}")
+            logger.error(f"[ERROR] Error during Cloudflare wait: {e}")
             return False
 
     def check_login_status(self, driver):
@@ -221,19 +221,19 @@ class PTOScraper:
                 logger.info("Appears to be logged in (logout/profile found)")
                 return True
             elif has_login and not has_logout:
-                logger.warning("⚠️ Appears to be logged out")
+                logger.warning("[WARNING] Appears to be logged out")
                 return False
             else:
                 logger.info("❓ Login status unclear, assuming logged out")
                 return False
         except Exception as e:
-            logger.error(f"❌ Error checking login status: {e}")
+            logger.error(f"[ERROR] Error checking login status: {e}")
             return False
 
     def handle_login_required(self, driver):
         """Handle login requirement"""
-        logger.warning("🔐 Login required. Please log in manually.")
-        logger.info("📝 Instructions:")
+        logger.warning("[LOGIN] Login required. Please log in manually.")
+        logger.info("[INSTRUCTIONS] Instructions:")
         logger.info("1. Log in to your PTO account")
         logger.info("2. Navigate to the Prop Builder tab")
         logger.info("3. Verify you can see prop data")
@@ -252,7 +252,7 @@ class PTOScraper:
             except:
                 time.sleep(10)
         
-        logger.error("❌ Login timeout - user did not log in within 5 minutes")
+        logger.error("[ERROR] Login timeout - user did not log in within 5 minutes")
         return False
 
     def parse_prop_card_text(self, card_text: str) -> Optional[Dict[str, Any]]:
@@ -343,18 +343,18 @@ class PTOScraper:
         """Get emoji for sport type"""
         sport = sport.lower()
         if 'nba' in sport:
-            return '🏀'
+            return '[BASKETBALL]'
         if 'wnba' in sport:
-            return '🏀'
+            return '[BASKETBALL]'
         if 'mlb' in sport:
-            return '⚾'
+            return '[BASEBALL]'
         if 'nfl' in sport:
-            return '🏈'
+            return '[FOOTBALL]'
         if 'nhl' in sport:
-            return '🏒'
+            return '[HOCKEY]'
         if 'soccer' in sport or 'futbol' in sport or 'football' in sport:
-            return '⚽'
-        return '🎲'
+            return '[SOCCER]'
+        return '[SPORT]'
 
     def format_telegram_alert(self, prop, created_at=None, updated_at=None, prev_ev=None):
         """Format prop for Telegram alert (from original project)"""
@@ -400,7 +400,7 @@ class PTOScraper:
             f"<b>{prop_line}</b>\n"
             f"Odds: <code>{odds}</code>" + (f" | {fv_str}" if fv_str else "") + "\n"
             f"Width: <b>{prop.get('width', '')}</b>\n"
-            f"💰 <b>EV: {ev_str}{ev_arrow}</b>\n"
+            f"[EV] <b>EV: {ev_str}{ev_arrow}</b>\n"
         )
         
         # Add BetBCK link
@@ -654,11 +654,11 @@ class PTOScraper:
                             logger.error(f"[WebSocket] Error broadcasting prop update: {e}")
                         time.sleep(self.scraping_interval)
                     except Exception as e:
-                        logger.error(f"❌ Error in scraping loop: {e}")
+                        logger.error(f"[ERROR] Error in scraping loop: {e}")
                         break  # Break inner loop to restart session
             except Exception as e:
                 retry_count += 1
-                logger.error(f"❌ Critical error in scraping session (attempt {retry_count}): {e}")
+                logger.error(f"[ERROR] Critical error in scraping session (attempt {retry_count}): {e}")
                 if self.driver:
                     try:
                         self.driver.quit()
@@ -669,7 +669,7 @@ class PTOScraper:
                     logger.info(f"⏳ Waiting {self.retry_delay} seconds before retry...")
                     time.sleep(self.retry_delay)
                 else:
-                    logger.error(f"❌ Max retries ({self.max_retries}) reached. Stopping scraper.")
+                    logger.error(f"[ERROR] Max retries ({self.max_retries}) reached. Stopping scraper.")
                     break
         # Cleanup
         if self.driver:
@@ -753,12 +753,12 @@ class PTOScraper:
                 test_driver.quit()
                 return True
             else:
-                logger.warning("⚠️ Profile test failed - not logged in to PTO")
+                logger.warning("[WARNING] Profile test failed - not logged in to PTO")
                 test_driver.quit()
                 return False
                 
         except Exception as e:
-            logger.error(f"❌ Profile test failed with error: {e}")
+            logger.error(f"[ERROR] Profile test failed with error: {e}")
             try:
                 if 'test_driver' in locals():
                     test_driver.quit()

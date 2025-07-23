@@ -27,6 +27,7 @@ def calculate_ev(bet_decimal_odds, true_decimal_odds):
     return ev if -0.5 < ev < 0.20 else None
 
 def determine_betbck_search_term(pod_home_team_raw, pod_away_team_raw):
+    # Clean team names FIRST before determining search term
     pod_home_clean = clean_pod_team_name_for_search(pod_home_team_raw)
     pod_away_clean = clean_pod_team_name_for_search(pod_away_team_raw)
     

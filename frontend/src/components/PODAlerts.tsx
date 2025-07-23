@@ -77,14 +77,26 @@ const PODAlerts: React.FC = () => {
     if (lastMessage && lastMessage.data) {
       try {
         const data = JSON.parse(lastMessage.data);
+        console.log('[PODAlerts] WebSocket message received:', data.type, data);
+        
         if (data.type === 'pod_alerts_full' && data.events) {
           // Replace the entire event list with the latest from backend
+          console.log('[PODAlerts] Received pod_alerts_full with', Object.keys(data.events).length, 'events');
           setEvents(data.events);
           setLastUpdate(new Date());
         } else if (data.type === 'pod_alert' && data.eventId && data.event) {
           // Fallback: update the specific event
-          setEvents(prev => ({ ...prev, [data.eventId]: data.event }));
+          console.log('[PODAlerts] Received pod_alert update for eventId:', data.eventId);
+          console.log('[PODAlerts] Event data:', data.event);
+          console.log('[PODAlerts] Current markets in event:', data.event.markets);
+          
+          setEvents(prev => {
+            const newEvents = { ...prev, [data.eventId]: data.event };
+            console.log('[PODAlerts] Updated events state:', Object.keys(newEvents));
+            return newEvents;
+          });
           setLastUpdate(new Date());
+          
           // NVP flash effect logic remains unchanged
           const event = data.event;
           if (event.markets && Array.isArray(event.markets)) {
@@ -93,6 +105,7 @@ const PODAlerts: React.FC = () => {
               const prevMarkets = prevMarketsRef.current[data.eventId] || [];
               const prev = prevMarkets[idx];
               if (prev && prev.pinnacle_nvp !== market.pinnacle_nvp) {
+                console.log('[PODAlerts] NVP change detected:', prev.pinnacle_nvp, '->', market.pinnacle_nvp);
                 setNvpFlash(flash => ({ ...flash, [key]: true }));
                 setTimeout(() => setNvpFlash(flash => ({ ...flash, [key]: false })), 1500);
               }
@@ -321,6 +334,19 @@ const PODAlerts: React.FC = () => {
     }
     return line;
   };
+
+  // Debug: Log current events state
+  useEffect(() => {
+    console.log('[PODAlerts] Current events state:', Object.keys(events));
+    Object.entries(events).forEach(([eventId, event]) => {
+      console.log(`[PODAlerts] Event ${eventId}:`, {
+        title: event.title,
+        marketsCount: event.markets?.length || 0,
+        lastUpdate: event.last_update,
+        sampleMarket: event.markets?.[0]
+      });
+    });
+  }, [events]);
 
   return (
     <Box>

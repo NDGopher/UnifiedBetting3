@@ -527,8 +527,9 @@ def get_team_aliases(team_name):
     return [team_name]  # Return the original name if no aliases found 
 
 def determine_betbck_search_term(pod_home_team_raw, pod_away_team_raw):
-    pod_home_clean = normalize_team_name_for_matching(pod_home_team_raw)
-    pod_away_clean = normalize_team_name_for_matching(pod_away_team_raw)
+    # Clean team names FIRST before determining search term - use clean_pod_team_name_for_search to remove UEFA suffixes
+    pod_home_clean = clean_pod_team_name_for_search(pod_home_team_raw)
+    pod_away_clean = clean_pod_team_name_for_search(pod_away_team_raw)
 
     known_terms = {
         "south korea": "Korea", "faroe islands": "Faroe", "milwaukee brewers": "Brewers",

@@ -1183,7 +1183,7 @@ class AceScraper:
                     if matched_event_id:
                         total_matched += 1
                         if i < 5:  # Log first 5 successful matches
-                            safe_print(f"[ACE] ✓ Matched game {i+1} to event ID: {matched_event_id}")
+                            safe_print(f"[ACE] [SUCCESS] Matched game {i+1} to event ID: {matched_event_id}")
                         
                         # Get Pinnacle odds for this event
                         pinnacle_data = self._get_pinnacle_odds(matched_event_id)
@@ -1229,9 +1229,9 @@ class AceScraper:
                                     if float(str(result.get('ev', '0')).replace('%', '')) > 0:
                                         total_with_ev += 1
                                         if total_with_ev <= 3:  # Log first 3 positive EV markets
-                                            safe_print(f"[ACE] ✓ Found positive EV market: {market.get('bet', '')} EV: {market.get('ev', '')}")
+                                            safe_print(f"[ACE] [SUCCESS] Found positive EV market: {market.get('bet', '')} EV: {market.get('ev', '')}")
                     elif i < 5:  # Log first 5 failed matches
-                        safe_print(f"[ACE] ✗ No match found for game {i+1}")
+                        safe_print(f"[ACE] [FAILED] No match found for game {i+1}")
                 except Exception as match_error:
                     safe_print(f"[ACE] Error matching game {i+1}: {match_error}")
                     continue

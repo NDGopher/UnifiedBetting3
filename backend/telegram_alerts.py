@@ -32,7 +32,7 @@ class TelegramAlerts:
             self.enabled = False
         else:
             self.enabled = True
-            logger.info("✅ Telegram alerts configured")
+            logger.info("[SUCCESS] Telegram alerts configured")
     
     def send_alert(self, message: str, parse_mode: str = "HTML") -> Optional[int]:
         """
@@ -176,7 +176,7 @@ class TelegramAlerts:
             result = response.json()
             if result.get("ok"):
                 bot_info = result["result"]
-                logger.info(f"✅ Telegram bot connected: @{bot_info.get('username', 'Unknown')}")
+                logger.info(f"[SUCCESS] Telegram bot connected: @{bot_info.get('username', 'Unknown')}")
                 return True
             else:
                 logger.error(f"Telegram API error: {result}")
