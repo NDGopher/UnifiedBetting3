@@ -29,6 +29,9 @@ def calculate_ev(bet_decimal_odds, true_decimal_odds):
 def determine_betbck_search_term(pod_home_team_raw, pod_away_team_raw):
     pod_home_clean = clean_pod_team_name_for_search(pod_home_team_raw)
     pod_away_clean = clean_pod_team_name_for_search(pod_away_team_raw)
+    
+    print(f"[DEBUG] determine_betbck_search_term - Raw: Home='{pod_home_team_raw}', Away='{pod_away_team_raw}'")
+    print(f"[DEBUG] determine_betbck_search_term - Cleaned: Home='{pod_home_clean}', Away='{pod_away_clean}'")
 
     known_terms = {
         "south korea": "Korea", "faroe islands": "Faroe", "milwaukee brewers": "Brewers",
@@ -38,18 +41,28 @@ def determine_betbck_search_term(pod_home_team_raw, pod_away_team_raw):
         "athletic club": "Athletic Club", "romania": "Romania", "cyprus": "Cyprus"
     }
     if pod_home_clean.lower() in known_terms:
-        return known_terms[pod_home_clean.lower()]
+        search_term = known_terms[pod_home_clean.lower()]
+        print(f"[DEBUG] Using known term for home team: '{search_term}'")
+        return search_term
     if pod_away_clean.lower() in known_terms:
-        return known_terms[pod_away_clean.lower()]
+        search_term = known_terms[pod_away_clean.lower()]
+        print(f"[DEBUG] Using known term for away team: '{search_term}'")
+        return search_term
 
     parts = pod_home_clean.split()
     if parts:
         if len(parts) > 1 and len(parts[-1]) > 3 and parts[-1].lower() not in ['fc', 'sc', 'united', 'city', 'club', 'de', 'do', 'ac', 'if', 'bk', 'aif', 'kc', 'sr', 'mg', 'us', 'br']:
-            return parts[-1]
+            search_term = parts[-1]
+            print(f"[DEBUG] Using last part of home team: '{search_term}'")
+            return search_term
         elif len(parts[0]) > 2 and parts[0].lower() not in ['fc', 'sc', 'ac', 'if', 'bk', 'de', 'do', 'aif', 'kc', 'sr', 'mg', 'us', 'br']:
-            return parts[0]
+            search_term = parts[0]
+            print(f"[DEBUG] Using first part of home team: '{search_term}'")
+            return search_term
         else:
+            print(f"[DEBUG] Using full cleaned home team: '{pod_home_clean}'")
             return pod_home_clean
+    print(f"[DEBUG] Using full cleaned home team (fallback): '{pod_home_clean}'")
     return pod_home_clean if pod_home_clean else ""
 
 def process_alert_and_scrape_betbck(event_id, original_alert_details, processed_pinnacle_data, scrape_betbck=True):

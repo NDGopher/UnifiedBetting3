@@ -144,6 +144,17 @@ def normalize_team_name_for_matching(name):
     if 'uefa' in normalized.lower():
         normalized = normalized.lower().replace('uefa', '').strip()
         print(f"[UEFA_DEBUG] Final UEFA removal: '{normalized}'")
+    
+    # Additional comprehensive UEFA cleanup for edge cases
+    # Handle cases like "iberia 1999uefa" -> "iberia 1999"
+    normalized = re.sub(r'(\d+)\s*uefa', r'\1', normalized, flags=re.IGNORECASE).strip()
+    # Handle cases like "salzburguefa" -> "salzburg"
+    normalized = re.sub(r'([a-z]+)uefa', r'\1', normalized, flags=re.IGNORECASE).strip()
+    # Handle any remaining UEFA
+    normalized = re.sub(r'uefa', '', normalized, flags=re.IGNORECASE).strip()
+    
+    if 'uefa' in normalized.lower():
+        print(f"[UEFA_DEBUG] WARNING: UEFA still present after all cleanup attempts: '{normalized}'")
 
     norm_name = re.sub(r'^[^\w]+|[^\w]+$', '', normalized)
     norm_name = re.sub(r'[^\w\s\.\-\+]', '', norm_name)

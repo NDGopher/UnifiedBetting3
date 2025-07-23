@@ -261,6 +261,8 @@ class BetBCKRequestManager:
                 pod_away_clean = clean_pod_team_name_for_search(pod_away_team)
                 
                 logger.info(f"[BetBCK-Manager] Using cleaned team names: Home='{pod_home_clean}', Away='{pod_away_clean}' (original: Home='{pod_home_team}', Away='{pod_away_team}')")
+                logger.info(f"[BetBCK-Manager] Search term being used: '{search_term}'")
+                logger.info(f"[BetBCK-Manager] About to call parse_specific_game_from_search_html with cleaned names")
                 
                 game_data = parse_specific_game_from_search_html(search_results_html, pod_home_clean, pod_away_clean, event_id)
             else:
