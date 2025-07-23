@@ -70,7 +70,9 @@ app.add_middleware(
 )
 
 # Load configuration
-with open('config.json', 'r') as f:
+import os
+config_path = os.path.join(os.path.dirname(__file__), 'config.json')
+with open(config_path, 'r') as f:
     config = json.load(f)
 
 pod_event_manager = PodEventManager()

@@ -209,9 +209,6 @@ class PodEventManager:
                                 else:
                                     print(f"[BackgroundRefresher] No broadcast function available for event {event_id}")
                                 
-                            else:
-                                print(f"[BackgroundRefresher] Failed to fetch odds for event {event_id}")
-                                
                         except Exception as e:
                             print(f"[BackgroundRefresher] Error processing event {event_id}: {e}")
                             logger.error(f"[BackgroundRefresher] Error processing event {event_id}: {e}")
