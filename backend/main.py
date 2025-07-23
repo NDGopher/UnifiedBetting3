@@ -232,14 +232,34 @@ async def event_alert_worker(event_id):
                         if not (betbck_result and betbck_result.get("status") == "success"):
                             fail_reason = betbck_result.get("message", "Scraper returned None")
                             logger.error(f"[PerEventQueue] Scrape failed. Dropping alert. Reason: {fail_reason}")
-                            logger.error(f"[PerEventQueue] Failed teams: Home='{payload.get('homeTeam', '?')}', Away='{payload.get('awayTeam', '?')}'")
+                            logger.error(f"[PerEventQueue] Failed teams: Home='{pod_home_clean}', Away='{pod_away_clean}' (raw: Home='{payload.get('homeTeam', '?')}', Away='{payload.get('awayTeam', '?')}')")
                             continue
 
                         logger.info(f"[PerEventQueue] Scrape successful. Storing event {event_id} for display.")
                         betbck_last_update = now
                         betbck_data = betbck_result.get("data", {})
                         potential_bets = betbck_data.get("potential_bets_analyzed", [])
-                        has_positive_ev = any(float(b.get("ev", "0").replace('%','')) > 0 for b in potential_bets)
+                        
+                        # Filter out unrealistic EVs (outside ±30% range)
+                        realistic_bets = []
+                        for bet in potential_bets:
+                            try:
+                                ev_str = bet.get("ev", "0")
+                                ev_value = float(ev_str.replace('%', ''))
+                                if -30 <= ev_value <= 30:
+                                    realistic_bets.append(bet)
+                                else:
+                                    logger.warning(f"[PerEventQueue] Filtering out unrealistic EV: {ev_str} for {bet.get('market', 'N/A')} {bet.get('selection', 'N/A')}")
+                            except:
+                                realistic_bets.append(bet)  # Keep if we can't parse EV
+                        
+                        has_positive_ev = any(float(b.get("ev", "0").replace('%','')) > 0 for b in realistic_bets)
+                        betbck_data["potential_bets_analyzed"] = realistic_bets
+                        
+                        # Only store and broadcast if we have valid data
+                        if not betbck_data or not realistic_bets:
+                            logger.warning(f"[PerEventQueue] No valid betting data for event {event_id}, skipping broadcast")
+                            continue
                         event_data = {
                             "alert_arrival_timestamp": now,
                             "last_pinnacle_data_update_timestamp": now,
@@ -1069,9 +1089,30 @@ async def websocket_endpoint(websocket: WebSocket):
 def build_event_object(event_id, entry):
     import copy
     from datetime import datetime, timezone
+    
+    # Defensive check for None entry
+    if entry is None:
+        logger.error(f"[BuildEventObject] Entry is None for event {event_id}")
+        return None
+    
     def normalize_team_name_for_matching(name):
         return name.strip().lower() if isinstance(name, str) else ''
+    
     current_time_sec = time.time()
+    
+    # Defensive checks for required fields
+    if "betbck_data" not in entry or entry["betbck_data"] is None:
+        logger.error(f"[BuildEventObject] betbck_data is None for event {event_id}")
+        return None
+    
+    if "pinnacle_data_processed" not in entry or entry["pinnacle_data_processed"] is None:
+        logger.error(f"[BuildEventObject] pinnacle_data_processed is None for event {event_id}")
+        return None
+    
+    if "original_alert_details" not in entry or entry["original_alert_details"] is None:
+        logger.error(f"[BuildEventObject] original_alert_details is None for event {event_id}")
+        return None
+    
     bet_data = copy.deepcopy(entry["betbck_data"].get("data", {}))
     pinnacle_data = copy.deepcopy(entry["pinnacle_data_processed"].get("data", {}))
     home_team = normalize_team_name_for_matching(entry.get("cleaned_home_team", ""))
@@ -1182,6 +1223,10 @@ async def async_broadcast_pod_alert(event_id, event_data):
         else:
             # Send normal alert update
             event_obj = build_event_object(event_id, event_data)
+            if event_obj is None:
+                logger.error(f"[AsyncBroadcast] Cannot broadcast event {event_id} - build_event_object returned None")
+                return
+            
             await manager.broadcast({
                 "type": "pod_alert",
                 "eventId": event_id,
@@ -1332,10 +1377,10 @@ def get_buckeye_results():
         })
     except Exception as e:
         logger.error(f"Error getting BuckeyeScraper results: {e}")
-        return JSONResponse({
-            "status": "error",
-            "message": str(e)
-        }, status_code=500)
+        return JSONResponse(
+            status_code=500,
+            content={"status": "error", "message": str(e)}
+        )
 
 @app.get("/api/betbck/status")
 async def get_betbck_status():

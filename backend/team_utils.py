@@ -130,9 +130,20 @@ def normalize_team_name_for_matching(name):
     # Additional UEFA cleanup - remove UEFA suffix if it appears at the end
     if normalized.endswith('uefa'):
         normalized = normalized[:-4]  # Remove 'uefa' (4 characters)
+        print(f"[UEFA_DEBUG] Removed 'uefa' suffix: '{normalized}'")
     
     # Also remove any remaining UEFA with variations
     normalized = re.sub(r'uefa.*$', '', normalized, flags=re.IGNORECASE).strip()
+    
+    # Additional check for UEFA without space (like "akureyriuefa")
+    if 'uefa' in normalized.lower():
+        normalized = re.sub(r'uefa', '', normalized, flags=re.IGNORECASE).strip()
+        print(f"[UEFA_DEBUG] Removed embedded 'uefa': '{normalized}'")
+    
+    # Final check - if the name still contains UEFA, try to remove it completely
+    if 'uefa' in normalized.lower():
+        normalized = normalized.lower().replace('uefa', '').strip()
+        print(f"[UEFA_DEBUG] Final UEFA removal: '{normalized}'")
 
     norm_name = re.sub(r'^[^\w]+|[^\w]+$', '', normalized)
     norm_name = re.sub(r'[^\w\s\.\-\+]', '', norm_name)

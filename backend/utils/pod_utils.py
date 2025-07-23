@@ -267,7 +267,10 @@ def normalize_team_name_for_matching(name):
 
 def clean_pod_team_name_for_search(name: str) -> str:
     """Clean team name for search by removing common suffixes and normalizing."""
-    return normalize_team_name_for_matching(name)
+    print(f"[DEBUG] clean_pod_team_name_for_search input: '{name}'")
+    result = normalize_team_name_for_matching(name)
+    print(f"[DEBUG] clean_pod_team_name_for_search output: '{result}'")
+    return result
 
 def normalize_total_line(line):
     if line is None:

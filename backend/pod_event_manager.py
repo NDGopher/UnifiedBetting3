@@ -215,7 +215,7 @@ class PodEventManager:
                                 })
                                 print(f"[BackgroundRefresher] SUCCESS: Updated event data in manager for event {event_id}")
                             else:
-                                print(f"[BackgroundRefresher] ❌ Pinnacle API call failed for {event_id}: {pinnacle_api_result}")
+                                print(f"[BackgroundRefresher] FAILED: Pinnacle API call failed for {event_id}: {pinnacle_api_result}")
                                 continue
                                 
                         except Exception as e:
