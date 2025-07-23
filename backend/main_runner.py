@@ -283,12 +283,12 @@ class BuckeyePipeline:
             pipeline_results["steps"]["step1"] = step1_result
             
             if step1_result["status"] != "success":
-                logger.error(f"❌ Pipeline failed at step 1: {step1_result['message']}")
+                logger.error(f"[FAIL] Pipeline failed at step 1: {step1_result['message']}")
                 pipeline_results["final_result"] = step1_result
                 return pipeline_results
             
             event_dicts = step1_result["data"]["event_ids"]
-            logger.info(f"✅ Step 1 completed: {len(event_dicts)} event IDs fetched")
+            logger.info(f"[SUCCESS] Step 1 completed: {len(event_dicts)} event IDs fetched")
             
             # Step 2: Scrape BetBCK data (sync, not async)
             logger.info("[STEP] Step 2: Scraping BetBCK Data...")
@@ -296,12 +296,12 @@ class BuckeyePipeline:
             pipeline_results["steps"]["step2"] = step2_result
             
             if step2_result["status"] != "success":
-                logger.error(f"❌ Pipeline failed at step 2: {step2_result['message']}")
+                logger.error(f"[FAIL] Pipeline failed at step 2: {step2_result['message']}")
                 pipeline_results["final_result"] = step2_result
                 return pipeline_results
             
             betbck_data = step2_result["data"]
-            logger.info(f"✅ Step 2 completed: {betbck_data['total_games']} BetBCK games scraped")
+            logger.info(f"[SUCCESS] Step 2 completed: {betbck_data['total_games']} BetBCK games scraped")
             
             # Step 3: Match games
             logger.info("[STEP] Step 3: Matching Games...")
@@ -309,12 +309,12 @@ class BuckeyePipeline:
             pipeline_results["steps"]["step3"] = step3_result
             
             if step3_result["status"] == "error":
-                logger.error(f"❌ Pipeline failed at step 3: {step3_result['message']}")
+                logger.error(f"[FAIL] Pipeline failed at step 3: {step3_result['message']}")
                 pipeline_results["final_result"] = step3_result
                 return pipeline_results
             
             matched_games = step3_result["data"]["matched_games"]
-            logger.info(f"✅ Step 3 completed: {len(matched_games)} games matched")
+            logger.info(f"[SUCCESS] Step 3 completed: {len(matched_games)} games matched")
             
             # Step 4: Calculate EV
             logger.info("[STEP] Step 4: Calculating EV...")
@@ -328,10 +328,10 @@ class BuckeyePipeline:
             pipeline_results["duration_seconds"] = duration.total_seconds()
             
             if step4_result["status"] == "success":
-                logger.info(f"✅ Pipeline completed successfully in {duration.total_seconds():.1f} seconds")
-                logger.info(f"📊 Final results: {step4_result['data']['total_events']} events, {step4_result['data']['total_opportunities']} opportunities")
+                logger.info(f"[SUCCESS] Pipeline completed successfully in {duration.total_seconds():.1f} seconds")
+                logger.info(f"[STATS] Final results: {step4_result['data']['total_events']} events, {step4_result['data']['total_opportunities']} opportunities")
             else:
-                logger.error(f"❌ Pipeline failed at step 4: {step4_result['message']}")
+                logger.error(f"[FAIL] Pipeline failed at step 4: {step4_result['message']}")
             
             logger.info("=== Buckeye Pipeline Completed ===")
             return pipeline_results
@@ -375,4 +375,5 @@ if __name__ == "__main__":
         print("Pipeline Result:")
         print(json.dumps(result, indent=2))
     
+    import asyncio
     asyncio.run(test_pipeline()) 

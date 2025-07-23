@@ -84,6 +84,6 @@ def verify_setup():
 if __name__ == "__main__":
     success = verify_setup()
     if success:
-        print("\n🎉 PTO setup verification completed successfully!")
+        print("\n[SUCCESS] PTO setup verification completed successfully!")
     else:
-        print("\n❌ PTO setup verification failed!") 
+        print("\n[FAIL] PTO setup verification failed!") 

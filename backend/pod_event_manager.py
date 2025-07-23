@@ -146,7 +146,7 @@ class PodEventManager:
                             pinnacle_api_result = fetch_live_pinnacle_event_odds(event_id)
                             
                             if pinnacle_api_result and pinnacle_api_result.get("success"):
-                                print(f"[BackgroundRefresher] ✅ Pinnacle API call successful for {event_id}")
+                                print(f"[BackgroundRefresher] [SUCCESS] Pinnacle API call successful for {event_id}")
                                 # Process the new odds
                                 processed_odds = process_event_odds_for_display(pinnacle_api_result.get("data", {}))
                                 
