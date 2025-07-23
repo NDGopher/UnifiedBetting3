@@ -165,6 +165,38 @@ class PodEventManager:
                                 event_data["pinnacle_data_processed"] = processed_odds
                                 event_data["last_update"] = int(current_time)
                                 
+                                # Re-analyze markets for EV with fresh Pinnacle odds and existing BetBCK data
+                                try:
+                                    from utils.pod_utils import analyze_markets_for_ev
+                                    betbck_data = event_data.get("betbck_data", {}).get("data", {})
+                                    if betbck_data and processed_odds:
+                                        print(f"[BackgroundRefresher] Re-analyzing markets for EV with fresh Pinnacle odds")
+                                        fresh_potential_bets = analyze_markets_for_ev(betbck_data, processed_odds)
+                                        
+                                        # Filter out unrealistic EVs (outside ±30% range)
+                                        realistic_bets = []
+                                        for bet in fresh_potential_bets:
+                                            try:
+                                                ev_str = bet.get("ev", "0")
+                                                ev_value = float(ev_str.replace('%', ''))
+                                                if -30 <= ev_value <= 30:
+                                                    realistic_bets.append(bet)
+                                                else:
+                                                    print(f"[BackgroundRefresher] Filtering out unrealistic EV: {ev_str} for {bet.get('market', 'N/A')} {bet.get('selection', 'N/A')}")
+                                            except:
+                                                realistic_bets.append(bet)  # Keep if we can't parse EV
+                                        
+                                        # Update the processed odds with fresh EV calculations
+                                        processed_odds["markets"] = realistic_bets
+                                        event_data["pinnacle_data_processed"] = processed_odds
+                                        
+                                        print(f"[BackgroundRefresher] Updated EV analysis: {len(realistic_bets)} realistic bets found")
+                                    else:
+                                        print(f"[BackgroundRefresher] No BetBCK data available for EV re-analysis")
+                                except Exception as ev_error:
+                                    print(f"[BackgroundRefresher] Error re-analyzing EV: {ev_error}")
+                                    logger.error(f"[BackgroundRefresher] Error re-analyzing EV: {ev_error}")
+                                
                                 # Compare new odds/EV with previous
                                 new_markets = processed_odds.get("markets", [])
                                 new_nvp_map = { (m.get("market"), m.get("selection"), m.get("line")): m.get("pinnacle_nvp") for m in new_markets }
