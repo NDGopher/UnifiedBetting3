@@ -88,6 +88,28 @@ _pto_props_log_lock = threading.Lock()
 _last_memory_warning_time = 0
 _memory_warning_interval = 600  # 10 minutes in seconds
 
+# Add alert rate limiting
+_alert_rate_limit_window = 60  # 1 minute window
+_alert_rate_limit_max = 10     # Max 10 alerts per minute
+_alert_timestamps = []         # Track alert timestamps for rate limiting
+_alert_rate_limit_lock = threading.Lock()
+
+def check_alert_rate_limit():
+    """Check if we're within the alert rate limit (max 10 alerts per minute)"""
+    global _alert_timestamps
+    with _alert_rate_limit_lock:
+        now = time.time()
+        # Remove timestamps older than 1 minute
+        _alert_timestamps = [ts for ts in _alert_timestamps if (now - ts) < _alert_rate_limit_window]
+        
+        # Check if we're at the limit
+        if len(_alert_timestamps) >= _alert_rate_limit_max:
+            return False
+        
+        # Add current timestamp
+        _alert_timestamps.append(now)
+        return True
+
 def check_memory_usage():
     """Check memory usage and trigger cleanup if needed"""
     global _last_memory_warning_time
@@ -328,12 +350,33 @@ async def handle_pod_alert(request: Request):
             logger.error("[Server-PodAlert] Missing eventId in payload")
             return JSONResponse({"status": "error", "message": "Missing eventId"}, status_code=400)
 
+        # CRITICAL: Check for prop bets FIRST - reject immediately without any processing
+        home_team = payload.get("homeTeam", "")
+        away_team = payload.get("awayTeam", "")
+        prop_keywords = ['(Corners)', '(Bookings)', '(Hits+Runs+Errors)', '(Cards)', '(Fouls)', '(Shots)', '(Assists)', '(Rebounds)', '(Points)', '(Goals)']
+        
+        if any(keyword.lower() in home_team.lower() for keyword in prop_keywords) or \
+           any(keyword.lower() in away_team.lower() for keyword in prop_keywords):
+            logger.info(f"[PerEventQueue] REJECTING prop bet alert for Event ID: {event_id_str} - {home_team} vs {away_team}")
+            return JSONResponse({
+                "status": "success", 
+                "message": f"Prop bet alert for {event_id_str} ignored (not supported)"
+            })
+
         # CRITICAL: Check if BetBCK is rate limited - reject immediately
         if betbck_manager.rate_limited:
             logger.warning(f"[PerEventQueue] REJECTING alert for Event ID: {event_id_str} - BetBCK is rate limited")
             return JSONResponse({
                 "status": "error", 
                 "message": "BetBCK is rate limited - alert rejected to prevent further issues"
+            }, status_code=429)
+
+        # CRITICAL: Check alert rate limiting (max 10 alerts per minute)
+        if not check_alert_rate_limit():
+            logger.warning(f"[PerEventQueue] REJECTING alert for Event ID: {event_id_str} - Alert rate limit exceeded (max 10 per minute)")
+            return JSONResponse({
+                "status": "error", 
+                "message": "Alert rate limit exceeded - too many alerts in the last minute"
             }, status_code=429)
 
         # CRITICAL: Check deduplication BEFORE queuing to prevent rate limiting

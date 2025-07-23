@@ -84,7 +84,7 @@ def normalize_team_name_for_matching(name):
 
     # Remove country/competition suffixes if not the whole name
     suffix_patterns = [
-        r'\s*usa$', r'\s*u21$', r'\s*u19$', r'\s*uefa.*$', r'\s*fifa.*$', r'\s*euro.*$', r'\s*afc.*$', r'\s*concacaf.*$', r'\s*conmebol.*$', r'\s*olympics.*$', r'\s*championship.*$', r'\s*cup.*$', r'\s*league.*$', r'\s*mls$', r'\s*england$', r'\s*scotland$', r'\s*france$', r'\s*spain$', r'\s*italy$', r'\s*germany$', r'\s*netherlands$', r'\s*portugal$', r'\s*denmark$', r'\s*sweden$', r'\s*norway$', r'\s*switzerland$', r'\s*belgium$', r'\s*austria$', r'\s*poland$', r'\s*croatia$', r'\s*serbia$', r'\s*romania$', r'\s*bulgaria$', r'\s*slovakia$', r'\s*slovenia$', r'\s*hungary$', r'\s*czech republic$', r'\s*russia$', r'\s*ukraine$', r'\s*turkey$', r'\s*greece$', r'\s*ireland$', r'\s*wales$', r'\s*northern ireland$'
+        r'\s*usa$', r'\s*u21$', r'\s*u19$', r'\s*uefa.*$', r'uefa.*$', r'\s*fifa.*$', r'fifa.*$', r'\s*euro.*$', r'euro.*$', r'\s*afc.*$', r'afc.*$', r'\s*concacaf.*$', r'concacaf.*$', r'\s*conmebol.*$', r'conmebol.*$', r'\s*olympics.*$', r'olympics.*$', r'\s*championship.*$', r'championship.*$', r'\s*cup.*$', r'cup.*$', r'\s*league.*$', r'league.*$', r'\s*mls$', r'mls$', r'\s*england$', r'england$', r'\s*scotland$', r'scotland$', r'\s*france$', r'france$', r'\s*spain$', r'spain$', r'\s*italy$', r'italy$', r'\s*germany$', r'germany$', r'\s*netherlands$', r'netherlands$', r'\s*portugal$', r'portugal$', r'\s*denmark$', r'denmark$', r'\s*sweden$', r'sweden$', r'\s*norway$', r'norway$', r'\s*switzerland$', r'switzerland$', r'\s*belgium$', r'belgium$', r'\s*austria$', r'austria$', r'\s*poland$', r'poland$', r'\s*croatia$', r'croatia$', r'\s*serbia$', r'serbia$', r'\s*romania$', r'romania$', r'\s*bulgaria$', r'bulgaria$', r'\s*slovakia$', r'slovakia$', r'\s*slovenia$', r'slovenia$', r'\s*hungary$', r'hungary$', r'\s*czech republic$', r'czech republic$', r'\s*russia$', r'russia$', r'\s*ukraine$', r'ukraine$', r'\s*turkey$', r'turkey$', r'\s*greece$', r'greece$', r'\s*ireland$', r'ireland$', r'\s*wales$', r'wales$', r'\s*northern ireland$', r'northern ireland$'
     ]
     for pattern in suffix_patterns:
         if norm_name != pattern.strip('\\s*$'):
@@ -126,6 +126,13 @@ def normalize_team_name_for_matching(name):
     for suffix in suffixes:
         if normalized.endswith(suffix):
             normalized = normalized[:-len(suffix)]
+    
+    # Additional UEFA cleanup - remove UEFA suffix if it appears at the end
+    if normalized.endswith('uefa'):
+        normalized = normalized[:-4]  # Remove 'uefa' (4 characters)
+    
+    # Also remove any remaining UEFA with variations
+    normalized = re.sub(r'uefa.*$', '', normalized, flags=re.IGNORECASE).strip()
 
     norm_name = re.sub(r'^[^\w]+|[^\w]+$', '', normalized)
     norm_name = re.sub(r'[^\w\s\.\-\+]', '', norm_name)

@@ -12,6 +12,31 @@
     <link rel="apple-touch-icon" href="%PUBLIC_URL%/logo192.png" />
     <link rel="manifest" href="%PUBLIC_URL%/manifest.json" />
     <title>Unified Betting App</title>
+    
+    <!-- Suppress MetaMask errors -->
+    <script>
+      // Suppress MetaMask connection errors
+      window.addEventListener('error', function(event) {
+        if (event.error && event.error.message && 
+            (event.error.message.includes('MetaMask') || 
+             event.error.message.includes('Failed to connect to MetaMask'))) {
+          event.preventDefault();
+          console.log('MetaMask error suppressed:', event.error.message);
+          return false;
+        }
+      });
+      
+      // Also catch unhandled promise rejections
+      window.addEventListener('unhandledrejection', function(event) {
+        if (event.reason && event.reason.message && 
+            (event.reason.message.includes('MetaMask') || 
+             event.reason.message.includes('Failed to connect to MetaMask'))) {
+          event.preventDefault();
+          console.log('MetaMask promise rejection suppressed:', event.reason.message);
+          return false;
+        }
+      });
+    </script>
   </head>
   <body>
     <noscript>You need to enable JavaScript to run this app.</noscript>

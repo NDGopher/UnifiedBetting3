@@ -276,15 +276,25 @@ class BetBCKRequestManager:
             
         except Exception as e:
             logger.error(f"[BetBCK-Manager] Error processing request for {search_term}: {e}")
-            if "rate limit" in str(e).lower() or "429" in str(e) or "403" in str(e):
+            # Only set rate limited if the error message clearly indicates rate limiting
+            error_str = str(e).lower()
+            if any(indicator in error_str for indicator in ["rate limit", "429", "403", "503", "too many requests", "blocked", "suspended"]):
                 self._handle_rate_limit_detected(search_term, future)
             else:
+                # For other errors (timeouts, connection issues, etc.), just increment failure count
                 self.consecutive_failures += 1
-                future.set_result({
-                    "status": "error",
-                    "message": f"Scraping error: {str(e)}",
-                    "rate_limited": False
-                })
+                logger.warning(f"[BetBCK-Manager] Non-rate-limit error (failure #{self.consecutive_failures}): {e}")
+                
+                # Only set rate limited if we have too many consecutive failures
+                if self.consecutive_failures >= 10:
+                    logger.error(f"[BetBCK-Manager] Too many consecutive failures ({self.consecutive_failures}), setting rate limited")
+                    self._handle_rate_limit_detected(search_term, future)
+                else:
+                    future.set_result({
+                        "status": "error",
+                        "message": f"Scraping error: {str(e)}",
+                        "rate_limited": False
+                    })
         finally:
             # Remove event_id from in-progress set
             if hasattr(self, '_in_progress_events') and event_id in self._in_progress_events:

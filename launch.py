@@ -789,10 +789,6 @@ def launch_application():
         print_status("📦 Setting up frontend environment...", "INFO", Colors.BLUE)
         setup_frontend()
         
-        # Open Pinnacle Odds Dropper
-        print_status("🌐 Opening Pinnacle Odds Dropper...", "INFO", Colors.BLUE)
-        open_pinnacle_odds_dropper()
-        
         # Kill any existing Chrome processes to prevent profile conflicts
         print_status("🧹 Cleaning up Chrome processes...", "INFO", Colors.BLUE)
         try:
@@ -1078,6 +1074,10 @@ def launch_application():
         if not pto_monitoring_ready.wait(timeout=30):  # Reduced to 30 seconds
             print_status("PTO monitoring timeout - continuing anyway", "WARNING", Colors.YELLOW)
             print_status("💡 PTO may still be working, check manually at https://picktheodds.app", "INFO", Colors.CYAN)
+        
+        # Open Pinnacle Odds Dropper
+        print_status("🌐 Opening Pinnacle Odds Dropper...", "INFO", Colors.BLUE)
+        open_pinnacle_odds_dropper()
         
         # Print success banner with next steps (only after everything is truly ready)
         success_banner = f"""
